@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Sahakar Bharati</string>
+    <string name="rath_yatra_title">Sahakar Bharati</string>
+    <string name="get_started">Get Started</string>
+    <string name="sign_in">Sign In</string>
+    <string name="navigate_back">Navigate back</string>
+</resources>
