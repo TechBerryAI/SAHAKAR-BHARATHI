@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+import hashlib
+import re
+import secrets
+from datetime import UTC, datetime, timedelta
+
+from pwdlib import PasswordHash
+
+from app.core.config import Settings
+
+_PIN_RE = re.compile(r"^\d{4,6}$")
+_MOBILE_RE = re.compile(r"^[6-9]\d{9}$")
+_PINCODE_RE = re.compile(r"^\d{6}$")
+_HASHER = PasswordHash.recommended()
+
+
+def normalize_mobile(value: str) -> str:
+    digits = "".join(ch for ch in value if ch.isdigit())
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    return digits
+
+
+def normalize_email(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip().lower()
+    return cleaned or None
+
+
+def normalize_name(value: str) -> str:
+    return " ".join(value.split())
+
+
+def is_valid_pin(value: str) -> bool:
+    return bool(_PIN_RE.fullmatch(value))
+
+
+def is_valid_mobile(value: str) -> bool:
+    return bool(_MOBILE_RE.fullmatch(value))
+
+
+def is_valid_pincode(value: str | None) -> bool:
+    if value is None or value == "":
+        return True
+    return bool(_PINCODE_RE.fullmatch(value))
+
+
+def hash_pin(pin: str) -> str:
+    return _HASHER.hash(pin)
+
+
+def verify_pin(pin: str, pin_hash: str) -> bool:
+    return _HASHER.verify(pin, pin_hash)
+
+
+def generate_login_id() -> str:
+    return "SB-" + secrets.token_hex(4).upper()
+
+
+def issue_session_token() -> tuple[str, str]:
+    raw = secrets.token_urlsafe(32)
+    return raw, hash_token(raw)
+
+
+def hash_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def session_expiry(settings: Settings, now: datetime | None = None) -> datetime:
+    current = now or datetime.now(UTC)
+    return current + timedelta(seconds=settings.session_ttl_seconds)
+
+
+def hash_identifier(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()

@@ -38,6 +38,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -50,14 +51,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.sahakarbharati.core.copy.AppLanguage
-import com.example.sahakarbharati.data.AppSession
-import com.example.sahakarbharati.data.DemoPhotos
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
-import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.DemoAlertDialog
-import com.example.sahakarbharati.core.ui.DemoPhotoChoices
+import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.AppSession
+import com.example.sahakarbharati.data.sahakarViewModel
+import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.core.ui.LanguageChips
 import com.example.sahakarbharati.core.ui.ProfilePhoto
 import com.example.sahakarbharati.core.ui.RathBottomBar
@@ -80,6 +81,9 @@ fun ProfileScreen(
     val copy = LocalCopy.current
     val hindi = LocalLanguage.current == AppLanguage.HI
     val context = LocalContext.current
+    val profileViewModel: ProfileViewModel = sahakarViewModel()
+    LaunchedEffect(Unit) { profileViewModel.load() }
+    val profile = (profileViewModel.state as? UiState.Success)?.data
     var photoTick by rememberSaveable { mutableStateOf(0) }
     val pickPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -92,9 +96,9 @@ fun ProfileScreen(
     var notifyOn by rememberSaveable { mutableStateOf(session.notificationsEnabled) }
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
-    val name = session.name.ifBlank { if (hindi) "प्रतिभागी" else "Participant" }
-    val loginId = session.loginId.ifBlank { AppSession.DEFAULT_LOGIN_ID }
-    val mobile = session.mobile
+    val name = profile?.fullName?.ifBlank { session.name } ?: session.name.ifBlank { if (hindi) "प्रतिभागी" else "Participant" }
+    val loginId = profile?.loginId?.ifBlank { session.loginId } ?: session.loginId.ifBlank { "—" }
+    val mobile = profile?.mobile?.ifBlank { session.mobile } ?: session.mobile
     val initials = name.split(" ").filter { it.isNotBlank() }.take(2)
         .joinToString("") { it.first().uppercase() }
         .ifBlank { "SB" }
@@ -154,23 +158,12 @@ fun ProfileScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            if (hindi) "डेमो फ़ोटो चुनें या गैलरी से बदलें" else "Choose a demo photo or pick from gallery",
+                            if (hindi) "गैलरी से फ़ोटो चुनें" else "Pick a photo from the gallery",
                             style = MaterialTheme.typography.bodySmall,
                             color = RathYatraColors.OnSurfaceVariant,
                         )
                     }
                 }
-                DemoPhotoChoices(
-                    selectedPath = session.displayPhotoPath,
-                    boyLabel = if (hindi) "लड़का" else "Boy",
-                    girlLabel = if (hindi) "लड़की" else "Girl",
-                    onSelect = {
-                        session.setPhotoRef(it)
-                        photoTick += 1
-                    },
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    size = 56.dp,
-                )
                 }
             }
 
@@ -184,6 +177,11 @@ fun ProfileScreen(
                 icon = Icons.Outlined.PhoneIphone,
                 title = if (hindi) "मोबाइल" else "Mobile",
                 subtitle = if (mobile.length == 10) "+91 $mobile" else mobile.ifBlank { "—" },
+            )
+            ProfileRow(
+                icon = Icons.Outlined.Badge,
+                title = if (hindi) "व्यवसाय" else "Occupation",
+                subtitle = profile?.occupation ?: session.occupation.ifBlank { "—" },
             )
             ProfileRow(
                 icon = Icons.Outlined.QrCode2,

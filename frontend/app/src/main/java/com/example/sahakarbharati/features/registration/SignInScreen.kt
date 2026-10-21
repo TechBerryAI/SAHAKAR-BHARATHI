@@ -24,6 +24,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -35,11 +37,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.sahakarbharati.core.copy.AppLanguage
-import com.example.sahakarbharati.data.AppSession
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.SaffronButton
+import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.core.ui.StackTopBar
 import com.example.sahakarbharati.core.ui.WhiteCard
 import com.example.sahakarbharati.ui.theme.FieldShape
@@ -47,7 +50,6 @@ import com.example.sahakarbharati.ui.theme.RathYatraColors
 
 @Composable
 fun SignInScreen(
-    session: AppSession,
     onBack: () -> Unit,
     onSignedIn: () -> Unit,
     onCreateAccount: () -> Unit,
@@ -56,9 +58,21 @@ fun SignInScreen(
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
     val hindi = LocalLanguage.current == AppLanguage.HI
+    val viewModel: SignInViewModel = sahakarViewModel()
     var loginId by rememberSaveable { mutableStateOf("") }
     var pin by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(viewModel.state) {
+        when (val current = viewModel.state) {
+            is UiState.Success -> {
+                viewModel.consumeSuccess()
+                onSignedIn()
+            }
+            is UiState.Error -> error = current.message
+            else -> Unit
+        }
+    }
 
     val title = if (hindi) "साइन इन" else "Sign In"
     val loginLabel = if (hindi) "लॉगिन आईडी / मोबाइल" else "LOGIN ID / MOBILE"
@@ -68,16 +82,6 @@ fun SignInScreen(
         "Use the login ID from registration or your 10-digit mobile number."
     }
     val pinLabel = if (hindi) "पिन" else "PIN"
-    val noAccount = if (hindi) {
-        "कोई खाता नहीं मिला। पहले खाता बनाएँ।"
-    } else {
-        "No account found. Create an account first."
-    }
-    val badCreds = if (hindi) {
-        "लॉगिन आईडी या पिन गलत है।"
-    } else {
-        "Login ID or PIN is incorrect."
-    }
     val missing = if (hindi) {
         "लॉगिन आईडी और पिन लिखें।"
     } else {
@@ -157,22 +161,27 @@ fun SignInScreen(
                 Text(error, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.Emergency)
                 Spacer(Modifier.height(8.dp))
             }
-            SaffronButton(
-                text = copy.signIn,
-                onClick = {
-                    error = when {
-                        loginId.isBlank() || pin.length < 4 -> missing
-                        !session.isRegistered -> noAccount
-                        !session.login(loginId, pin) -> badCreds
-                        else -> {
-                            onSignedIn()
+            if (viewModel.state is UiState.Loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(28.dp),
+                    color = RathYatraColors.Saffron,
+                    strokeWidth = 3.dp,
+                )
+            } else {
+                SaffronButton(
+                    text = copy.signIn,
+                    onClick = {
+                        error = if (loginId.isBlank() || pin.length < 4) {
+                            missing
+                        } else {
+                            viewModel.submit(loginId, pin)
                             ""
                         }
-                    }
-                },
-                trailingIcon = Icons.AutoMirrored.Outlined.Login,
-                contentDescription = copy.signIn,
-            )
+                    },
+                    trailingIcon = Icons.AutoMirrored.Outlined.Login,
+                    contentDescription = copy.signIn,
+                )
+            }
             TextButton(onClick = onCreateAccount) {
                 Text(copy.createAccount, color = RathYatraColors.Navy)
             }

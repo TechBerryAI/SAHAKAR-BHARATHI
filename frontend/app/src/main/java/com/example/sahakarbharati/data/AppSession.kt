@@ -6,35 +6,105 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
+import com.example.sahakarbharati.SahakarApp
+import com.example.sahakarbharati.data.model.ParticipantProfile
+import com.example.sahakarbharati.data.repository.SessionStore
 import java.io.File
 
-class AppSession(private val prefs: SharedPreferences) {
+class AppSession(
+    private val securePrefs: SharedPreferences,
+    private val localPrefs: SharedPreferences,
+) : SessionStore {
     val isRegistered: Boolean
-        get() = prefs.getBoolean(KEY_REGISTERED, false)
+        get() = !loginId.isBlank()
 
     val isLoggedIn: Boolean
-        get() = isRegistered && prefs.getBoolean(KEY_LOGGED_IN, false)
+        get() = isLoggedIn()
 
     val loginId: String
-        get() = prefs.getString(KEY_LOGIN_ID, "") ?: ""
+        get() = securePrefs.getString(KEY_LOGIN_ID, "") ?: ""
 
     val mobile: String
-        get() = prefs.getString(KEY_MOBILE, "") ?: ""
+        get() = securePrefs.getString(KEY_MOBILE, "") ?: ""
 
     val name: String
-        get() = prefs.getString(KEY_NAME, "") ?: ""
+        get() = securePrefs.getString(KEY_NAME, "") ?: ""
+
+    val occupation: String
+        get() = securePrefs.getString(KEY_OCCUPATION, "") ?: ""
+
+    val email: String
+        get() = securePrefs.getString(KEY_EMAIL, "") ?: ""
+
+    val district: String
+        get() = securePrefs.getString(KEY_DISTRICT, "") ?: ""
+
+    val state: String
+        get() = securePrefs.getString(KEY_STATE, "") ?: ""
 
     val photoPath: String
-        get() = prefs.getString(KEY_PHOTO, "") ?: ""
+        get() = localPrefs.getString(KEY_PHOTO, "") ?: ""
 
     val displayPhotoPath: String
-        get() = photoPath.ifBlank { DemoPhotos.BOY }
+        get() = photoPath
 
     var notificationsEnabled: Boolean
-        get() = prefs.getBoolean(KEY_NOTIFICATIONS, true)
+        get() = localPrefs.getBoolean(KEY_NOTIFICATIONS, false)
         set(value) {
-            prefs.edit().putBoolean(KEY_NOTIFICATIONS, value).apply()
+            localPrefs.edit().putBoolean(KEY_NOTIFICATIONS, value).apply()
         }
+
+    override fun isLoggedIn(): Boolean = !accessToken().isNullOrBlank()
+
+    override fun accessToken(): String? = securePrefs.getString(KEY_TOKEN, null)?.takeIf { it.isNotBlank() }
+
+    override fun cachedProfile(): ParticipantProfile? {
+        if (loginId.isBlank() && name.isBlank()) return null
+        return ParticipantProfile(
+            loginId = loginId,
+            fullName = name,
+            mobile = mobile,
+            email = email.ifBlank { null },
+            occupation = occupation.ifBlank { null },
+            district = district.ifBlank { null },
+            state = state.ifBlank { null },
+        )
+    }
+
+    override fun saveSession(token: String, profile: ParticipantProfile) {
+        securePrefs.edit()
+            .putString(KEY_TOKEN, token)
+            .putString(KEY_LOGIN_ID, profile.loginId)
+            .putString(KEY_NAME, profile.fullName)
+            .putString(KEY_MOBILE, profile.mobile)
+            .putString(KEY_EMAIL, profile.email.orEmpty())
+            .putString(KEY_OCCUPATION, profile.occupation.orEmpty())
+            .putString(KEY_DISTRICT, profile.district.orEmpty())
+            .putString(KEY_STATE, profile.state.orEmpty())
+            .apply()
+    }
+
+    override fun saveProfile(profile: ParticipantProfile) {
+        securePrefs.edit()
+            .putString(KEY_LOGIN_ID, profile.loginId)
+            .putString(KEY_NAME, profile.fullName)
+            .putString(KEY_MOBILE, profile.mobile)
+            .putString(KEY_EMAIL, profile.email.orEmpty())
+            .putString(KEY_OCCUPATION, profile.occupation.orEmpty())
+            .putString(KEY_DISTRICT, profile.district.orEmpty())
+            .putString(KEY_STATE, profile.state.orEmpty())
+            .apply()
+    }
+
+    override fun clearSession() {
+        securePrefs.edit().clear().apply()
+        localPrefs.edit()
+            .remove(KEY_PHOTO)
+            .putBoolean(KEY_NOTIFICATIONS, false)
+            .apply()
+    }
 
     fun storePhoto(context: Context, uri: Uri): String? {
         val dest = File(context.filesDir, PHOTO_FILE)
@@ -42,71 +112,40 @@ class AppSession(private val prefs: SharedPreferences) {
             context.contentResolver.openInputStream(uri)?.use { input ->
                 dest.outputStream().use { output -> input.copyTo(output) }
             } ?: return null
-            prefs.edit().putString(KEY_PHOTO, dest.absolutePath).apply()
+            localPrefs.edit().putString(KEY_PHOTO, dest.absolutePath).apply()
             dest.absolutePath
         }.getOrNull()
     }
 
-    fun setPhotoRef(ref: String) {
-        prefs.edit().putString(KEY_PHOTO, ref).apply()
-    }
-
-    fun ensureDefaultPhoto() {
-        if (photoPath.isBlank()) setPhotoRef(DemoPhotos.BOY)
-    }
-
-    fun completeRegistration(
-        name: String,
-        mobile: String,
-        pin: String,
-        loginId: String = DEFAULT_LOGIN_ID,
-        photoPath: String = this.photoPath,
-    ) {
-        prefs.edit()
-            .putBoolean(KEY_REGISTERED, true)
-            .putBoolean(KEY_LOGGED_IN, true)
-            .putString(KEY_NAME, name)
-            .putString(KEY_MOBILE, mobile.filter(Char::isDigit))
-            .putString(KEY_PIN, pin)
-            .putString(KEY_LOGIN_ID, loginId)
-            .putString(KEY_PHOTO, photoPath)
-            .apply()
-    }
-
-    fun login(id: String, pin: String): Boolean {
-        if (!isRegistered) return false
-        val storedPin = prefs.getString(KEY_PIN, "") ?: return false
-        if (pin != storedPin) return false
-        val typedDigits = id.filter(Char::isDigit)
-        val typedKey = id.filter { it.isLetterOrDigit() }.lowercase()
-        val mobileKey = mobile.filter(Char::isDigit)
-        val loginKey = loginId.filter { it.isLetterOrDigit() }.lowercase()
-        val matches = typedKey == loginKey || (typedDigits.isNotEmpty() && typedDigits == mobileKey)
-        if (matches) {
-            prefs.edit().putBoolean(KEY_LOGGED_IN, true).apply()
-        }
-        return matches
-    }
-
-    fun logout() {
-        prefs.edit().putBoolean(KEY_LOGGED_IN, false).apply()
-    }
-
     companion object {
-        const val DEFAULT_LOGIN_ID = "FF-IND-1042"
-        private const val PREFS = "sahakar_session"
-        private const val KEY_REGISTERED = "registered"
-        private const val KEY_LOGGED_IN = "logged_in"
+        const val SECURE_PREFS = "sahakar_secure_session"
+        const val LOCAL_PREFS = "sahakar_session"
+        private const val KEY_TOKEN = "access_token"
+        private const val KEY_LOGIN_ID = "login_id"
         private const val KEY_NAME = "name"
         private const val KEY_MOBILE = "mobile"
-        private const val KEY_PIN = "pin"
-        private const val KEY_LOGIN_ID = "login_id"
+        private const val KEY_EMAIL = "email"
+        private const val KEY_OCCUPATION = "occupation"
+        private const val KEY_DISTRICT = "district"
+        private const val KEY_STATE = "state"
         private const val KEY_NOTIFICATIONS = "notifications"
         private const val KEY_PHOTO = "photo_path"
         private const val PHOTO_FILE = "profile_photo.jpg"
 
-        fun from(context: Context): AppSession =
-            AppSession(context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE))
+        fun from(context: Context): AppSession {
+            val appContext = context.applicationContext
+            val masterKey = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+            val secure = EncryptedSharedPreferences.create(
+                SECURE_PREFS,
+                masterKey,
+                appContext,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+            val local = appContext.getSharedPreferences(LOCAL_PREFS, Context.MODE_PRIVATE)
+            local.edit().remove("pin").apply()
+            return AppSession(secure, local)
+        }
     }
 }
 
@@ -119,17 +158,13 @@ object DemoPhotos {
 
     fun drawableName(ref: String): String? =
         ref.takeIf { it.startsWith(PREFIX) }?.removePrefix(PREFIX)
-
-    fun forGender(gender: String) = when (gender) {
-        "Female" -> GIRL
-        else -> BOY
-    }
 }
 
 @Composable
 fun rememberAppSession(): AppSession {
     val context = LocalContext.current
     return remember {
-        AppSession.from(context).also { it.ensureDefaultPhoto() }
+        val app = context.applicationContext
+        if (app is SahakarApp) app.container.session else AppSession.from(context)
     }
 }

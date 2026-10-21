@@ -37,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,10 +54,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.sahakarbharati.R
 import com.example.sahakarbharati.core.copy.LocalCopy
+import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.ProfilePhoto
+import com.example.sahakarbharati.core.ui.UiState
 import com.example.sahakarbharati.data.rememberAppSession
+import com.example.sahakarbharati.data.sahakarViewModel
+import com.example.sahakarbharati.features.home.HomeViewModel
 import com.example.sahakarbharati.core.ui.CitizenTopBar
 import com.example.sahakarbharati.core.ui.DemoAlertDialog
 import com.example.sahakarbharati.core.ui.RathBottomBar
@@ -78,8 +84,24 @@ fun CitizenHomeScreen(
 ) {
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
+    val hindi = LocalLanguage.current == AppLanguage.HI
     val session = rememberAppSession()
+    val homeViewModel: HomeViewModel = sahakarViewModel()
     var dialog by remember { mutableStateOf<String?>(null) }
+    val profile = (homeViewModel.state as? UiState.Success)?.data ?: session.cachedProfile()
+    val displayName = profile?.fullName?.ifBlank { session.name } ?: session.name
+    val displayId = profile?.loginId?.ifBlank { session.loginId } ?: session.loginId
+    val displayRole = profile?.occupation?.ifBlank { copy.roleChip } ?: session.occupation.ifBlank { copy.roleChip }
+    val greeting = if (displayName.isBlank()) {
+        copy.greeting
+    } else {
+        val first = displayName.trim().split(Regex("\\s+")).first()
+        if (hindi) "जय किसान, $first" else "Jai Kisan, $first"
+    }
+    val initials = displayName.split(" ").filter { it.isNotBlank() }.take(2)
+        .joinToString("") { it.first().uppercase() }
+        .ifBlank { "SB" }
+    LaunchedEffect(Unit) { homeViewModel.load() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -113,20 +135,26 @@ fun CitizenHomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ProfilePhoto(
                             photoPath = session.displayPhotoPath,
-                            initials = session.name.split(" ").filter { it.isNotBlank() }.take(2)
-                                .joinToString("") { it.first().uppercase() }
-                                .ifBlank { "KV" },
+                            initials = initials,
                             size = 48.dp,
                             onClick = onOpenProfile,
                         )
                         Column(Modifier.weight(1f)) {
-                            Text(copy.greeting, style = MaterialTheme.typography.headlineSmall, color = RathYatraColors.Navy)
-                            StatusChip(copy.roleChip, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success)
+                            Text(greeting, style = MaterialTheme.typography.headlineSmall, color = RathYatraColors.Navy)
+                            StatusChip(displayRole, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatusChip(copy.homeId, container = RathYatraColors.SurfaceContainerLow, content = RathYatraColors.Navy)
-                        StatusChip(copy.homeZone, container = RathYatraColors.SurfaceContainerLow, content = RathYatraColors.OnSurfaceVariant)
+                        StatusChip(
+                            if (displayId.isBlank()) copy.homeId else "ID: $displayId",
+                            container = RathYatraColors.SurfaceContainerLow,
+                            content = RathYatraColors.Navy,
+                        )
+                        StatusChip(
+                            profile?.region?.ifBlank { copy.homeZone } ?: copy.homeZone,
+                            container = RathYatraColors.SurfaceContainerLow,
+                            content = RathYatraColors.OnSurfaceVariant,
+                        )
                         StatusChip(copy.ePass, container = RathYatraColors.PrimaryFixed, content = RathYatraColors.BurntSaffron)
                     }
                     Text(
@@ -259,7 +287,7 @@ fun CitizenHomeScreen(
                         Text(copy.trajectorySub, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
                     }
                     LinearProgressIndicator(
-                        progress = { 0.52f },
+                        progress = { 0f },
                         modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
                         color = RathYatraColors.Saffron,
                         trackColor = RathYatraColors.SurfaceContainerHighest,

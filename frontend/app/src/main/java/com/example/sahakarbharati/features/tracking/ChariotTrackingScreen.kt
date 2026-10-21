@@ -200,7 +200,7 @@ private fun RouteSchematic(labels: List<String>) {
             val start = 16f
             val end = size.width - 16f
             drawLine(RathYatraColors.SurfaceContainerHighest, Offset(start, y), Offset(end, y), 8f, StrokeCap.Round)
-            drawLine(RathYatraColors.SaffronBright, Offset(start, y), Offset(start + (end - start) * 0.32f, y), 8f, StrokeCap.Round)
+            drawLine(RathYatraColors.SaffronBright, Offset(start, y), Offset(start, y), 8f, StrokeCap.Round)
             for (i in 0 until count) {
                 val x = start + (end - start) * (i / (count - 1f))
                 val color = when (i) {

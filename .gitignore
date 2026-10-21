@@ -23,3 +23,20 @@ google-services.json
 *.hprof
 .cxx/
 .externalNativeBuild/
+
+# Python backend
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+backend/.venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/

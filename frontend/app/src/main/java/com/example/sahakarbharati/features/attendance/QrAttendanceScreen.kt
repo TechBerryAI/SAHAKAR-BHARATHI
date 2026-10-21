@@ -150,9 +150,21 @@ fun QrAttendanceScreen(
             if (showPass) {
                 WhiteCard {
                     Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(copy.pilgrimName, style = MaterialTheme.typography.headlineSmall, color = RathYatraColors.Navy)
-                        Text(copy.pilgrimReg, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-                        StatusChip(copy.verified, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success)
+                        Text(
+                            session.name.ifBlank { copy.pilgrimName },
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = RathYatraColors.Navy,
+                        )
+                        Text(
+                            if (session.loginId.isBlank()) copy.pilgrimReg else "Participant: ${session.loginId}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = RathYatraColors.OnSurfaceVariant,
+                        )
+                        StatusChip(
+                            session.occupation.ifBlank { copy.verified },
+                            container = RathYatraColors.Success.copy(alpha = 0.12f),
+                            content = RathYatraColors.Success,
+                        )
                         Box(
                             Modifier
                                 .size(180.dp)
@@ -160,7 +172,13 @@ fun QrAttendanceScreen(
                                 .border(1.dp, RathYatraColors.Navy, RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            SampleQrGraphic()
+                            Text(
+                                copy.comingSoonBody,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = RathYatraColors.OnSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(16.dp),
+                            )
                         }
                         Text(copy.passHint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant, textAlign = TextAlign.Center)
                     }
@@ -293,8 +311,8 @@ fun QrAttendanceScreen(
                     leadingIcon = { Icon(Icons.Outlined.Pin, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                SaffronButton(text = copy.submitPin, onClick = { showPin = false; pin = "" })
-                Text(copy.pinNote, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
+                SaffronButton(text = copy.submitPin, onClick = { dialog = "report"; showPin = false; pin = "" })
+                Text(copy.comingSoonBody, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
             }
         }
@@ -344,22 +362,3 @@ private fun HistoryRow(icon: androidx.compose.ui.graphics.vector.ImageVector, ti
     }
 }
 
-@Composable
-private fun SampleQrGraphic() {
-    Canvas(Modifier.size(140.dp)) {
-        val cells = 7
-        val cell = size.minDimension / cells
-        for (x in 0 until cells) {
-            for (y in 0 until cells) {
-                val dark = (x + y) % 2 == 0 || (x < 2 && y < 2) || (x > cells - 3 && y < 2) || (x < 2 && y > cells - 3)
-                if (dark) {
-                    drawRect(
-                        color = RathYatraColors.Navy,
-                        topLeft = Offset(x * cell, y * cell),
-                        size = androidx.compose.ui.geometry.Size(cell * 0.92f, cell * 0.92f),
-                    )
-                }
-            }
-        }
-    }
-}

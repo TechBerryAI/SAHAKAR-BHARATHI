@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
+import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.core.ui.OutlinedIvoryButton
 import com.example.sahakarbharati.core.ui.PulseDot
 import com.example.sahakarbharati.core.ui.SaffronButton
@@ -60,8 +61,20 @@ fun RegistrationSuccessScreen(
 ) {
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
+    val session = rememberAppSession()
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
+    val participantId = session.loginId.ifBlank { copy.participantIdValue }
+    val occupation = session.occupation.ifBlank { copy.occupationValue }
+    val region = listOfNotNull(
+        session.district.takeIf { it.isNotBlank() },
+        session.state.takeIf { it.isNotBlank() },
+    ).joinToString(" • ").ifBlank { copy.regionValue }
+    val successBody = if (session.name.isNotBlank()) {
+        "${copy.successBody} ${session.name}."
+    } else {
+        copy.successBody
+    }
 
     Column(
         modifier = modifier
@@ -99,7 +112,7 @@ fun RegistrationSuccessScreen(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            copy.successBody,
+            successBody,
             style = MaterialTheme.typography.bodyMedium,
             color = RathYatraColors.OnSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -125,10 +138,10 @@ fun RegistrationSuccessScreen(
                     }
                     StatusChip(copy.active, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success, leadingDot = RathYatraColors.Success)
                 }
-                CredentialRow(copy.participantId, copy.participantIdValue, action = {
+                CredentialRow(copy.participantId, participantId, action = {
                     IconButton(
                         onClick = {
-                            clipboard.setText(AnnotatedString(copy.participantIdValue))
+                            clipboard.setText(AnnotatedString(participantId))
                             copied = true
                         },
                     ) {
@@ -138,10 +151,10 @@ fun RegistrationSuccessScreen(
                         )
                     }
                 })
-                CredentialRow(copy.occupationLabel, copy.occupationValue) {
+                CredentialRow(copy.occupationLabel, occupation) {
                     Icon(Icons.Outlined.VerifiedUser, contentDescription = null, tint = RathYatraColors.Success)
                 }
-                CredentialRow(copy.regionLabel, copy.regionValue) {
+                CredentialRow(copy.regionLabel, region) {
                     Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = RathYatraColors.Navy)
                 }
                 CredentialRow(copy.passStatus, copy.passReady) {

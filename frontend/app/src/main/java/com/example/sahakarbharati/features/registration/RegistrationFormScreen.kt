@@ -48,9 +48,7 @@ import androidx.compose.material.icons.outlined.Male
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Transgender
-import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material.icons.outlined.VerifiedUser
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -66,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,15 +83,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.sahakarbharati.core.copy.AppLanguage
-import com.example.sahakarbharati.data.AppSession
-import com.example.sahakarbharati.data.DemoPhotos
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
-import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.core.copy.RathYatraCopy
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
-import com.example.sahakarbharati.core.ui.DemoPhotoChoices
+import com.example.sahakarbharati.core.ui.ProfilePhoto
 import com.example.sahakarbharati.core.ui.SaffronButton
+import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.remote.RegistrationRequest
+import com.example.sahakarbharati.data.rememberAppSession
+import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.core.ui.StackTopBar
 import com.example.sahakarbharati.core.ui.StatusChip
 import com.example.sahakarbharati.core.ui.WhiteCard
@@ -120,17 +120,17 @@ fun RegistrationFormScreen(
     val context = LocalContext.current
     val session = rememberAppSession()
     val scope = rememberCoroutineScope()
+    val viewModel: RegistrationViewModel = sahakarViewModel()
 
     var step by rememberSaveable { mutableStateOf(0) }
     var showSos by rememberSaveable { mutableStateOf(false) }
     var showDobPicker by rememberSaveable { mutableStateOf(false) }
-    var name by rememberSaveable { mutableStateOf("Kiran Verma") }
-    var dob by rememberSaveable { mutableStateOf("14 / 08 / 1988") }
-    var gender by rememberSaveable { mutableStateOf("Male") }
-    var occupation by rememberSaveable { mutableStateOf("Farmer") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var dob by rememberSaveable { mutableStateOf("") }
+    var gender by rememberSaveable { mutableStateOf("") }
+    var occupation by rememberSaveable { mutableStateOf("") }
     var mobile by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
-    var aadhaar by rememberSaveable { mutableStateOf("") }
     var addressLine by rememberSaveable { mutableStateOf("") }
     var locality by rememberSaveable { mutableStateOf("") }
     var district by rememberSaveable { mutableStateOf("") }
@@ -141,13 +141,18 @@ fun RegistrationFormScreen(
     var locating by rememberSaveable { mutableStateOf(false) }
     var locationNote by rememberSaveable { mutableStateOf("") }
     var stepError by rememberSaveable { mutableStateOf("") }
-    var identityConfirmed by rememberSaveable { mutableStateOf(false) }
-    var otpSent by rememberSaveable { mutableStateOf(false) }
-    var issuedOtp by rememberSaveable { mutableStateOf("") }
-    var otpInput by rememberSaveable { mutableStateOf("") }
-    var aadhaarVerified by rememberSaveable { mutableStateOf(false) }
-    var aadhaarStatus by rememberSaveable { mutableStateOf("") }
-    var photoPath by rememberSaveable { mutableStateOf(DemoPhotos.BOY) }
+    var photoPath by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(viewModel.state) {
+        val current = viewModel.state
+        if (current is UiState.Success) {
+            viewModel.consumeSuccess()
+            onContinue()
+        }
+        if (current is UiState.Error) {
+            stepError = current.message
+        }
+    }
 
     val ageYears = remember(dob) { ageYearsFromDob(dob) }
     val ageText = if (language == AppLanguage.HI) "$ageYears वर्ष" else "$ageYears Years"
@@ -210,7 +215,10 @@ fun RegistrationFormScreen(
         stepError = when (step) {
             0 -> when {
                 name.isBlank() -> extra.nameRequired
-                photoPath.isBlank() -> extra.photoRequired
+                gender.isBlank() -> extra.genderRequired
+                dob.isBlank() -> extra.dobRequired
+                ageYears in 1..17 -> extra.ageTooYoung
+                occupation.isBlank() -> extra.occupationRequired
                 else -> ""
             }
             1 -> when {
@@ -218,9 +226,6 @@ fun RegistrationFormScreen(
                 else -> ""
             }
             2 -> when {
-                !isValidAadhaar(aadhaar) -> extra.aadhaarInvalid
-                !identityConfirmed -> extra.aadhaarConfirmRequired
-                !aadhaarVerified -> extra.aadhaarVerifyRequired
                 addressLine.isBlank() && locality.isBlank() -> extra.addressRequired
                 else -> ""
             }
@@ -234,14 +239,22 @@ fun RegistrationFormScreen(
         if (step < 3) {
             step += 1
         } else {
-            session.completeRegistration(
-                name = name,
-                mobile = mobile,
-                pin = pin,
-                loginId = AppSession.DEFAULT_LOGIN_ID,
-                photoPath = photoPath,
+            viewModel.submit(
+                RegistrationRequest(
+                    fullName = name,
+                    gender = gender.ifBlank { null },
+                    dateOfBirth = isoDob(dob),
+                    occupation = occupation.ifBlank { null },
+                    mobile = mobile,
+                    email = email.ifBlank { null },
+                    addressLine = addressLine.ifBlank { null },
+                    locality = locality.ifBlank { null },
+                    district = district.ifBlank { null },
+                    state = stateName.ifBlank { null },
+                    pincode = pincode.ifBlank { null },
+                    pin = pin,
+                ),
             )
-            onContinue()
         }
     }
 
@@ -318,14 +331,8 @@ fun RegistrationFormScreen(
                     onName = { name = it },
                     photoPath = photoPath,
                     onPickPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    onSelectDemoPhoto = { photoPath = it },
                     gender = gender,
-                    onGender = {
-                        gender = it
-                        if (photoPath.isBlank() || DemoPhotos.isDemo(photoPath)) {
-                            photoPath = DemoPhotos.forGender(it)
-                        }
-                    },
+                    onGender = { gender = it },
                     dob = dob,
                     onOpenDob = { showDobPicker = true },
                     ageText = ageText,
@@ -342,53 +349,6 @@ fun RegistrationFormScreen(
                 )
                 2 -> AddressStep(
                     extra = extra,
-                    name = name,
-                    dob = dob,
-                    mobile = mobile,
-                    aadhaar = aadhaar,
-                    onAadhaar = { raw ->
-                        val digits = raw.filter(Char::isDigit).take(12)
-                        if (digits != aadhaar) {
-                            aadhaar = digits
-                            identityConfirmed = false
-                            otpSent = false
-                            issuedOtp = ""
-                            otpInput = ""
-                            aadhaarVerified = false
-                            aadhaarStatus = ""
-                        }
-                    },
-                    identityConfirmed = identityConfirmed,
-                    onIdentityConfirmed = { identityConfirmed = it },
-                    otpSent = otpSent,
-                    issuedOtp = issuedOtp,
-                    otpInput = otpInput,
-                    onOtpInput = { otpInput = it.filter(Char::isDigit).take(6) },
-                    aadhaarVerified = aadhaarVerified,
-                    aadhaarStatus = aadhaarStatus,
-                    onSendOtp = {
-                        when {
-                            !isValidAadhaar(aadhaar) -> aadhaarStatus = extra.aadhaarInvalid
-                            !identityConfirmed -> aadhaarStatus = extra.aadhaarConfirmRequired
-                            mobile.filter(Char::isDigit).length != 10 -> aadhaarStatus = extra.mobileRequired
-                            else -> {
-                                issuedOtp = (100000..999999).random().toString()
-                                otpSent = true
-                                otpInput = ""
-                                aadhaarVerified = false
-                                aadhaarStatus = extra.otpSent.format(maskMobile(mobile))
-                            }
-                        }
-                    },
-                    onConfirmOtp = {
-                        if (otpInput.isNotEmpty() && otpInput == issuedOtp) {
-                            aadhaarVerified = true
-                            aadhaarStatus = extra.aadhaarVerified
-                        } else {
-                            aadhaarVerified = false
-                            aadhaarStatus = extra.otpWrong
-                        }
-                    },
                     addressLine = addressLine,
                     onAddressLine = { addressLine = it },
                     locality = locality,
@@ -441,12 +401,20 @@ fun RegistrationFormScreen(
                     color = RathYatraColors.Emergency,
                 )
             }
-            SaffronButton(
-                text = if (step == 3) copy.createAccount else copy.continueNext,
-                onClick = { advance() },
-                trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = if (step == 3) copy.createAccount else copy.continueNext,
-            )
+            if (viewModel.state is UiState.Loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    color = RathYatraColors.Saffron,
+                    strokeWidth = 3.dp,
+                )
+            } else {
+                SaffronButton(
+                    text = if (step == 3) copy.createAccount else copy.continueNext,
+                    onClick = { advance() },
+                    trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = if (step == 3) copy.createAccount else copy.continueNext,
+                )
+            }
         }
     }
     if (showSos) {
@@ -478,7 +446,6 @@ private fun ColumnScope.PersonalStep(
     onName: (String) -> Unit,
     photoPath: String,
     onPickPhoto: () -> Unit,
-    onSelectDemoPhoto: (String) -> Unit,
     gender: String,
     onGender: (String) -> Unit,
     dob: String,
@@ -503,12 +470,13 @@ private fun ColumnScope.PersonalStep(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(extra.photoTitle, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-            DemoPhotoChoices(
-                selectedPath = photoPath,
-                boyLabel = extra.photoBoy,
-                girlLabel = extra.photoGirl,
-                onSelect = onSelectDemoPhoto,
+            ProfilePhoto(
+                photoPath = photoPath,
+                initials = name.split(" ").filter { it.isNotBlank() }.take(2)
+                    .joinToString("") { it.first().uppercase() }
+                    .ifBlank { "SB" },
                 size = 88.dp,
+                onClick = onPickPhoto,
             )
             Text(
                 extra.photoHint,
@@ -677,21 +645,6 @@ private fun ColumnScope.ContactStep(
 @Composable
 private fun ColumnScope.AddressStep(
     extra: FormExtraCopy,
-    name: String,
-    dob: String,
-    mobile: String,
-    aadhaar: String,
-    onAadhaar: (String) -> Unit,
-    identityConfirmed: Boolean,
-    onIdentityConfirmed: (Boolean) -> Unit,
-    otpSent: Boolean,
-    issuedOtp: String,
-    otpInput: String,
-    onOtpInput: (String) -> Unit,
-    aadhaarVerified: Boolean,
-    aadhaarStatus: String,
-    onSendOtp: () -> Unit,
-    onConfirmOtp: () -> Unit,
     addressLine: String,
     onAddressLine: (String) -> Unit,
     locality: String,
@@ -710,79 +663,6 @@ private fun ColumnScope.AddressStep(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(extra.profileCard, style = MaterialTheme.typography.titleSmall, color = RathYatraColors.Navy)
             Text(extra.profileBody, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-        }
-    }
-    WhiteCard {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(extra.aadhaarLabel, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-            OutlinedTextField(
-                value = formatAadhaar(aadhaar),
-                onValueChange = onAadhaar,
-                modifier = Modifier.fillMaxWidth(),
-                shape = FieldShape,
-                colors = fieldColors(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                trailingIcon = {
-                    if (aadhaarVerified) {
-                        Icon(Icons.Outlined.Verified, contentDescription = extra.aadhaarVerified, tint = RathYatraColors.Success)
-                    }
-                },
-            )
-            Text(extra.aadhaarHint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-            if (aadhaar.length == 12) {
-                Text(
-                    if (isValidAadhaar(aadhaar)) extra.aadhaarChecksumOk else extra.aadhaarInvalid,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isValidAadhaar(aadhaar)) RathYatraColors.Success else RathYatraColors.Emergency,
-                )
-            }
-            Text(
-                extra.aadhaarMatchLine.format(name, dob, maskMobile(mobile)),
-                style = MaterialTheme.typography.bodySmall,
-                color = RathYatraColors.OnSurface,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = identityConfirmed,
-                    onCheckedChange = onIdentityConfirmed,
-                )
-                Text(extra.aadhaarConfirm, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurface)
-            }
-            SaffronButton(
-                text = if (otpSent) extra.resendOtp else extra.sendAadhaarOtp,
-                onClick = onSendOtp,
-                contentDescription = extra.sendAadhaarOtp,
-            )
-            if (otpSent && !aadhaarVerified) {
-                Text(
-                    extra.otpDemoHint.format(issuedOtp, maskMobile(mobile)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = RathYatraColors.Navy,
-                )
-                OutlinedTextField(
-                    value = otpInput,
-                    onValueChange = onOtpInput,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = FieldShape,
-                    colors = fieldColors(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    singleLine = true,
-                    placeholder = { Text(extra.otpPlaceholder) },
-                )
-                SaffronButton(
-                    text = extra.confirmOtp,
-                    onClick = onConfirmOtp,
-                    contentDescription = extra.confirmOtp,
-                )
-            }
-            if (aadhaarStatus.isNotEmpty()) {
-                Text(
-                    aadhaarStatus,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (aadhaarVerified) RathYatraColors.Success else RathYatraColors.Navy,
-                )
-            }
         }
     }
     WhiteCard {
@@ -926,7 +806,7 @@ private fun BirthdayPickerDialog(
         java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
     }
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = parseDobToUtcMillis(initialDob) ?: defaultDobMillis(),
+        initialSelectedDateMillis = parseDobToUtcMillis(initialDob),
         yearRange = IntRange(currentYear - 120, currentYear),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= today
@@ -962,22 +842,6 @@ private data class FormExtraCopy(
     val profileStep: String,
     val profileCard: String,
     val profileBody: String,
-    val aadhaarLabel: String,
-    val aadhaarHint: String,
-    val aadhaarChecksumOk: String,
-    val aadhaarInvalid: String,
-    val aadhaarMatchLine: String,
-    val aadhaarConfirm: String,
-    val aadhaarConfirmRequired: String,
-    val aadhaarVerifyRequired: String,
-    val sendAadhaarOtp: String,
-    val resendOtp: String,
-    val otpSent: String,
-    val otpDemoHint: String,
-    val otpPlaceholder: String,
-    val confirmOtp: String,
-    val otpWrong: String,
-    val aadhaarVerified: String,
     val addressLabel: String,
     val houseLabel: String,
     val houseHint: String,
@@ -1002,12 +866,13 @@ private data class FormExtraCopy(
     val photoHint: String,
     val photoReady: String,
     val photoRequired: String,
-    val photoBoy: String,
-    val photoGirl: String,
     val photoGallery: String,
     val nameRequired: String,
+    val genderRequired: String,
+    val dobRequired: String,
+    val occupationRequired: String,
+    val ageTooYoung: String,
     val mobileRequired: String,
-    val aadhaarRequired: String,
     val addressRequired: String,
     val pinRequired: String,
     val pinMismatch: String,
@@ -1023,26 +888,10 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         mobileHint = "10 अंकों का भारतीय मोबाइल नंबर।",
         emailLabel = "ईमेल (वैकल्पिक)",
         emailHint = "पास और सूचनाएँ भेजने के लिए।",
-        profileTitle = "पहचान और पता",
-        profileStep = "चरण 3 / 4: पहचान और पता (75%)",
-        profileCard = "आधार और पता",
-        profileBody = "पहले आधार संख्या की जाँच होगी, फिर नाम और जन्म तिथि की पुष्टि, फिर आपके मोबाइल पर OTP। यह UIDAI e-KYC नहीं है।",
-        aadhaarLabel = "आधार संख्या",
-        aadhaarHint = "12 अंक। संख्या वैध होनी चाहिए। UIDAI से व्यक्ति-मिलान इस ऐप में नहीं जुड़ा है।",
-        aadhaarChecksumOk = "आधार संख्या प्रारूप सही है।",
-        aadhaarInvalid = "यह आधार संख्या वैध नहीं है। अंक जाँचें।",
-        aadhaarMatchLine = "इस फ़ॉर्म पर नाम %s, जन्म %s, मोबाइल %s है। पुष्टि करें कि यही आपके आधार पर है।",
-        aadhaarConfirm = "मैं पुष्टि करता/करती हूँ कि यह आधार इसी व्यक्ति का है।",
-        aadhaarConfirmRequired = "आधार इसी नाम और जन्म तिथि का है, यह चुनें।",
-        aadhaarVerifyRequired = "आगे बढ़ने से पहले आधार OTP से सत्यापित करें।",
-        sendAadhaarOtp = "मोबाइल पर OTP भेजें",
-        resendOtp = "OTP फिर भेजें",
-        otpSent = "OTP %s पर भेजा गया।",
-        otpDemoHint = "इस डिवाइस जाँच के लिए कोड %s है। मोबाइल %s।",
-        otpPlaceholder = "6 अंकों का OTP",
-        confirmOtp = "OTP सत्यापित करें",
-        otpWrong = "OTP गलत है। फिर कोशिश करें।",
-        aadhaarVerified = "आधार संख्या वैध है और पंजीकृत मोबाइल से पुष्टि हो गई।",
+        profileTitle = "पता",
+        profileStep = "चरण 3 / 4: पता (75%)",
+        profileCard = "पता",
+        profileBody = "उत्सव पास के लिए अपना पता लिखें।",
         addressLabel = "पता",
         houseLabel = "मकान / गली / पता पंक्ति",
         houseHint = "लोकेशन से भरा जा सकता है, फिर ठीक करें।",
@@ -1064,15 +913,16 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         pinHint = "कम से कम 4 अंक।",
         confirmPinLabel = "पिन की पुष्टि",
         photoTitle = "प्रोफ़ाइल फ़ोटो",
-        photoHint = "डेमो के लिए लड़का या लड़की चुनें। गैलरी से भी फ़ोटो ले सकते हैं।",
+        photoHint = "गैलरी से फ़ोटो चुनें। फ़ोटो वैकल्पिक है और इसी उपकरण पर रहती है।",
         photoReady = "फ़ोटो जुड़ गई। बदलने के लिए फिर टैप करें।",
         photoRequired = "आगे बढ़ने से पहले प्रोफ़ाइल फ़ोटो जोड़ें।",
-        photoBoy = "लड़का",
-        photoGirl = "लड़की",
         photoGallery = "गैलरी से चुनें",
         nameRequired = "पूरा नाम लिखें।",
+        genderRequired = "लिंग चुनें।",
+        dobRequired = "जन्म तिथि चुनें।",
+        occupationRequired = "व्यवसाय चुनें।",
+        ageTooYoung = "स्वतंत्र पास के लिए न्यूनतम आयु 18 वर्ष है।",
         mobileRequired = "10 अंकों का मोबाइल नंबर लिखें।",
-        aadhaarRequired = "12 अंकों का आधार नंबर लिखें।",
         addressRequired = "पता लिखें या लोकेशन से भरें।",
         pinRequired = "कम से कम 4 अंकों का पिन बनाएँ।",
         pinMismatch = "पिन मेल नहीं खाते।",
@@ -1085,26 +935,10 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         mobileHint = "10-digit Indian mobile number.",
         emailLabel = "EMAIL (OPTIONAL)",
         emailHint = "Used only to send the pass and notices.",
-        profileTitle = "Identity & Address",
-        profileStep = "STEP 3 OF 4: IDENTITY & ADDRESS (75%)",
-        profileCard = "Aadhaar and address",
-        profileBody = "The Aadhaar number is checked first, then you confirm the name and date of birth, then an OTP is sent to your registered mobile. This is not UIDAI e-KYC.",
-        aadhaarLabel = "AADHAAR NUMBER",
-        aadhaarHint = "12 digits. The number must pass the official checksum. UIDAI person-match is not connected in this app.",
-        aadhaarChecksumOk = "Aadhaar number format is valid.",
-        aadhaarInvalid = "This Aadhaar number is not valid. Check the digits.",
-        aadhaarMatchLine = "This form has name %s, birth %s, mobile %s. Confirm these match your Aadhaar card.",
-        aadhaarConfirm = "I confirm this Aadhaar belongs to this person.",
-        aadhaarConfirmRequired = "Confirm that this Aadhaar matches the name and date of birth.",
-        aadhaarVerifyRequired = "Verify Aadhaar with the mobile OTP before continuing.",
-        sendAadhaarOtp = "Send OTP to mobile",
-        resendOtp = "Resend OTP",
-        otpSent = "OTP sent to %s.",
-        otpDemoHint = "On-device check code is %s for mobile %s.",
-        otpPlaceholder = "6-digit OTP",
-        confirmOtp = "Verify OTP",
-        otpWrong = "OTP is incorrect. Try again.",
-        aadhaarVerified = "Aadhaar number is valid and confirmed on the registered mobile.",
+        profileTitle = "Address",
+        profileStep = "STEP 3 OF 4: ADDRESS (75%)",
+        profileCard = "Address",
+        profileBody = "Add the address for your participant pass.",
         addressLabel = "ADDRESS",
         houseLabel = "HOUSE / STREET / ADDRESS LINE",
         houseHint = "Filled from location when possible. Edit if needed.",
@@ -1126,65 +960,20 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         pinHint = "At least 4 digits.",
         confirmPinLabel = "CONFIRM PIN",
         photoTitle = "PROFILE PHOTO",
-        photoHint = "Pick the boy or girl photo for this demo, or choose one from the gallery.",
+        photoHint = "Pick a photo from the gallery. Photos stay on this device and are optional.",
         photoReady = "Photo added. Tap again to change it.",
         photoRequired = "Add a profile photo before continuing.",
-        photoBoy = "Boy",
-        photoGirl = "Girl",
         photoGallery = "Pick from gallery",
         nameRequired = "Enter your full name.",
+        genderRequired = "Select a gender.",
+        dobRequired = "Select your date of birth.",
+        occupationRequired = "Select an occupation.",
+        ageTooYoung = "Minimum age is 18 for an independent pass.",
         mobileRequired = "Enter a 10-digit mobile number.",
-        aadhaarRequired = "Enter a 12-digit Aadhaar number.",
         addressRequired = "Enter an address or fill it from location.",
         pinRequired = "Create a PIN of at least 4 digits.",
         pinMismatch = "PIN values do not match.",
     )
-
-private fun formatAadhaar(digits: String): String {
-    val clean = digits.filter(Char::isDigit).take(12)
-    return clean.chunked(4).joinToString(" ")
-}
-
-private fun maskMobile(mobile: String): String {
-    val digits = mobile.filter(Char::isDigit)
-    if (digits.length < 4) return "+91 ----------"
-    return "+91 ******${digits.takeLast(4)}"
-}
-
-private val VerhoeffD = arrayOf(
-    intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
-    intArrayOf(1, 2, 3, 4, 0, 6, 7, 8, 9, 5),
-    intArrayOf(2, 3, 4, 0, 1, 7, 8, 9, 5, 6),
-    intArrayOf(3, 4, 0, 1, 2, 8, 9, 5, 6, 7),
-    intArrayOf(4, 0, 1, 2, 3, 9, 5, 6, 7, 8),
-    intArrayOf(5, 9, 8, 7, 6, 0, 4, 3, 2, 1),
-    intArrayOf(6, 5, 9, 8, 7, 1, 0, 4, 3, 2),
-    intArrayOf(7, 6, 5, 9, 8, 2, 1, 0, 4, 3),
-    intArrayOf(8, 7, 6, 5, 9, 3, 2, 1, 0, 4),
-    intArrayOf(9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
-)
-
-private val VerhoeffP = arrayOf(
-    intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
-    intArrayOf(1, 5, 7, 6, 2, 8, 3, 0, 9, 4),
-    intArrayOf(5, 8, 0, 3, 7, 9, 6, 1, 4, 2),
-    intArrayOf(8, 9, 1, 6, 0, 4, 3, 5, 2, 7),
-    intArrayOf(9, 4, 5, 3, 1, 2, 6, 8, 7, 0),
-    intArrayOf(4, 2, 8, 6, 5, 7, 3, 9, 0, 1),
-    intArrayOf(2, 7, 9, 3, 8, 0, 6, 4, 1, 5),
-    intArrayOf(7, 0, 4, 6, 9, 1, 3, 2, 5, 8),
-)
-
-private fun isValidAadhaar(raw: String): Boolean {
-    val digits = raw.filter(Char::isDigit)
-    if (digits.length != 12) return false
-    if (digits[0] == '0' || digits[0] == '1') return false
-    var checksum = 0
-    digits.reversed().forEachIndexed { index, char ->
-        checksum = VerhoeffD[checksum][VerhoeffP[index % 8][char - '0']]
-    }
-    return checksum == 0
-}
 
 private data class AddressResult(
     val line: String? = null,
@@ -1290,11 +1079,14 @@ private fun parseDobToUtcMillis(dob: String): Long? {
     return calendar.timeInMillis
 }
 
-private fun defaultDobMillis(): Long {
-    val calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-    calendar.clear()
-    calendar.set(1988, java.util.Calendar.AUGUST, 14)
-    return calendar.timeInMillis
+private fun isoDob(dob: String): String? {
+    val parts = dob.split("/").map { it.trim() }
+    if (parts.size != 3) return null
+    val day = parts[0]
+    val month = parts[1]
+    val year = parts[2]
+    if (day.length != 2 || month.length != 2 || year.length != 4) return null
+    return "$year-$month-$day"
 }
 
 private fun formatDob(utcMillis: Long): String {
@@ -1307,7 +1099,7 @@ private fun formatDob(utcMillis: Long): String {
 }
 
 private fun ageYearsFromDob(dob: String): Int {
-    val birth = parseDobToUtcMillis(dob) ?: return 36
+    val birth = parseDobToUtcMillis(dob) ?: return 0
     val born = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
     born.timeInMillis = birth
     val today = java.util.Calendar.getInstance()

@@ -28,6 +28,10 @@ import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.LocalSetLanguage
 import com.example.sahakarbharati.core.copy.copyFor
 import com.example.sahakarbharati.data.rememberAppSession
+import com.example.sahakarbharati.data.sahakarViewModel
+import com.example.sahakarbharati.features.profile.ProfileViewModel
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun RathYatraScreen(
@@ -35,6 +39,8 @@ fun RathYatraScreen(
     initialStack: List<String> = listOf(RathYatraDestinations.startDestination),
 ) {
     val session = rememberAppSession()
+    val profileViewModel: ProfileViewModel = sahakarViewModel()
+    val scope = rememberCoroutineScope()
     val openedOnProtectedScreen = initialStack.any { it !in RathYatraDestinations.publicAccess }
     var stack by rememberSaveable { mutableStateOf(initialStack.ifEmpty { listOf(RathYatraDestinations.SPLASH) }) }
     var languageKey by rememberSaveable { mutableStateOf(AppLanguage.EN.key) }
@@ -135,7 +141,6 @@ fun RathYatraScreen(
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.SIGN_IN -> SignInScreen(
-            session = session,
             onBack = { back() },
             onSignedIn = {
                 loggedIn = true
@@ -161,9 +166,11 @@ fun RathYatraScreen(
             session = session,
             onBack = { back() },
             onLogout = {
-                session.logout()
-                loggedIn = false
-                stack = listOf(RathYatraDestinations.SPLASH)
+                scope.launch {
+                    profileViewModel.logout()
+                    loggedIn = false
+                    stack = listOf(RathYatraDestinations.SPLASH)
+                }
             },
             onOpenPass = { go(RathYatraDestinations.QR_PASS) },
             onSelectTab = { go(it) },

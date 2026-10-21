@@ -1,17 +1,36 @@
 # Sahakar Bharati
 
-Native Android application for the Sahakar Bharati Rath Yatra digital platform. The approved UI is Jetpack Compose and Material 3.
+Native Android application and Python API for the Sahakar Bharati Rath Yatra digital platform. The approved UI is Jetpack Compose and Material 3.
 
 ## Layout
 
-- `frontend/app/` — Android frontend (Kotlin, Compose). This is the only application module. Gradle still addresses it as `:app`.
-- `backend/` — reserved for a future server. No backend is implemented yet.
+- `frontend/app/` — Android frontend (Kotlin, Compose). Gradle still addresses it as `:app`.
+- `backend/` — FastAPI + PostgreSQL service for registration, sessions, and profile.
 - `tools/` — optional local helpers, such as regenerating density-specific logo drawables.
 - `gradlew` / `gradlew.bat` — Gradle wrapper. Keep these at the repository root.
 
-The Android frontend must never connect directly to a production database. A future server will own database access.
+The Android frontend must never connect directly to the database. All persisted participant data goes through the API.
 
-## Build
+Local registration is not production readiness. Tracking, QR attendance, benefits, and notifications are not operational.
+
+## Backend
+
+See [`backend/README.md`](backend/README.md) for environment variables, migrations, and session design.
+
+```bash
+# PostgreSQL must already be running locally. Create databases sahakar and sahakar_test.
+cd backend
+cp .env.example .env
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Android emulator debug builds use `http://10.0.2.2:8000/`. Release builds require HTTPS via `api.base.url` in `local.properties`.
+
+## Android build
 
 From the repository root:
 
