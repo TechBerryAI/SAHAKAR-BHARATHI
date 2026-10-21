@@ -5,6 +5,7 @@ from app.core.config import Settings, get_settings
 from app.core.deps import bearer_scheme, get_auth_service, get_limiter
 from app.core.errors import RateLimitedError
 from app.core.rate_limit import SlidingWindowLimiter
+from app.core.security import canonical_login_identifier
 from app.schemas.common import ErrorResponse
 from app.schemas.session import SessionCreate, SessionResponse
 from app.services.auth import AuthService
@@ -21,12 +22,13 @@ def create_session(
     settings: Settings = Depends(get_settings),
 ) -> SessionResponse:
     client = request.client.host if request.client else "unknown"
+    identifier = canonical_login_identifier(payload.identifier)
     if not limiter.allow(
-        f"login:{client}:{payload.identifier.lower()}",
+        f"login:{client}:{identifier}",
         settings.login_rate_limit,
         settings.login_rate_window_seconds,
     ):
-        raise RateLimitedError()
+        raise RateLimitedError(retry_after=settings.login_rate_window_seconds)
     return service.create_session(payload)
 
 

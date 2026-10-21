@@ -15,7 +15,7 @@ Local registration is not production readiness. Tracking, QR attendance, benefit
 
 ## Backend
 
-See [`backend/README.md`](backend/README.md) for environment variables, migrations, and session design.
+See [`backend/README.md`](backend/README.md) for environment variables, migrations, Render commands, and session design.
 
 ```bash
 # PostgreSQL must already be running locally. Create databases sahakar and sahakar_test.
@@ -28,7 +28,11 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Android emulator debug builds use `http://10.0.2.2:8000/`. Release builds require HTTPS via `api.base.url` in `local.properties`.
+Android emulator debug builds use `http://10.0.2.2:8000/`. Release builds require HTTPS via `api.base.url` in gitignored `local.properties` after Render assigns a hostname. Do not commit that URL.
+
+The React app in `web/` still uses Firebase Auth and Firestore. It does not call this API yet.
+
+**Render (not verified from this repository):** root directory `backend`, build `pip install .`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'`. Required env: `ENVIRONMENT=production`, `DATABASE_URL`. See [`render.yaml`](render.yaml).
 
 ## Android build
 

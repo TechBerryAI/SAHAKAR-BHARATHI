@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.errors import InvalidCredentialsError, RateLimitedError, UnauthorizedError
 from app.core.security import (
+    canonical_login_identifier,
+    dummy_pin_hash,
     hash_identifier,
     hash_token,
     issue_session_token,
@@ -18,6 +20,8 @@ from app.repositories.sessions import SessionRepository
 from app.repositories.users import UserRepository
 from app.schemas.session import SessionCreate, SessionResponse
 
+_ACTIVE_STATUS = "active"
+
 
 class AuthService:
     def __init__(self, db: Session, settings: Settings) -> None:
@@ -28,13 +32,20 @@ class AuthService:
         self.audit = AuditRepository(db)
 
     def create_session(self, payload: SessionCreate) -> SessionResponse:
-        identifier_hash = hash_identifier(payload.identifier.lower())
+        identifier = canonical_login_identifier(payload.identifier)
+        identifier_hash = hash_identifier(identifier)
         failures = self.audit.recent_failures(identifier_hash, self.settings.login_lockout_seconds)
         if failures >= self.settings.login_lockout_failures:
-            raise RateLimitedError()
+            raise RateLimitedError(retry_after=self.settings.login_lockout_seconds)
 
         user = self.users.find_for_login(payload.identifier)
-        if user is None or not verify_pin(payload.pin, user.pin_hash):
+        if user is None:
+            verify_pin(payload.pin, dummy_pin_hash())
+            pin_ok = False
+        else:
+            pin_ok = verify_pin(payload.pin, user.pin_hash) and user.status == _ACTIVE_STATUS
+
+        if user is None or not pin_ok:
             self.audit.add("login_failure", identifier_hash=identifier_hash)
             self.db.commit()
             raise InvalidCredentialsError()
@@ -60,7 +71,7 @@ class AuthService:
         if not raw_token:
             raise UnauthorizedError()
         session = self.sessions.get_active_by_token_hash(hash_token(raw_token))
-        if session is None or session.user is None:
+        if session is None or session.user is None or session.user.status != _ACTIVE_STATUS:
             raise UnauthorizedError("Session is invalid or expired.")
         return session.user, session
 

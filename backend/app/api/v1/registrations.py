@@ -24,5 +24,5 @@ def create_registration(
         settings.register_rate_limit,
         settings.register_rate_window_seconds,
     ):
-        raise RateLimitedError()
+        raise RateLimitedError(retry_after=settings.register_rate_window_seconds)
     return service.register(payload)

@@ -1,5 +1,5 @@
 -- Sahakar Bharati participant schema for Supabase (PostgreSQL).
--- Matches Alembic head 20261021_0002 (verification_challenges is not created).
+-- Matches Alembic head 20261022_0003 (verification_challenges is not created).
 --
 -- Apply in the Supabase SQL Editor, or with:
 --   supabase db query --file supabase/schema.sql
@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     district varchar(120),
     state varchar(120),
     pincode varchar(6),
-    status varchar(32) NOT NULL DEFAULT 'active',
+    status varchar(32) NOT NULL DEFAULT 'active'
+        CONSTRAINT ck_users_status CHECK (status IN ('active', 'disabled')),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT users_login_id_key UNIQUE (login_id),
@@ -110,5 +111,5 @@ CREATE TABLE IF NOT EXISTS public.alembic_version (
 );
 
 INSERT INTO public.alembic_version (version_num)
-VALUES ('20261021_0002')
+VALUES ('20261022_0003')
 ON CONFLICT (version_num) DO NOTHING;
