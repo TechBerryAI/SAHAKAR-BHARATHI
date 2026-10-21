@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import DuplicateAccountError
+from app.db.session import is_unique_violation
 from app.models.user import User
 from app.repositories.audit import AuditRepository
 from app.schemas.profile import ProfileResponse, ProfileUpdate
@@ -38,8 +39,10 @@ class ProfileService:
         self.audit.add("profile_update", user_id=user.id)
         try:
             self.db.commit()
-        except IntegrityError:
+        except IntegrityError as exc:
             self.db.rollback()
-            raise DuplicateAccountError() from None
+            if is_unique_violation(exc):
+                raise DuplicateAccountError() from None
+            raise
         self.db.refresh(user)
         return self.to_response(user)
