@@ -2,15 +2,47 @@ package com.example.sahakarbharati.core.copy
 
 import androidx.compose.runtime.staticCompositionLocalOf
 
-enum class AppLanguage(val key: String) {
-    EN("EN"),
-    HI("HI"),
+enum class AppLanguage(
+    val key: String,
+    val nativeName: String,
+    val englishName: String,
+    val rightToLeft: Boolean = false,
+) {
+    EN("EN", "English", "English"),
+    HI("HI", "हिन्दी", "Hindi"),
+    BN("BN", "বাংলা", "Bengali"),
+    MR("MR", "मराठी", "Marathi"),
+    TE("TE", "తెలుగు", "Telugu"),
+    TA("TA", "தமிழ்", "Tamil"),
+    GU("GU", "ગુજરાતી", "Gujarati"),
+    UR("UR", "اردو", "Urdu", rightToLeft = true),
+    KN("KN", "ಕನ್ನಡ", "Kannada"),
+    OR("OR", "ଓଡ଼ିଆ", "Odia"),
+    ML("ML", "മലയാളം", "Malayalam"),
+    PA("PA", "ਪੰਜਾਬੀ", "Punjabi"),
+    AS("AS", "অসমীয়া", "Assamese"),
+    MAI("MAI", "मैथिली", "Maithili"),
+    BHO("BHO", "भोजपुरी", "Bhojpuri"),
+    NE("NE", "नेपाली", "Nepali"),
+    KOK("KOK", "कोंकणी", "Konkani"),
+    DOI("DOI", "डोगरी", "Dogri"),
+    KS("KS", "कॉशुर", "Kashmiri"),
+    SD("SD", "سنڌي", "Sindhi", rightToLeft = true),
+    MNI("MNI", "মৈতৈলোন্", "Manipuri"),
+    SA("SA", "संस्कृतम्", "Sanskrit"),
+    SAT("SAT", "ᱥᱟᱱᱛᱟᱲᱤ", "Santali"),
+    BRX("BRX", "बर'", "Bodo"),
+    LUS("LUS", "Mizo", "Mizo"),
+    KHA("KHA", "Khasi", "Khasi"),
     ;
 
     companion object {
-        fun fromKey(key: String): AppLanguage = if (key.equals("HI", ignoreCase = true)) HI else EN
+        fun fromKey(key: String): AppLanguage =
+            entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: EN
     }
 }
+
+val DefaultAppLanguage = AppLanguage.EN
 
 class RathYatraCopy {
     lateinit var portalChip: String
@@ -301,6 +333,8 @@ class RathYatraCopy {
     lateinit var adminBody: String
     lateinit var langEn: String
     lateinit var langHi: String
+    lateinit var chooseLanguage: String
+    lateinit var searchLanguages: String
 
     fun cloneCopy(): RathYatraCopy {
         val copy = RathYatraCopy()
@@ -592,6 +626,8 @@ class RathYatraCopy {
             copy.adminBody = adminBody
             copy.langEn = langEn
             copy.langHi = langHi
+            copy.chooseLanguage = chooseLanguage
+            copy.searchLanguages = searchLanguages
         return copy
     }
 
@@ -886,6 +922,8 @@ private val English: RathYatraCopy = RathYatraCopy().apply {
     adminBody = "The organiser console is not part of this participant app."
     langEn = "EN"
     langHi = "हिंदी"
+    chooseLanguage = "Choose language"
+    searchLanguages = "Search languages"
 }
 
 private val Hindi: RathYatraCopy = English.cloneCopy().apply {
@@ -1177,11 +1215,19 @@ private val Hindi: RathYatraCopy = English.cloneCopy().apply {
     adminBody = "आयोजक कंसोल इस प्रतिभागी ऐप का हिस्सा नहीं है।"
     langEn = "EN"
     langHi = "हिंदी"
+    chooseLanguage = "भाषा चुनें"
+    searchLanguages = "भाषा खोजें"
 }
 
 val LocalCopy = staticCompositionLocalOf { English }
-val LocalLanguage = staticCompositionLocalOf { AppLanguage.EN }
+val LocalLanguage = staticCompositionLocalOf { DefaultAppLanguage }
 val LocalSetLanguage = staticCompositionLocalOf<(AppLanguage) -> Unit> { {} }
 
-fun copyFor(language: AppLanguage): RathYatraCopy =
-    if (language == AppLanguage.HI) Hindi else English
+fun copyFor(language: AppLanguage): RathYatraCopy {
+    val copy = if (language == AppLanguage.HI) Hindi.cloneCopy() else English.cloneCopy()
+    if (language != AppLanguage.EN && language != AppLanguage.HI) {
+        homePhrases.getValue(language).applyTo(copy)
+        copy.applyRest(restPhrases.getValue(language))
+    }
+    return copy
+}

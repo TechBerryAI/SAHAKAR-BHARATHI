@@ -11,16 +11,32 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -195,6 +211,7 @@ fun OutlinedIvoryButton(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LanguageChips(
     modifier: Modifier = Modifier,
@@ -203,37 +220,127 @@ fun LanguageChips(
     val language = LocalLanguage.current
     val setLanguage = LocalSetLanguage.current
     val copy = LocalCopy.current
-    val options = listOf(
-        AppLanguage.EN to copy.langEn,
-        AppLanguage.HI to copy.langHi,
-    )
+    var open by remember { mutableStateOf(false) }
+    val labelColor = if (dark) RathYatraColors.GoldPale else RathYatraColors.Ivory
+    val chipColor = if (dark) {
+        RathYatraColors.NavyDeep.copy(alpha = 0.7f)
+    } else {
+        RathYatraColors.White.copy(alpha = 0.16f)
+    }
+
     Row(
         modifier = modifier
-            .background(
-                color = if (dark) RathYatraColors.NavyDeep.copy(alpha = 0.7f) else RathYatraColors.White.copy(alpha = 0.16f),
-                shape = PillShape,
-            )
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .clip(PillShape)
+            .background(chipColor)
+            .clickable { open = true }
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .semantics { contentDescription = "Language ${language.englishName}" },
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        options.forEach { (key, label) ->
-            val active = language == key
-            Box(
-                modifier = Modifier
-                    .clip(PillShape)
-                    .background(if (active) RathYatraColors.SaffronBright else Color.Transparent)
-                    .clickable(role = Role.Tab) { setLanguage(key) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                    .semantics { contentDescription = "Language $label" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (active) RathYatraColors.NavyDeep else RathYatraColors.SurfaceContainerHigh,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                )
+        Icon(Icons.Outlined.Language, contentDescription = null, tint = labelColor, modifier = Modifier.size(16.dp))
+        Text(
+            text = language.nativeName,
+            style = MaterialTheme.typography.labelMedium,
+            color = labelColor,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Icon(Icons.Outlined.ExpandMore, contentDescription = null, tint = labelColor, modifier = Modifier.size(16.dp))
+    }
+
+    if (open) {
+        ModalBottomSheet(
+            onDismissRequest = { open = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = RathYatraColors.Ivory,
+        ) {
+            LanguagePickerSheet(
+                selected = language,
+                title = copy.chooseLanguage,
+                searchLabel = copy.searchLanguages,
+                onSelect = {
+                    setLanguage(it)
+                    open = false
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanguagePickerSheet(
+    selected: AppLanguage,
+    title: String,
+    searchLabel: String,
+    onSelect: (AppLanguage) -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val languages = remember(query) {
+        val needle = query.trim()
+        AppLanguage.entries.filter { language ->
+            needle.isEmpty() ||
+                language.nativeName.contains(needle, ignoreCase = true) ||
+                language.englishName.contains(needle, ignoreCase = true)
+        }
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = RathYatraColors.Navy,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text(searchLabel) },
+            shape = RoundedCornerShape(12.dp),
+        )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 480.dp)
+                .padding(top = 8.dp, bottom = 12.dp),
+        ) {
+            items(languages, key = { it.key }) { language ->
+                val active = language == selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (active) RathYatraColors.PrimaryFixed else Color.Transparent)
+                        .clickable { onSelect(language) }
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = language.nativeName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = RathYatraColors.OnSurface,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        )
+                        Text(
+                            text = language.englishName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = RathYatraColors.OnSurfaceVariant,
+                        )
+                    }
+                    if (active) {
+                        Icon(Icons.Outlined.Check, contentDescription = null, tint = RathYatraColors.BurntSaffron)
+                    }
+                }
             }
         }
     }

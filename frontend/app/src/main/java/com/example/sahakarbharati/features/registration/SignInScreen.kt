@@ -1,7 +1,9 @@
 package com.example.sahakarbharati.features.registration
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -11,9 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,6 +28,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import com.example.sahakarbharati.R
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
@@ -44,7 +54,6 @@ import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.UiState
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.core.ui.StackTopBar
-import com.example.sahakarbharati.core.ui.WhiteCard
 import com.example.sahakarbharati.ui.theme.FieldShape
 import com.example.sahakarbharati.ui.theme.RathYatraColors
 
@@ -75,7 +84,7 @@ fun SignInScreen(
     }
 
     val title = if (hindi) "साइन इन" else "Sign In"
-    val loginLabel = if (hindi) "लॉगिन आईडी / मोबाइल" else "LOGIN ID / MOBILE"
+    val loginLabel = if (hindi) "लॉगिन आईडी / मोबाइल" else "Login ID / mobile"
     val loginHint = if (hindi) {
         "पंजीकरण के बाद मिला लॉगिन आईडी या 10 अंकों का मोबाइल।"
     } else {
@@ -101,60 +110,69 @@ fun SignInScreen(
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            WhiteCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        if (hindi) "पंजीकृत प्रतिभागी प्रवेश" else "Registered participant access",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = RathYatraColors.Navy,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        if (hindi) {
-                            "ऐप खोलने के लिए पंजीकरण और साइन इन आवश्यक है।"
-                        } else {
-                            "Registration and sign in are required before anyone can use the app."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = RathYatraColors.OnSurfaceVariant,
-                    )
-                }
+            Spacer(Modifier.height(8.dp))
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .size(84.dp)
+                        .clip(CircleShape)
+                        .background(RathYatraColors.PrimaryFixed),
+                )
+                Image(
+                    painter = painterResource(R.drawable.ic_sahakar_emblem),
+                    contentDescription = null,
+                    modifier = Modifier.size(68.dp),
+                    contentScale = ContentScale.Fit,
+                )
             }
-            WhiteCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(loginLabel, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-                    OutlinedTextField(
-                        value = loginId,
-                        onValueChange = { loginId = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = FieldShape,
-                        colors = signInFieldColors(),
-                        singleLine = true,
-                    )
-                    Text(loginHint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-                }
-            }
-            WhiteCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(pinLabel, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-                    OutlinedTextField(
-                        value = pin,
-                        onValueChange = { pin = it.filter(Char::isDigit).take(6) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = FieldShape,
-                        colors = signInFieldColors(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                    )
-                }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = if (hindi) "पंजीकृत प्रतिभागी प्रवेश" else "Registered participant access",
+                style = MaterialTheme.typography.titleMedium,
+                color = RathYatraColors.Navy,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = if (hindi) {
+                    "ऐप खोलने के लिए पंजीकरण और साइन इन आवश्यक है।"
+                } else {
+                    "Registration and sign in are required before anyone can use the app."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = RathYatraColors.OnSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(22.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(RathYatraColors.White)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                SignInField(
+                    label = loginLabel,
+                    value = loginId,
+                    onValueChange = { loginId = it },
+                    hint = loginHint,
+                )
+                SignInField(
+                    label = pinLabel,
+                    value = pin,
+                    onValueChange = { pin = it.filter(Char::isDigit).take(6) },
+                    keyboardType = KeyboardType.NumberPassword,
+                    hidden = true,
+                )
             }
         }
         Column(
-            Modifier.padding(16.dp),
+            Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (error.isNotEmpty()) {
@@ -183,8 +201,48 @@ fun SignInScreen(
                 )
             }
             TextButton(onClick = onCreateAccount) {
-                Text(copy.createAccount, color = RathYatraColors.Navy)
+                Text(
+                    copy.createAccount,
+                    color = RathYatraColors.Navy,
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun SignInField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    hidden: Boolean = false,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = RathYatraColors.Navy,
+            fontWeight = FontWeight.SemiBold,
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            shape = FieldShape,
+            colors = signInFieldColors(),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            visualTransformation = if (hidden) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            singleLine = true,
+        )
+        if (hint != null) {
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = RathYatraColors.OnSurfaceVariant,
+            )
         }
     }
 }
@@ -192,7 +250,7 @@ fun SignInScreen(
 @Composable
 private fun signInFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = RathYatraColors.Saffron,
-    unfocusedBorderColor = RathYatraColors.Gold,
+    unfocusedBorderColor = RathYatraColors.SurfaceDim,
     focusedContainerColor = RathYatraColors.White,
     unfocusedContainerColor = RathYatraColors.White,
 )
