@@ -67,12 +67,12 @@ export function HomeScreen() {
             </Card>
             <Card kicker="Account" title="Your Rath Yatra profile">
               <p className="card__body">
-                Status: {profile?.status || 'active'}. Keep your login ID safe and update your
-                details from Profile.
+                Status: {profile?.status || 'active'}. Sign in with your email and password, and
+                update your details from Profile.
               </p>
             </Card>
             <Card kicker="Mobile" title={profile?.mobile ? `+91 ${profile.mobile}` : 'Mobile on file'}>
-              <p className="card__body">This number can also be used to sign in with your PIN.</p>
+              <p className="card__body">This number is on file for your Rath Yatra profile.</p>
             </Card>
           </>
         )}

@@ -9,19 +9,29 @@ import { RegisterSuccessScreen } from './screens/RegisterSuccessScreen.tsx'
 import { SignInScreen } from './screens/SignInScreen.tsx'
 
 function GuestRoute({ children }: { children: ReactNode }) {
-  const { token } = useSession()
-  if (token) return <Navigate to="/" replace />
+  const { uid } = useSession()
+  if (uid) return <Navigate to="/" replace />
   return children
 }
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { token } = useSession()
-  if (!token) return <Navigate to="/sign-in" replace />
+  const { uid } = useSession()
+  if (!uid) return <Navigate to="/sign-in" replace />
   return children
 }
 
 function AppRoutes() {
   const location = useLocation()
+  const { ready } = useSession()
+
+  if (!ready) {
+    return (
+      <div className="center-state">
+        <div className="spinner" aria-label="Loading" />
+      </div>
+    )
+  }
+
   return (
     <div className="screen-slot" key={location.pathname}>
       <Routes location={location}>

@@ -1,33 +1,82 @@
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors / IDEs
+.idea/
+.vscode/
+!.vscode/extensions.json
 *.iml
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+*.local
+secrets.properties
+google-services.json
+local.properties
+/local.properties
+
+# Logs and dumps
+*.log
+logs/
+*.hprof
+*.tmp
+*.temp
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm/
+.pnpm-store/
+.yarn/
+.pnp.*
+
+# Web / Vite / TypeScript
+dist/
+dist-ssr/
+.vite/
+.turbo/
+.cache/
+coverage/
+*.tsbuildinfo
+
+# Firebase
+.firebase/
+*-debug.log
+.emulator/
+
+# Android / Gradle
 .gradle/
 .kotlin/
-/local.properties
-local.properties
-.idea/
-.DS_Store
 /build
 **/build/
 /captures
-.externalNativeBuild
-.cxx
+.externalNativeBuild/
+.cxx/
 *.apk
 *.aab
 *.ap_
 *.dex
 *.class
-*.log
 *.keystore
 *.jks
-secrets.properties
-google-services.json
-*.hprof
-.cxx/
-.externalNativeBuild/
 
 # Python backend
-.env
-.env.*
-!.env.example
 .venv/
 venv/
 backend/.venv/

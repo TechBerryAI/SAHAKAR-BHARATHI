@@ -2,11 +2,6 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const apiProxy = {
-  '/api': 'http://127.0.0.1:8000',
-  '/health': 'http://127.0.0.1:8000',
-}
-
 export default defineConfig({
   plugins: [
     react(),
@@ -47,14 +42,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/health/],
       },
     }),
   ],
-  server: {
-    proxy: apiProxy,
-  },
-  preview: {
-    proxy: apiProxy,
-  },
 })

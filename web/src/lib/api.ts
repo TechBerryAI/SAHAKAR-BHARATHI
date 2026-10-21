@@ -1,13 +1,14 @@
-import { clearSession, getToken, setProfile, setSession } from './session.ts'
-import type {
-  Profile,
-  ProfileUpdate,
-  RegistrationCreate,
-  RegistrationResponse,
-  SessionCreate,
-  SessionResponse,
-} from './types.ts'
-import { profileFromSession } from './types.ts'
+import { FirebaseError } from 'firebase/app'
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth'
+import { doc, getDoc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
+import { auth, db } from './firebase.ts'
+import { clearSession, getSnapshot, setProfile, setUser } from './session.ts'
+import type { Profile, ProfileUpdate, RegistrationCreate } from './types.ts'
 
 export class ApiError extends Error {
   status: number
@@ -19,115 +20,178 @@ export class ApiError extends Error {
   }
 }
 
-type DetailItem = {
-  msg?: string
+function generateLoginId(): string {
+  const bytes = new Uint8Array(4)
+  crypto.getRandomValues(bytes)
+  return `SB-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase()}`
 }
 
-function parseDetail(data: unknown): string {
-  if (!data || typeof data !== 'object' || !('detail' in data)) {
-    return 'Something went wrong. Try again.'
-  }
-  const detail = (data as { detail: unknown }).detail
-  if (typeof detail === 'string' && detail.trim()) return detail
-  if (Array.isArray(detail)) {
-    const parts = detail
-      .map((item) => {
-        if (typeof item === 'string') return item
-        const msg = (item as DetailItem).msg
-        return msg ? msg.replace(/^Value error, /, '') : ''
-      })
-      .filter(Boolean)
-    if (parts.length) return parts.join(' ')
-  }
-  return 'Something went wrong. Try again.'
+function asString(value: unknown): string | null {
+  return typeof value === 'string' && value.length ? value : null
 }
 
-async function request<T>(path: string, init: RequestInit = {}, authed = false): Promise<T> {
-  const headers = new Headers(init.headers)
-  if (init.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+export function profileFromDoc(data: Record<string, unknown>): Profile {
+  return {
+    login_id: String(data.login_id ?? ''),
+    full_name: String(data.full_name ?? ''),
+    mobile: String(data.mobile ?? ''),
+    email: asString(data.email),
+    gender: asString(data.gender),
+    date_of_birth: asString(data.date_of_birth),
+    occupation: asString(data.occupation),
+    address_line: asString(data.address_line),
+    locality: asString(data.locality),
+    district: asString(data.district),
+    state: asString(data.state),
+    pincode: asString(data.pincode),
+    status: String(data.status ?? 'active'),
   }
-  const token = getToken()
-  if (authed && token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
+}
 
-  let response: Response
-  try {
-    response = await fetch(path, { ...init, headers })
-  } catch {
-    throw new ApiError(0, 'Cannot reach the API. Is the backend running?')
-  }
-
-  if (response.status === 204) {
-    return undefined as T
-  }
-
-  const data: unknown = await response.json().catch(() => null)
-  if (!response.ok) {
-    if (response.status === 401 && authed && token) {
-      clearSession()
+function mapFirebaseError(err: unknown, context: 'auth' | 'register' | 'profile' = 'auth'): ApiError {
+  if (err instanceof ApiError) return err
+  if (err instanceof FirebaseError) {
+    switch (err.code) {
+      case 'auth/email-already-in-use':
+      case 'already-exists':
+        return new ApiError(409, 'An account with these details already exists.')
+      case 'permission-denied':
+        return context === 'register'
+          ? new ApiError(409, 'An account with these details already exists.')
+          : new ApiError(403, 'You do not have access to this profile.')
+      case 'auth/invalid-credential':
+      case 'auth/invalid-email':
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/user-disabled':
+        return new ApiError(401, 'Email or password is incorrect.')
+      case 'auth/weak-password':
+        return new ApiError(422, 'Password must be at least 6 characters.')
+      case 'auth/too-many-requests':
+        return new ApiError(429, 'Too many attempts. Try again later.')
+      case 'auth/network-request-failed':
+      case 'unavailable':
+        return new ApiError(0, 'Cannot reach Firebase. Check your connection.')
+      case 'auth/operation-not-allowed':
+        return new ApiError(500, 'Email/password sign-in is not enabled.')
+      default:
+        return new ApiError(400, 'Something went wrong. Try again.')
     }
-    throw new ApiError(response.status, parseDetail(data))
   }
-  return data as T
+  return new ApiError(400, 'Something went wrong. Try again.')
 }
 
-export function createRegistration(body: RegistrationCreate): Promise<RegistrationResponse> {
-  return request<RegistrationResponse>('/api/v1/registrations', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
+function requireUid(): string {
+  const uid = getSnapshot().uid ?? auth.currentUser?.uid ?? null
+  if (!uid) throw new ApiError(401, 'Authentication required.')
+  return uid
 }
 
-export function createSession(body: SessionCreate): Promise<SessionResponse> {
-  return request<SessionResponse>('/api/v1/sessions', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
-export function getMe(): Promise<Profile> {
-  return request<Profile>('/api/v1/me', { method: 'GET' }, true)
-}
-
-export function updateMe(body: ProfileUpdate): Promise<Profile> {
-  return request<Profile>(
-    '/api/v1/me',
-    {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    },
-    true,
-  )
-}
-
-export function logoutRemote(): Promise<void> {
-  return request<void>('/api/v1/sessions/current', { method: 'DELETE' }, true)
-}
-
-export async function signIn(identifier: string, pin: string): Promise<Profile> {
-  const session = await createSession({ identifier, pin })
-  setSession(session.access_token, session.expires_at, profileFromSession(session))
+export async function getMe(): Promise<Profile> {
   try {
-    const profile = await getMe()
+    const uid = requireUid()
+    const snap = await getDoc(doc(db, 'users', uid))
+    if (!snap.exists()) {
+      throw new ApiError(404, 'Could not load profile.')
+    }
+    const profile = profileFromDoc(snap.data())
     setProfile(profile)
     return profile
-  } catch {
-    return profileFromSession(session)
+  } catch (err) {
+    throw mapFirebaseError(err, 'profile')
   }
+}
+
+export async function updateMe(body: ProfileUpdate): Promise<Profile> {
+  try {
+    const uid = requireUid()
+    await updateDoc(doc(db, 'users', uid), {
+      full_name: body.full_name ?? null,
+      occupation: body.occupation ?? null,
+      address_line: body.address_line ?? null,
+      locality: body.locality ?? null,
+      district: body.district ?? null,
+      state: body.state ?? null,
+      pincode: body.pincode ?? null,
+      updated_at: serverTimestamp(),
+    })
+    return await getMe()
+  } catch (err) {
+    throw mapFirebaseError(err, 'profile')
+  }
+}
+
+export async function signIn(email: string, password: string): Promise<Profile> {
+  try {
+    const credential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password)
+    setUser(credential.user)
+    return await getMe()
+  } catch (err) {
+    throw mapFirebaseError(err)
+  }
+}
+
+async function writeRegistration(uid: string, email: string, body: RegistrationCreate): Promise<Profile> {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const loginId = generateLoginId()
+    const batch = writeBatch(db)
+    const profile = {
+      login_id: loginId,
+      full_name: body.full_name,
+      mobile: body.mobile,
+      email,
+      gender: body.gender ?? null,
+      date_of_birth: body.date_of_birth ?? null,
+      occupation: body.occupation ?? null,
+      address_line: body.address_line ?? null,
+      locality: body.locality ?? null,
+      district: body.district ?? null,
+      state: body.state ?? null,
+      pincode: body.pincode ?? null,
+      status: 'active',
+    }
+    batch.set(doc(db, 'users', uid), {
+      ...profile,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+    })
+    batch.set(doc(db, 'loginIds', loginId), { uid })
+    batch.set(doc(db, 'mobiles', body.mobile), { uid })
+    try {
+      await batch.commit()
+      setProfile(profile)
+      return profile
+    } catch (err) {
+      lastError = err
+    }
+  }
+  throw lastError
 }
 
 export async function registerAndSignIn(body: RegistrationCreate): Promise<Profile> {
-  await createRegistration(body)
-  return signIn(body.mobile, body.pin)
+  const email = body.email.trim().toLowerCase()
+  let createdUid: string | null = null
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email, body.password)
+    createdUid = credential.user.uid
+    setUser(credential.user)
+    return await writeRegistration(createdUid, email, body)
+  } catch (err) {
+    if (createdUid && auth.currentUser) {
+      try {
+        await deleteUser(auth.currentUser)
+      } catch {
+        await signOut(auth)
+      }
+    }
+    throw mapFirebaseError(err, 'register')
+  }
 }
 
 export async function logout(): Promise<void> {
   try {
-    if (getToken()) await logoutRemote()
-  } catch {
-    // Local sign-out still proceeds if the token is already invalid.
+    await signOut(auth)
   } finally {
     clearSession()
   }
