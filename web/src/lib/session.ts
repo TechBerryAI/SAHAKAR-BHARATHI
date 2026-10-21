@@ -1,50 +1,27 @@
+import { onAuthStateChanged, type User } from 'firebase/auth'
 import { useSyncExternalStore } from 'react'
+import { auth } from './firebase.ts'
 import type { Profile } from './types.ts'
 
-const STORAGE_KEY = 'sahakar.session'
-
 export type AuthSnapshot = {
-  token: string | null
-  expiresAt: string | null
+  ready: boolean
+  uid: string | null
+  user: User | null
   profile: Profile | null
 }
 
 const empty: AuthSnapshot = {
-  token: null,
-  expiresAt: null,
+  ready: false,
+  uid: null,
+  user: null,
   profile: null,
 }
 
 const listeners = new Set<() => void>()
 
-function readStored(): AuthSnapshot {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return empty
-    const parsed = JSON.parse(raw) as AuthSnapshot
-    if (!parsed.token) return empty
-    return {
-      token: parsed.token,
-      expiresAt: parsed.expiresAt ?? null,
-      profile: parsed.profile ?? null,
-    }
-  } catch {
-    return empty
-  }
-}
-
-let snapshot: AuthSnapshot = readStored()
-
-function persist() {
-  if (!snapshot.token) {
-    localStorage.removeItem(STORAGE_KEY)
-    return
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
-}
+let snapshot: AuthSnapshot = empty
 
 function emit() {
-  persist()
   for (const listener of listeners) listener()
 }
 
@@ -59,24 +36,35 @@ export function getSnapshot(): AuthSnapshot {
   return snapshot
 }
 
-export function getToken(): string | null {
-  return snapshot.token
-}
-
-export function setSession(token: string, expiresAt: string | null, profile: Profile | null) {
-  snapshot = { token, expiresAt, profile }
+export function setUser(user: User | null) {
+  snapshot = {
+    ready: true,
+    uid: user?.uid ?? null,
+    user,
+    profile: user ? snapshot.profile : null,
+  }
   emit()
 }
 
-export function setProfile(profile: Profile) {
+export function setProfile(profile: Profile | null) {
   snapshot = { ...snapshot, profile }
   emit()
 }
 
 export function clearSession() {
-  snapshot = empty
+  snapshot = { ready: true, uid: null, user: null, profile: null }
   emit()
 }
+
+onAuthStateChanged(auth, (user) => {
+  snapshot = {
+    ready: true,
+    uid: user?.uid ?? null,
+    user,
+    profile: user ? snapshot.profile : null,
+  }
+  emit()
+})
 
 export function useSession(): AuthSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)

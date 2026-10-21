@@ -20,7 +20,6 @@ export function ProfileScreen() {
   const navigate = useNavigate()
   const { profile } = useSession()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
-  const [email, setEmail] = useState(profile?.email ?? '')
   const [occupation, setOccupation] = useState<Occupation | ''>(
     (profile?.occupation as Occupation | null) ?? '',
   )
@@ -42,7 +41,6 @@ export function ProfileScreen() {
         if (cancelled) return
         setProfile(next)
         setFullName(next.full_name)
-        setEmail(next.email ?? '')
         setOccupation((next.occupation as Occupation | null) ?? '')
         setAddressLine(next.address_line ?? '')
         setLocality(next.locality ?? '')
@@ -74,7 +72,6 @@ export function ProfileScreen() {
     try {
       const next = await updateMe({
         full_name: fullName.trim(),
-        email: blankToNull(email),
         occupation: occupation || null,
         address_line: blankToNull(addressLine),
         locality: blankToNull(locality),
@@ -123,6 +120,10 @@ export function ProfileScreen() {
               <span className="profile-row__value">{profile?.login_id || '—'}</span>
             </div>
             <div className="profile-row">
+              <span className="profile-row__label">Email</span>
+              <span className="profile-row__value">{profile?.email || '—'}</span>
+            </div>
+            <div className="profile-row">
               <span className="profile-row__label">Mobile</span>
               <span className="profile-row__value">
                 {profile?.mobile ? formatMobile(profile.mobile) : '—'}
@@ -141,13 +142,6 @@ export function ProfileScreen() {
                 name="full_name"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-              />
-              <Field
-                label="Email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
               />
               <div className="field">
                 <span className="field__label">Occupation</span>
@@ -212,7 +206,7 @@ export function ProfileScreen() {
             <h2 className="card__title" id="logout-title">
               Log out?
             </h2>
-            <p className="card__body">You will need your login ID and PIN to open the app again.</p>
+            <p className="card__body">You will need your email and password to open the app again.</p>
             <div className="stack" style={{ marginTop: 16 }}>
               <Button type="button" variant="danger" onClick={onLogout} disabled={loggingOut}>
                 Log out
