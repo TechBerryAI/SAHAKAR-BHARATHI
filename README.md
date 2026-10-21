@@ -30,7 +30,7 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 Android emulator debug builds use `http://10.0.2.2:8000/`. Release builds require HTTPS via `api.base.url` in gitignored `local.properties` after Render assigns a hostname. Do not commit that URL.
 
-The React app in `web/` still uses Firebase Auth and Firestore. It does not call this API yet.
+The React app in `web/` is hosted on Firebase Hosting and calls this API with `VITE_API_BASE_URL`. Registration and sign-in use the same PIN + login ID or mobile contract as Android. Firebase Auth and Firestore are no longer the application data plane.
 
 **Render (not verified from this repository):** root directory `backend`, build `pip install .`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'`. Required env: `ENVIRONMENT=production`, `DATABASE_URL`. See [`render.yaml`](render.yaml).
 

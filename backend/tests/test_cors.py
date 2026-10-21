@@ -41,3 +41,53 @@ def test_cors_allows_approved_origin_and_rejects_other(
     finally:
         get_settings.cache_clear()
         application.state.limiter.reset()
+
+
+def test_cors_allows_firebase_hosting_origin(
+    engine: Engine,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(
+        "CORS_ORIGINS",
+        "https://sahakarbharati-e3b04.web.app,https://sahakarbharati-e3b04.firebaseapp.com",
+    )
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    get_settings.cache_clear()
+    application = create_app()
+    db_session.SessionLocal.configure(bind=engine)
+    application.state.limiter = SlidingWindowLimiter()
+    try:
+        with TestClient(application) as client:
+            allowed = client.options(
+                "/api/v1/me",
+                headers={
+                    "Origin": "https://sahakarbharati-e3b04.web.app",
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+            assert (
+                allowed.headers.get("access-control-allow-origin")
+                == "https://sahakarbharati-e3b04.web.app"
+            )
+            alias = client.options(
+                "/api/v1/me",
+                headers={
+                    "Origin": "https://sahakarbharati-e3b04.firebaseapp.com",
+                    "Access-Control-Request-Method": "PATCH",
+                },
+            )
+            assert (
+                alias.headers.get("access-control-allow-origin")
+                == "https://sahakarbharati-e3b04.firebaseapp.com"
+            )
+            denied = client.options(
+                "/api/v1/me",
+                headers={
+                    "Origin": "https://evil.example",
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+            assert denied.headers.get("access-control-allow-origin") != "https://evil.example"
+    finally:
+        get_settings.cache_clear()
+        application.state.limiter.reset()

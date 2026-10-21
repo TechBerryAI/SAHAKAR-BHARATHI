@@ -26,21 +26,34 @@ export type RegistrationCreate = {
   date_of_birth?: string | null
   occupation?: Occupation | null
   mobile: string
-  email: string
+  email?: string | null
   address_line?: string | null
   locality?: string | null
   district?: string | null
   state?: string | null
   pincode?: string | null
-  password: string
+  pin: string
 }
 
 export type ProfileUpdate = {
   full_name?: string | null
+  email?: string | null
   occupation?: Occupation | null
   address_line?: string | null
   locality?: string | null
   district?: string | null
   state?: string | null
   pincode?: string | null
+}
+
+export type SessionResponse = {
+  access_token: string
+  token_type: string
+  expires_at: string
+  login_id: string
+  full_name: string
+  mobile: string
+  occupation: string | null
+  state: string | null
+  district: string | null
 }

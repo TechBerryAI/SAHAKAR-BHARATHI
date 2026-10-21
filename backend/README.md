@@ -62,7 +62,7 @@ Android emulator debug builds should use `http://10.0.2.2:8000/`. A physical dev
 | `REGISTER_RATE_LIMIT` / `REGISTER_RATE_WINDOW_SECONDS` | In-process registration throttle |
 | `LOGIN_LOCKOUT_FAILURES` / `LOGIN_LOCKOUT_SECONDS` | Database-backed lockout after failed PINs |
 | `MAX_REQUEST_BYTES` | JSON body size limit |
-| `CORS_ORIGINS` | Optional comma-separated browser origins. `*` is rejected in production. |
+| `CORS_ORIGINS` | Comma-separated browser origins. Production must include `https://sahakarbharati-e3b04.web.app`. `*` is rejected in production. |
 | `APP_HOST` / `APP_PORT` | Local documentation only. They do not bind the production server. |
 
 Do not commit real secrets, production credentials, or personal data. The backend does not need the Supabase service-role key to connect to PostgreSQL.
@@ -132,7 +132,7 @@ The FastAPI role must be able to read and write the application tables. Do not e
 ## Client compatibility
 
 - **Android** already uses these routes, snake_case fields, and `Authorization: Bearer`. Keep PIN 4–6 digits. After Render gives the service a URL, set `api.base.url=https://<service>.onrender.com/` in gitignored `local.properties` for release builds. Debug stays `http://10.0.2.2:8000/`.
-- **React (`web/`)** still uses Firebase Auth and Firestore (`web/src/lib/api.ts`). It is not migrated. Existing FastAPI routes are enough only if the web app adopts the Android PIN + identifier contract, stores the opaque token, sets `VITE_API_BASE_URL`, and the API `CORS_ORIGINS` includes the web origin.
+- **React (`web/`)** calls these same routes with `Authorization: Bearer`. Local development uses `VITE_API_BASE_URL=http://127.0.0.1:8000`. Production Hosting builds use `https://sahakar-bharathi-api.onrender.com`. Production `CORS_ORIGINS` must include `https://sahakarbharati-e3b04.web.app` (and the `firebaseapp.com` alias). Firebase Hosting stays; Firebase Auth/Firestore are not the data plane.
 
 ## Remaining risks
 
@@ -145,4 +145,4 @@ The FastAPI role must be able to read and write the application tables. Do not e
 
 - No tracking, QR attendance, benefits, or notification APIs
 - No photo upload
-- React is not on this API yet
+- React Hosting deploy still needs the GitHub secret `FIREBASE_SERVICE_ACCOUNT_SAHAKARBHARATI_E3B04`

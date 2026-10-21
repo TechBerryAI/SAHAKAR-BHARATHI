@@ -1,19 +1,17 @@
-import { onAuthStateChanged, type User } from 'firebase/auth'
 import { useSyncExternalStore } from 'react'
-import { auth } from './firebase.ts'
 import type { Profile } from './types.ts'
+
+export const ACCESS_TOKEN_KEY = 'sahakar_access_token'
 
 export type AuthSnapshot = {
   ready: boolean
   uid: string | null
-  user: User | null
   profile: Profile | null
 }
 
 const empty: AuthSnapshot = {
   ready: false,
   uid: null,
-  user: null,
   profile: null,
 }
 
@@ -36,35 +34,51 @@ export function getSnapshot(): AuthSnapshot {
   return snapshot
 }
 
-export function setUser(user: User | null) {
+export function getAccessToken(): string | null {
+  try {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+    return token && token.length ? token : null
+  } catch {
+    return null
+  }
+}
+
+export function setAccessToken(token: string) {
+  localStorage.setItem(ACCESS_TOKEN_KEY, token)
+}
+
+export function applyAuthenticated(profile: Profile) {
   snapshot = {
     ready: true,
-    uid: user?.uid ?? null,
-    user,
-    profile: user ? snapshot.profile : null,
+    uid: profile.login_id,
+    profile,
   }
   emit()
 }
 
 export function setProfile(profile: Profile | null) {
-  snapshot = { ...snapshot, profile }
+  snapshot = {
+    ...snapshot,
+    uid: profile?.login_id ?? snapshot.uid,
+    profile,
+  }
+  emit()
+}
+
+export function markReady() {
+  snapshot = { ...snapshot, ready: true }
   emit()
 }
 
 export function clearSession() {
-  snapshot = { ready: true, uid: null, user: null, profile: null }
+  try {
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+  } catch {
+    // Ignore quota / private-mode failures; in-memory session still clears.
+  }
+  snapshot = { ready: true, uid: null, profile: null }
   emit()
 }
-
-onAuthStateChanged(auth, (user) => {
-  snapshot = {
-    ready: true,
-    uid: user?.uid ?? null,
-    user,
-    profile: user ? snapshot.profile : null,
-  }
-  emit()
-})
 
 export function useSession(): AuthSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
