@@ -9,6 +9,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 _PRODUCTION_ENVIRONMENTS = {"production", "prod"}
+_DEV_CORS_ORIGINS = (
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "https://sahakarbharati-e3b04.web.app",
+    "https://sahakarbharati-e3b04.firebaseapp.com",
+)
 
 
 def normalize_database_url(url: str) -> str:
@@ -74,7 +80,12 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        origins = [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        if origins:
+            return origins
+        if not self.is_production:
+            return list(_DEV_CORS_ORIGINS)
+        return []
 
     def sqlalchemy_url(self, database: str | None = None) -> str:
         if database is None and self.database_url.strip():

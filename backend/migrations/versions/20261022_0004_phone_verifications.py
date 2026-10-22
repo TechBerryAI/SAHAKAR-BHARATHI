@@ -1,7 +1,7 @@
 """Store mobile OTP challenges for Textbee verification.
 
-Revision ID: 20261022_0003
-Revises: 20261021_0002
+Revision ID: 20261022_0004
+Revises: 20261022_0003
 Create Date: 2026-10-22
 """
 
@@ -11,13 +11,17 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "20261022_0003"
-down_revision: Union[str, None] = "20261021_0002"
+revision: str = "20261022_0004"
+down_revision: Union[str, None] = "20261022_0003"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "phone_verifications" in inspector.get_table_names():
+        return
     op.create_table(
         "phone_verifications",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -42,5 +46,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "phone_verifications" not in inspector.get_table_names():
+        return
     op.drop_index("ix_phone_verifications_mobile", table_name="phone_verifications")
     op.drop_table("phone_verifications")

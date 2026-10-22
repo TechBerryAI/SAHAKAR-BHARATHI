@@ -62,6 +62,11 @@ class TextbeeGateway:
             raise SmsDeliveryError("The SMS gateway is busy. Try again later.")
         if response.status_code != 200 or not _accepted(response):
             raise SmsDeliveryError()
+        warning = _send_warning(response)
+        if warning == "SMS_PERMISSION_MISSING":
+            raise SmsDeliveryError(
+                "The sending phone needs SMS permission in the Textbee app."
+            )
         self._last_batch_id = _batch_id(response)
 
     def wait_until_sent(self, timeout: float = 20.0) -> bool:
@@ -168,6 +173,21 @@ def _batch_id(response: httpx.Response) -> str | None:
         return None
     batch_id = data.get("smsBatchId") or data.get("_id")
     return batch_id if isinstance(batch_id, str) and batch_id else None
+
+
+def _send_warning(response: httpx.Response) -> str | None:
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return None
+    warning = data.get("warning")
+    if not isinstance(warning, dict):
+        return None
+    code = warning.get("code")
+    return code if isinstance(code, str) and code else None
 
 
 def _accepted(response: httpx.Response) -> bool:

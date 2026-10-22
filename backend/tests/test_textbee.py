@@ -130,6 +130,31 @@ def test_textbee_wait_until_sent_reads_batch_status() -> None:
     assert gateway.wait_until_sent(timeout=1.0) is True
 
 
+def test_textbee_rejects_missing_sms_permission() -> None:
+    from app.core.errors import SmsDeliveryError
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "success": True,
+                    "smsBatchId": "batch-1",
+                    "warning": {"code": "SMS_PERMISSION_MISSING", "message": "SMS off"},
+                }
+            },
+        )
+
+    gateway = TextbeeGateway(api_key="test-key", transport=httpx.MockTransport(handler))
+    try:
+        gateway.send("9876543210", "code")
+    except SmsDeliveryError as exc:
+        assert exc.status_code == 503
+        assert "permission" in exc.detail.lower()
+    else:
+        raise AssertionError("expected SMS permission error")
+
+
 def test_textbee_rejects_failed_batch() -> None:
     from app.core.errors import SmsDeliveryError
 

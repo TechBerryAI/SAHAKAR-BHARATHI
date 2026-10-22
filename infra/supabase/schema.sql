@@ -1,5 +1,5 @@
 -- Sahakar Bharati participant schema for Supabase (PostgreSQL).
--- Matches Alembic head 20261022_0003 (verification_challenges is not created).
+-- Matches Alembic head 20261022_0004 (verification_challenges is not created).
 --
 -- Apply in the Supabase SQL Editor, or with:
 --   supabase db query --file supabase/schema.sql
@@ -88,10 +88,28 @@ CREATE INDEX IF NOT EXISTS ix_audit_events_event_type ON public.audit_events (ev
 CREATE INDEX IF NOT EXISTS ix_audit_events_identifier_hash ON public.audit_events (identifier_hash);
 CREATE INDEX IF NOT EXISTS ix_audit_events_created_at ON public.audit_events (created_at);
 
+CREATE TABLE IF NOT EXISTS public.phone_verifications (
+    id uuid PRIMARY KEY,
+    mobile varchar(10) NOT NULL,
+    code_hash varchar(255) NOT NULL,
+    expires_at timestamptz NOT NULL,
+    attempts integer NOT NULL DEFAULT 0,
+    consumed_at timestamptz,
+    token_hash varchar(64),
+    token_expires_at timestamptz,
+    token_used_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT phone_verifications_token_hash_key UNIQUE (token_hash)
+);
+
+CREATE INDEX IF NOT EXISTS ix_phone_verifications_mobile
+    ON public.phone_verifications (mobile);
+
 COMMENT ON TABLE public.users IS 'Participant accounts. PIN hashes are Argon2id; FastAPI owns writes.';
 COMMENT ON TABLE public.registrations IS 'One registration row per user. registration_id matches users.login_id.';
 COMMENT ON TABLE public.sessions IS 'Opaque FastAPI bearer sessions. Not Supabase auth.sessions.';
 COMMENT ON TABLE public.audit_events IS 'Login, logout, registration, and profile-update audit trail.';
+COMMENT ON TABLE public.phone_verifications IS 'Hashed mobile OTP challenges and single-use registration tokens.';
 COMMENT ON COLUMN public.users.pin_hash IS 'Argon2id hash. Never store a raw PIN.';
 COMMENT ON COLUMN public.sessions.token_hash IS 'SHA-256 of the bearer token. The raw token is returned once.';
 
@@ -99,11 +117,13 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.phone_verifications ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.users FROM anon, authenticated;
 REVOKE ALL ON TABLE public.registrations FROM anon, authenticated;
 REVOKE ALL ON TABLE public.sessions FROM anon, authenticated;
 REVOKE ALL ON TABLE public.audit_events FROM anon, authenticated;
+REVOKE ALL ON TABLE public.phone_verifications FROM anon, authenticated;
 
 CREATE TABLE IF NOT EXISTS public.alembic_version (
     version_num varchar(32) NOT NULL,
@@ -111,5 +131,5 @@ CREATE TABLE IF NOT EXISTS public.alembic_version (
 );
 
 INSERT INTO public.alembic_version (version_num)
-VALUES ('20261022_0003')
+VALUES ('20261022_0004')
 ON CONFLICT (version_num) DO NOTHING;
