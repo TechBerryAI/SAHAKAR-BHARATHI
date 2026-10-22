@@ -2,13 +2,50 @@ package com.example.sahakarbharati.core.copy
 
 import androidx.compose.runtime.staticCompositionLocalOf
 
-enum class AppLanguage(val key: String) {
-    EN("EN"),
-    HI("HI"),
+enum class AppLanguage(
+    val key: String,
+    val englishName: String,
+    val nativeName: String,
+) {
+    EN("en", "English", "English"),
+    HI("hi", "Hindi", "हिन्दी"),
+    BN("bn", "Bengali", "বাংলা"),
+    TE("te", "Telugu", "తెలుగు"),
+    MR("mr", "Marathi", "मराठी"),
+    TA("ta", "Tamil", "தமிழ்"),
+    UR("ur", "Urdu", "اردو"),
+    GU("gu", "Gujarati", "ગુજરાતી"),
+    KN("kn", "Kannada", "ಕನ್ನಡ"),
+    OR("or", "Odia", "ଓଡ଼ିଆ"),
+    ML("ml", "Malayalam", "മലയാളം"),
+    PA("pa", "Punjabi", "ਪੰਜਾਬੀ"),
+    AS("as", "Assamese", "অসমীয়া"),
+    MAI("mai", "Maithili", "मैथिली"),
+    SAT("sat", "Santali", "ᱥᱟᱱᱛᱟᱲᱤ"),
+    KS("ks", "Kashmiri", "کٲشُر"),
+    NE("ne", "Nepali", "नेपाली"),
+    KOK("kok", "Konkani", "कोंकणी"),
+    SD("sd", "Sindhi", "سنڌي"),
+    DOI("doi", "Dogri", "डोगरी"),
+    MNI("mni", "Manipuri", "মৈতৈলোন্"),
+    BRX("brx", "Bodo", "बरʼ"),
+    SA("sa", "Sanskrit", "संस्कृतम्"),
+    BHO("bho", "Bhojpuri", "भोजपुरी"),
+    RAJ("raj", "Rajasthani", "राजस्थानी"),
+    TCY("tcy", "Tulu", "ತುಳು"),
     ;
 
     companion object {
-        fun fromKey(key: String): AppLanguage = if (key.equals("HI", ignoreCase = true)) HI else EN
+        private val hindiFamily = setOf(HI, MAI, BHO, RAJ, DOI, NE, KOK, SA)
+
+        fun fromKey(key: String): AppLanguage {
+            val normalized = key.trim().lowercase()
+            return entries.find { it.key.equals(normalized, ignoreCase = true) }
+                ?: entries.find { it.name.equals(key.trim(), ignoreCase = true) }
+                ?: EN
+        }
+
+        fun usesHindiCopy(language: AppLanguage): Boolean = language in hindiFamily
     }
 }
 
@@ -301,6 +338,8 @@ class RathYatraCopy {
     lateinit var adminBody: String
     lateinit var langEn: String
     lateinit var langHi: String
+    lateinit var chooseLanguage: String
+    lateinit var searchLanguages: String
 
     fun cloneCopy(): RathYatraCopy {
         val copy = RathYatraCopy()
@@ -592,6 +631,8 @@ class RathYatraCopy {
             copy.adminBody = adminBody
             copy.langEn = langEn
             copy.langHi = langHi
+            copy.chooseLanguage = chooseLanguage
+            copy.searchLanguages = searchLanguages
         return copy
     }
 
@@ -886,6 +927,8 @@ private val English: RathYatraCopy = RathYatraCopy().apply {
     adminBody = "The organiser console is not part of this participant app."
     langEn = "EN"
     langHi = "हिंदी"
+    chooseLanguage = "Choose language"
+    searchLanguages = "Search languages"
 }
 
 private val Hindi: RathYatraCopy = English.cloneCopy().apply {
@@ -1177,11 +1220,44 @@ private val Hindi: RathYatraCopy = English.cloneCopy().apply {
     adminBody = "आयोजक कंसोल इस प्रतिभागी ऐप का हिस्सा नहीं है।"
     langEn = "EN"
     langHi = "हिंदी"
+    chooseLanguage = "भाषा चुनें"
+    searchLanguages = "भाषा खोजें"
 }
 
 val LocalCopy = staticCompositionLocalOf { English }
 val LocalLanguage = staticCompositionLocalOf { AppLanguage.EN }
 val LocalSetLanguage = staticCompositionLocalOf<(AppLanguage) -> Unit> { {} }
 
-fun copyFor(language: AppLanguage): RathYatraCopy =
-    if (language == AppLanguage.HI) Hindi else English
+val languagePickerOrder: List<AppLanguage> = listOf(
+    AppLanguage.EN,
+    AppLanguage.HI,
+    AppLanguage.BN,
+    AppLanguage.MR,
+    AppLanguage.TE,
+    AppLanguage.TA,
+    AppLanguage.GU,
+    AppLanguage.UR,
+    AppLanguage.KN,
+    AppLanguage.OR,
+    AppLanguage.ML,
+    AppLanguage.PA,
+    AppLanguage.AS,
+    AppLanguage.MAI,
+    AppLanguage.SAT,
+    AppLanguage.KS,
+    AppLanguage.NE,
+    AppLanguage.KOK,
+    AppLanguage.SD,
+    AppLanguage.DOI,
+    AppLanguage.MNI,
+    AppLanguage.BRX,
+    AppLanguage.SA,
+    AppLanguage.BHO,
+    AppLanguage.RAJ,
+    AppLanguage.TCY,
+)
+
+fun copyFor(language: AppLanguage): RathYatraCopy {
+    val base = if (AppLanguage.usesHindiCopy(language)) Hindi else English
+    return guestOverlay(language, base)
+}

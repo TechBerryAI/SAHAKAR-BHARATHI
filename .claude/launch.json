@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api-relay",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/DELL/AppData/Local/Temp/claude/C--Users-DELL-Documents-GitHub-SAHAKAR-BHARATHI/14958a99-2c37-47a4-9a87-0f666c2e5a24/scratchpad/api-relay.mjs"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "--port", "5174", "--strictPort"],
+      "port": 5174
+    }
+  ]
+}

@@ -1,17 +1,21 @@
+import type { ReactNode } from 'react'
+import { useLanguage } from '../lib/language.tsx'
 import { Emblem } from './Emblem.tsx'
 
 type AppBarProps = {
   title: string
   onBack?: () => void
   showEmblem?: boolean
+  trailing?: ReactNode
 }
 
-export function AppBar({ title, onBack, showEmblem = false }: AppBarProps) {
+export function AppBar({ title, onBack, showEmblem = false, trailing }: AppBarProps) {
+  const { copy } = useLanguage()
   return (
     <header className="app-bar">
       <div className="app-bar__side">
         {onBack ? (
-          <button type="button" className="icon-button" aria-label="Back" onClick={onBack}>
+          <button type="button" className="icon-button" aria-label={copy.back} onClick={onBack}>
             <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 fill="currentColor"
@@ -24,7 +28,7 @@ export function AppBar({ title, onBack, showEmblem = false }: AppBarProps) {
         ) : null}
       </div>
       <h1 className="app-bar__title">{title}</h1>
-      <div className="app-bar__side" />
+      <div className={`app-bar__side${trailing ? ' app-bar__side--wide' : ''}`}>{trailing}</div>
     </header>
   )
 }

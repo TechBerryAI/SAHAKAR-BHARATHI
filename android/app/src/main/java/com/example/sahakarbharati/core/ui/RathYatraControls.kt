@@ -16,11 +16,28 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +53,7 @@ import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.LocalSetLanguage
+import com.example.sahakarbharati.core.copy.languagePickerOrder
 import com.example.sahakarbharati.ui.theme.CardShape
 import com.example.sahakarbharati.ui.theme.PillShape
 import com.example.sahakarbharati.ui.theme.RathYatraColors
@@ -195,6 +213,7 @@ fun OutlinedIvoryButton(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LanguageChips(
     modifier: Modifier = Modifier,
@@ -203,37 +222,136 @@ fun LanguageChips(
     val language = LocalLanguage.current
     val setLanguage = LocalSetLanguage.current
     val copy = LocalCopy.current
-    val options = listOf(
-        AppLanguage.EN to copy.langEn,
-        AppLanguage.HI to copy.langHi,
-    )
-    Row(
-        modifier = modifier
-            .background(
-                color = if (dark) RathYatraColors.NavyDeep.copy(alpha = 0.7f) else RathYatraColors.White.copy(alpha = 0.16f),
-                shape = PillShape,
+    var expanded by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    val content = if (dark) RathYatraColors.GoldPale else RathYatraColors.NavyDeep
+    val filtered = remember(query) {
+        val needle = query.trim()
+        languagePickerOrder.filter { option ->
+            needle.isEmpty() ||
+                option.englishName.contains(needle, ignoreCase = true) ||
+                option.nativeName.contains(needle, ignoreCase = true)
+        }
+    }
+
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .clickable(role = Role.Button) { expanded = true }
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+                .semantics { contentDescription = "Language ${language.englishName}" },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Public,
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(16.dp),
             )
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        options.forEach { (key, label) ->
-            val active = language == key
-            Box(
+            Text(
+                text = language.nativeName,
+                style = MaterialTheme.typography.labelSmall,
+                color = content,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+
+    if (expanded) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                expanded = false
+                query = ""
+            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = RathYatraColors.Ivory,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        ) {
+            Column(
                 modifier = Modifier
-                    .clip(PillShape)
-                    .background(if (active) RathYatraColors.SaffronBright else Color.Transparent)
-                    .clickable(role = Role.Tab) { setLanguage(key) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                    .semantics { contentDescription = "Language $label" },
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
             ) {
                 Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (active) RathYatraColors.NavyDeep else RathYatraColors.SurfaceContainerHigh,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                    text = copy.chooseLanguage,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = RathYatraColors.Navy,
+                    fontWeight = FontWeight.SemiBold,
                 )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(copy.searchLanguages) },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Search, contentDescription = null)
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = RathYatraColors.SurfaceContainerLow,
+                        unfocusedContainerColor = RathYatraColors.SurfaceContainerLow,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                    ),
+                )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .padding(top = 8.dp, bottom = 20.dp),
+                ) {
+                    items(filtered, key = { it.key }) { option ->
+                        val selected = option == language
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (selected) Color(0xFFFFF3E4) else Color.Transparent,
+                                )
+                                .clickable {
+                                    setLanguage(option)
+                                    expanded = false
+                                    query = ""
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = option.nativeName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = RathYatraColors.Navy,
+                                )
+                                Text(
+                                    text = option.englishName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = RathYatraColors.OnSurfaceVariant,
+                                )
+                            }
+                            if (selected) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = RathYatraColors.Navy,
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

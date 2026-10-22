@@ -21,18 +21,17 @@ class PhoneVerificationRepository:
             select(PhoneVerification).where(PhoneVerification.token_hash == token_hash)
         )
 
-    def latest_for_mobile(self, mobile: str) -> PhoneVerification | None:
-        return self.db.scalar(
-            select(PhoneVerification)
-            .where(PhoneVerification.mobile == mobile)
-            .order_by(PhoneVerification.created_at.desc())
-            .limit(1)
+    def for_mobile(self, mobile: str) -> list[PhoneVerification]:
+        """All challenges for a mobile, newest first."""
+        return list(
+            self.db.scalars(
+                select(PhoneVerification)
+                .where(PhoneVerification.mobile == mobile)
+                .order_by(PhoneVerification.created_at.desc())
+            )
         )
 
-    def retire_unused(self, mobile: str, now: datetime) -> None:
-        rows = self.db.scalars(
-            select(PhoneVerification).where(PhoneVerification.mobile == mobile)
-        ).all()
+    def retire_unused(self, rows: list[PhoneVerification], now: datetime) -> None:
         for row in rows:
             if row.consumed_at is None:
                 row.consumed_at = now

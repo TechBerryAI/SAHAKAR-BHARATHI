@@ -154,13 +154,36 @@ export function confirmPhoneVerification(
   })
 }
 
-export async function getMe(): Promise<Profile> {
-  const payload = await request<Record<string, unknown>>('/api/v1/me', {
-    fallback: 'Could not load profile.',
-  })
+// Sign-in and app start already load the profile; screens mounting right after reuse it
+// instead of repeating GET /me, which costs several database round-trips on the server.
+const PROFILE_FRESH_MS = 30_000
+let profileLoadedAt = 0
+let profileRequest: Promise<Profile> | null = null
+
+function rememberProfile(payload: Record<string, unknown>): Profile {
   const profile = profileFromPayload(payload)
+  profileLoadedAt = Date.now()
   applyAuthenticated(profile)
   return profile
+}
+
+export function getMe(options: { fresh?: boolean } = {}): Promise<Profile> {
+  if (!options.fresh) {
+    const cached = getSnapshot().profile
+    if (cached && Date.now() - profileLoadedAt < PROFILE_FRESH_MS) {
+      return Promise.resolve(cached)
+    }
+    if (profileRequest) return profileRequest
+  }
+  const pending = request<Record<string, unknown>>('/api/v1/me', {
+    fallback: 'Could not load profile.',
+  }).then(rememberProfile)
+  profileRequest = pending
+  const settle = () => {
+    if (profileRequest === pending) profileRequest = null
+  }
+  pending.then(settle, settle)
+  return pending
 }
 
 export async function updateMe(body: ProfileUpdate): Promise<Profile> {
@@ -169,9 +192,7 @@ export async function updateMe(body: ProfileUpdate): Promise<Profile> {
     body,
     fallback: 'Could not update profile.',
   })
-  const profile = profileFromPayload(payload)
-  applyAuthenticated(profile)
-  return profile
+  return rememberProfile(payload)
 }
 
 export async function signIn(identifier: string, pin: string): Promise<Profile> {
@@ -182,7 +203,7 @@ export async function signIn(identifier: string, pin: string): Promise<Profile> 
     fallback: 'Sign in failed.',
   })
   setAccessToken(session.access_token)
-  return getMe()
+  return getMe({ fresh: true })
 }
 
 export async function registerAndSignIn(body: RegistrationCreate): Promise<Profile> {

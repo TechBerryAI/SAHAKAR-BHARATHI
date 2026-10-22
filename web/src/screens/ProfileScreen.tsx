@@ -10,14 +10,18 @@ import {
   Screen,
   StatusChip,
 } from '../components/ui.tsx'
+import { LanguageSelect } from '../components/LanguageSelect.tsx'
 import { ApiError, getMe, logout, updateMe } from '../lib/api.ts'
+import { occupationLabel } from '../lib/copy.ts'
 import { blankToNull, formatMobile, initials } from '../lib/format.ts'
+import { useLanguage } from '../lib/language.tsx'
 import { setProfile, useSession } from '../lib/session.ts'
 import type { Occupation } from '../lib/types.ts'
 import { OCCUPATIONS } from '../lib/types.ts'
 
 export function ProfileScreen() {
   const navigate = useNavigate()
+  const { copy } = useLanguage()
   const { profile } = useSession()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [occupation, setOccupation] = useState<Occupation | ''>(
@@ -61,11 +65,11 @@ export function ProfileScreen() {
   async function onSave(event: FormEvent) {
     event.preventDefault()
     if (fullName.trim().length < 2) {
-      setError('Full name is required.')
+      setError(copy.fullNameRequired)
       return
     }
     if (pincode && !/^\d{6}$/.test(pincode)) {
-      setError('PIN code must be 6 digits.')
+      setError(copy.pinDigits)
       return
     }
     setSaving(true)
@@ -82,9 +86,9 @@ export function ProfileScreen() {
         pincode: blankToNull(pincode),
       })
       setProfile(next)
-      setSaved('Profile updated.')
+      setSaved(copy.saved)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not update profile.')
+      setError(err instanceof ApiError ? err.message : copy.updateFailed)
     } finally {
       setSaving(false)
     }
@@ -98,7 +102,7 @@ export function ProfileScreen() {
 
   return (
     <>
-      <AppBar title="Profile" showEmblem />
+      <AppBar title={copy.profile} showEmblem trailing={<LanguageSelect variant="bar" />} />
       <Screen withNav>
         <Card>
           <div className="identity">
@@ -106,8 +110,8 @@ export function ProfileScreen() {
               {initials(profile?.full_name ?? '')}
             </div>
             <div>
-              <h2 className="card__title">{profile?.full_name || 'Participant'}</h2>
-              <p className="muted">Registered participant</p>
+              <h2 className="card__title">{profile?.full_name || copy.participant}</h2>
+              <p className="muted">{copy.registeredParticipant}</p>
               <div className="chips" style={{ marginTop: 8 }}>
                 <StatusChip tone="saffron">{profile?.login_id || '—'}</StatusChip>
               </div>
@@ -115,18 +119,18 @@ export function ProfileScreen() {
           </div>
         </Card>
 
-        <Card kicker="Account">
+        <Card kicker={copy.account}>
           <div className="stack">
             <div className="profile-row">
-              <span className="profile-row__label">Login ID</span>
+              <span className="profile-row__label">{copy.loginId}</span>
               <span className="profile-row__value">{profile?.login_id || '—'}</span>
             </div>
             <div className="profile-row">
-              <span className="profile-row__label">Email</span>
+              <span className="profile-row__label">{copy.email}</span>
               <span className="profile-row__value">{profile?.email || '—'}</span>
             </div>
             <div className="profile-row">
-              <span className="profile-row__label">Mobile</span>
+              <span className="profile-row__label">{copy.mobile}</span>
               <span className="profile-row__value">
                 {profile?.mobile ? formatMobile(profile.mobile) : '—'}
               </span>
@@ -135,23 +139,23 @@ export function ProfileScreen() {
         </Card>
 
         <form className="stack" onSubmit={onSave}>
-          <Card kicker="Edit details" title="Update profile">
+          <Card kicker={copy.editDetails} title={copy.updateProfile}>
             <div className="stack">
               <ErrorBanner message={error} />
               {saved ? <div className="banner banner--ok">{saved}</div> : null}
               <Field
-                label="Full name"
+                label={copy.fullName}
                 name="full_name"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
               />
               <div className="field">
-                <span className="field__label">Occupation</span>
+                <span className="field__label">{copy.occupation}</span>
                 <div className="chips">
                   {OCCUPATIONS.map((item) => (
                     <ChoiceChip
                       key={item}
-                      label={item}
+                      label={occupationLabel(copy, item)}
                       selected={occupation === item}
                       onClick={() => setOccupation(occupation === item ? '' : item)}
                     />
@@ -159,31 +163,31 @@ export function ProfileScreen() {
                 </div>
               </div>
               <Field
-                label="Address"
+                label={copy.address}
                 name="address_line"
                 value={addressLine}
                 onChange={(event) => setAddressLine(event.target.value)}
               />
               <Field
-                label="Locality"
+                label={copy.locality}
                 name="locality"
                 value={locality}
                 onChange={(event) => setLocality(event.target.value)}
               />
               <Field
-                label="District"
+                label={copy.district}
                 name="district"
                 value={district}
                 onChange={(event) => setDistrict(event.target.value)}
               />
               <Field
-                label="State"
+                label={copy.state}
                 name="state"
                 value={stateName}
                 onChange={(event) => setStateName(event.target.value)}
               />
               <Field
-                label="PIN code"
+                label={copy.pincode}
                 name="pincode"
                 inputMode="numeric"
                 maxLength={6}
@@ -193,12 +197,12 @@ export function ProfileScreen() {
             </div>
           </Card>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? copy.saving : copy.saveChanges}
           </Button>
         </form>
 
         <Button type="button" variant="ghost" onClick={() => setConfirmLogout(true)}>
-          Log out
+          {copy.logOut}
         </Button>
       </Screen>
 
@@ -206,15 +210,15 @@ export function ProfileScreen() {
         <div className="dialog-backdrop" role="presentation">
           <div className="dialog" role="dialog" aria-labelledby="logout-title">
             <h2 className="card__title" id="logout-title">
-              Log out?
+              {copy.logOutConfirm}
             </h2>
-            <p className="card__body">You will need your login ID or mobile and PIN to open the app again.</p>
+            <p className="card__body">{copy.logOutBody}</p>
             <div className="stack" style={{ marginTop: 16 }}>
               <Button type="button" variant="danger" onClick={onLogout} disabled={loggingOut}>
-                Log out
+                {copy.logOut}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setConfirmLogout(false)}>
-                Cancel
+                {copy.cancel}
               </Button>
             </div>
           </div>

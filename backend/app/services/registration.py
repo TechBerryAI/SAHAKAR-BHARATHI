@@ -24,9 +24,7 @@ class RegistrationService:
         self.phone_verifications = phone_verifications
 
     def register(self, payload: RegistrationCreate) -> RegistrationResponse:
-        if self.users.get_by_mobile(payload.mobile):
-            raise DuplicateAccountError()
-        if payload.email and self.users.get_by_email(payload.email):
+        if self.users.exists_with_mobile_or_email(payload.mobile, payload.email):
             raise DuplicateAccountError()
         self.phone_verifications.consume(payload.mobile, payload.verification_token)
 
@@ -59,15 +57,8 @@ class RegistrationService:
             user_id=user.id,
             identifier_hash=hash_identifier(payload.mobile),
         )
-        try:
-            self.db.commit()
-        except IntegrityError as exc:
-            self.db.rollback()
-            if is_unique_violation(exc):
-                raise DuplicateAccountError() from None
-            raise
-        self.db.refresh(user)
-        return RegistrationResponse(
+        # Every response field is set in Python, so build it before commit instead of reloading the row.
+        response = RegistrationResponse(
             registration_id=login_id,
             login_id=login_id,
             full_name=user.full_name,
@@ -76,3 +67,11 @@ class RegistrationService:
             state=user.state,
             district=user.district,
         )
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            if is_unique_violation(exc):
+                raise DuplicateAccountError() from None
+            raise
+        return response
