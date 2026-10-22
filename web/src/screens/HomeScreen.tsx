@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { AppBar } from '../components/AppBar.tsx'
+import { LanguageSelect } from '../components/LanguageSelect.tsx'
 import { Card, ErrorBanner, Screen, StatusChip } from '../components/ui.tsx'
 import { ApiError, getMe } from '../lib/api.ts'
+import { occupationLabel } from '../lib/copy.ts'
 import { firstName, initials, regionLabel } from '../lib/format.ts'
+import { useLanguage } from '../lib/language.tsx'
 import { getSnapshot, setProfile, useSession } from '../lib/session.ts'
 
 export function HomeScreen() {
+  const { copy } = useLanguage()
   const { profile } = useSession()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(!profile)
@@ -23,7 +27,7 @@ export function HomeScreen() {
         if (cancelled) return
         if (err instanceof ApiError && err.status === 401) return
         if (!getSnapshot().profile) {
-          setError(err instanceof ApiError ? err.message : 'Could not load profile.')
+          setError(err instanceof ApiError ? err.message : copy.loadFailed)
         }
       })
       .finally(() => {
@@ -32,20 +36,20 @@ export function HomeScreen() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [copy.loadFailed])
 
   const name = profile?.full_name ?? ''
-  const greeting = name ? `Jai Kisan, ${firstName(name)}` : 'Jai Kisan'
+  const greeting = name ? `${copy.jaiKisan}, ${firstName(name)}` : copy.jaiKisan
   const region = regionLabel(profile?.district ?? null, profile?.state ?? null)
 
   return (
     <>
-      <AppBar title="Home" showEmblem />
+      <AppBar title={copy.home} showEmblem trailing={<LanguageSelect variant="bar" />} />
       <Screen withNav>
         <ErrorBanner message={error} />
         {loading && !profile ? (
           <div className="center-state">
-            <div className="spinner" aria-label="Loading" />
+            <div className="spinner" aria-label={copy.saving} />
           </div>
         ) : (
           <>
@@ -58,23 +62,26 @@ export function HomeScreen() {
                   <h2 className="card__title" style={{ marginBottom: 4 }}>
                     {greeting}
                   </h2>
-                  <p className="muted">Registered participant</p>
+                  <p className="muted">{copy.registeredParticipant}</p>
                 </div>
               </div>
               <div className="chips" style={{ marginTop: 12 }}>
-                <StatusChip>ID: {profile?.login_id || '—'}</StatusChip>
-                {profile?.occupation ? <StatusChip>{profile.occupation}</StatusChip> : null}
+                <StatusChip>
+                  {copy.loginId}: {profile?.login_id || '—'}
+                </StatusChip>
+                {profile?.occupation ? (
+                  <StatusChip>{occupationLabel(copy, profile.occupation)}</StatusChip>
+                ) : null}
                 {region ? <StatusChip tone="saffron">{region}</StatusChip> : null}
               </div>
             </Card>
-            <Card kicker="Account" title="Your Rath Yatra profile">
+            <Card kicker={copy.account} title={copy.yourProfile}>
               <p className="card__body">
-                Status: {profile?.status || 'active'}. Sign in with your login ID or mobile and PIN,
-                and update your details from Profile.
+                {copy.profileStatus.replace('{status}', profile?.status || 'active')}
               </p>
             </Card>
-            <Card kicker="Mobile" title={profile?.mobile ? `+91 ${profile.mobile}` : 'Mobile on file'}>
-              <p className="card__body">This number is on file for your Rath Yatra profile.</p>
+            <Card kicker={copy.mobile} title={profile?.mobile ? `+91 ${profile.mobile}` : copy.mobileOnFile}>
+              <p className="card__body">{copy.mobileOnFileBody}</p>
             </Card>
           </>
         )}

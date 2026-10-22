@@ -11,7 +11,8 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
-        && request.resource.data.email == request.auth.token.email
+        && (request.resource.data.email == request.auth.token.email
+          || request.resource.data.email == null)
         && request.resource.data.status == 'active'
         && request.resource.data.mobile.matches('^[6-9][0-9]{9}$');
       allow update: if isOwner(uid)
