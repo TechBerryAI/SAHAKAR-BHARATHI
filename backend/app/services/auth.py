@@ -12,6 +12,7 @@ from app.core.security import (
     issue_session_token,
     session_expiry,
     verify_pin,
+    verify_pin_and_update,
 )
 from app.models.session import AuthSession
 from app.models.user import User
@@ -39,33 +40,47 @@ class AuthService:
             raise RateLimitedError(retry_after=self.settings.login_lockout_seconds)
 
         user = self.users.find_for_login(payload.identifier)
+        upgraded_hash: str | None = None
         if user is None:
             verify_pin(payload.pin, dummy_pin_hash())
             pin_ok = False
         else:
-            pin_ok = verify_pin(payload.pin, user.pin_hash) and user.status == _ACTIVE_STATUS
+            pin_matches, upgraded_hash = verify_pin_and_update(payload.pin, user.pin_hash)
+            pin_ok = pin_matches and user.status == _ACTIVE_STATUS
 
         if user is None or not pin_ok:
             self.audit.add("login_failure", identifier_hash=identifier_hash)
             self.db.commit()
             raise InvalidCredentialsError()
 
+        if upgraded_hash is not None:
+            user.pin_hash = upgraded_hash
         raw_token, token_hash = issue_session_token()
         expires_at = session_expiry(self.settings)
         session = AuthSession(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
         self.sessions.add(session)
         self.audit.add("login_success", user_id=user.id, identifier_hash=identifier_hash)
-        self.db.commit()
-        return SessionResponse(
+        # Built before commit: commit expires `user`, and reading it afterwards
+        # would cost another database round trip.
+        response = SessionResponse(
             access_token=raw_token,
             expires_at=expires_at,
             login_id=user.login_id,
             full_name=user.full_name,
             mobile=user.mobile,
+            email=user.email,
+            gender=user.gender,
+            date_of_birth=user.date_of_birth,
             occupation=user.occupation,
-            state=user.state,
+            address_line=user.address_line,
+            locality=user.locality,
             district=user.district,
+            state=user.state,
+            pincode=user.pincode,
+            status=user.status,
         )
+        self.db.commit()
+        return response
 
     def authenticate(self, raw_token: str | None) -> tuple[User, AuthSession]:
         if not raw_token:

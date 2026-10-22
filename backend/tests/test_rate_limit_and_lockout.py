@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from tests.conftest import register_and_login, register_payload
+from tests.conftest import register_and_login, register_payload, verified_register_payload
 
 
 def test_login_rate_limit_returns_429(client: TestClient) -> None:
@@ -90,10 +90,10 @@ def test_register_rate_limit_returns_429(client: TestClient, monkeypatch) -> Non
     from app.core.config import get_settings
 
     get_settings.cache_clear()
-    first = client.post("/api/v1/registrations", json=register_payload())
+    first = client.post("/api/v1/registrations", json=verified_register_payload(client))
     second = client.post(
         "/api/v1/registrations",
-        json=register_payload(mobile="9123456789", email="other@example.com"),
+        json=verified_register_payload(client, mobile="9123456789", email="other@example.com"),
     )
     assert first.status_code == 201
     assert second.status_code == 429

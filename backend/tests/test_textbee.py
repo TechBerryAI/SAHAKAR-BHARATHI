@@ -172,3 +172,44 @@ def test_textbee_rejects_failed_batch() -> None:
         assert "123456" not in exc.detail
     else:
         raise AssertionError("expected SMS delivery error")
+
+
+def test_textbee_reuses_the_resolved_sim_across_requests() -> None:
+    from app.services import sms
+
+    sms._sim_cache.clear()
+    calls = {"device": 0, "send": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            calls["device"] += 1
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "simInfo": {
+                            "sims": [
+                                {"subscriptionId": 7, "serviceState": "IN_SERVICE", "simState": "READY"}
+                            ]
+                        }
+                    }
+                },
+            )
+        calls["send"] += 1
+        assert json.loads(request.content.decode())["simSubscriptionId"] == 7
+        return httpx.Response(200, json={"data": {"success": True}})
+
+    shared = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        for _ in range(3):
+            TextbeeGateway(
+                api_key="test-key",
+                device_id="device-cache",
+                resolve_sim=True,
+                client=shared,
+            ).send("9876543210", "code")
+    finally:
+        shared.close()
+        sms._sim_cache.clear()
+
+    assert calls == {"device": 1, "send": 3}

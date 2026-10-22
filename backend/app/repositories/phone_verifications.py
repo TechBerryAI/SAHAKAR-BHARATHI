@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.models.phone_verification import PhoneVerification
@@ -30,14 +30,22 @@ class PhoneVerificationRepository:
         )
 
     def retire_unused(self, mobile: str, now: datetime) -> None:
-        rows = self.db.scalars(
-            select(PhoneVerification).where(PhoneVerification.mobile == mobile)
-        ).all()
-        for row in rows:
-            if row.consumed_at is None:
-                row.consumed_at = now
-            if row.token_used_at is None:
-                row.token_used_at = now
+        # One UPDATE instead of loading every past challenge and writing each back.
+        self.db.execute(
+            update(PhoneVerification)
+            .where(
+                PhoneVerification.mobile == mobile,
+                or_(
+                    PhoneVerification.consumed_at.is_(None),
+                    PhoneVerification.token_used_at.is_(None),
+                ),
+            )
+            .values(
+                consumed_at=func.coalesce(PhoneVerification.consumed_at, now),
+                token_used_at=func.coalesce(PhoneVerification.token_used_at, now),
+            )
+            .execution_options(synchronize_session=False)
+        )
 
     def add(self, challenge: PhoneVerification) -> PhoneVerification:
         self.db.add(challenge)

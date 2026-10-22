@@ -182,7 +182,10 @@ export async function signIn(identifier: string, pin: string): Promise<Profile> 
     fallback: 'Sign in failed.',
   })
   setAccessToken(session.access_token)
-  return getMe()
+  // The session response already carries the full profile; skip a /me round trip.
+  const profile = profileFromPayload(session)
+  applyAuthenticated(profile)
+  return profile
 }
 
 export async function registerAndSignIn(body: RegistrationCreate): Promise<Profile> {

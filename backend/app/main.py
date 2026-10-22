@@ -34,7 +34,8 @@ def sanitize_validation_errors(errors: list[object]) -> list[object]:
         item = dict(error)
         loc = item.get("loc", ())
         names = {str(part).lower() for part in loc} if isinstance(loc, (list, tuple)) else set()
-        if names & _SENSITIVE_FIELDS:
+        # A missing-field error echoes the whole parent object, PIN included.
+        if names & _SENSITIVE_FIELDS or isinstance(item.get("input"), dict):
             item.pop("input", None)
         sanitized.append(item)
     return jsonable_encoder(sanitized)
