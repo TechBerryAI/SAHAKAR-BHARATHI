@@ -9,6 +9,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 _PRODUCTION_ENVIRONMENTS = {"production", "prod"}
+_DEV_CORS_ORIGINS = (
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "https://sahakarbharati-e3b04.web.app",
+    "https://sahakarbharati-e3b04.firebaseapp.com",
+)
 
 
 def normalize_database_url(url: str) -> str:
@@ -56,13 +62,30 @@ class Settings(BaseSettings):
     max_request_bytes: int = 65_536
     cors_origins: str = ""
 
+    textbee_api_key: str = ""
+    textbee_device_id: str = ""
+    textbee_base_url: str = "https://api.textbee.dev/api/v1"
+    otp_ttl_seconds: int = 5 * 60
+    otp_verification_ttl_seconds: int = 15 * 60
+    otp_max_attempts: int = 5
+    otp_resend_seconds: int = 60
+    otp_send_rate_limit: int = 5
+    otp_send_rate_window_seconds: int = 60 * 60
+    otp_confirm_rate_limit: int = 10
+    otp_confirm_rate_window_seconds: int = 15 * 60
+
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in _PRODUCTION_ENVIRONMENTS
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        origins = [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        if origins:
+            return origins
+        if not self.is_production:
+            return list(_DEV_CORS_ORIGINS)
+        return []
 
     def sqlalchemy_url(self, database: str | None = None) -> str:
         if database is None and self.database_url.strip():

@@ -124,7 +124,7 @@ Do not run Alembic from every web worker at startup.
 
 1. If the Render plan has a pre-deploy command, set it to `alembic upgrade head`.
 2. Otherwise open a one-off Render shell against the same service and run `alembic upgrade head` before sending traffic to a new revision.
-3. If the database was created from [`infra/supabase/schema.sql`](../infra/supabase/schema.sql) instead of Alembic, stamp the matching revision first (`alembic stamp 20261022_0003` after applying that script, or `alembic stamp 20261021_0002` then `alembic upgrade head`), then use `upgrade head` going forward.
+3. If the database was created from [`infra/supabase/schema.sql`](../infra/supabase/schema.sql) instead of Alembic, stamp the matching revision first (`alembic stamp 20261022_0004` after applying that script, or `alembic stamp 20261021_0002` then `alembic upgrade head`), then use `upgrade head` going forward.
 4. Never run `alembic downgrade`, `alembic stamp` against the wrong revision, or a database reset on production.
 
 The FastAPI role must be able to read and write the application tables. Do not enable PostgREST access to `pin_hash` or `token_hash`. The backend does not use Supabase Auth.

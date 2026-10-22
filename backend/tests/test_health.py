@@ -5,6 +5,22 @@ from fastapi.testclient import TestClient
 from tests.conftest import register_and_login
 
 
+def test_root_returns_service_status(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "service": "Sahakar Bharati API",
+        "health": "/health",
+    }
+
+
+def test_root_head_returns_200_without_body(client: TestClient) -> None:
+    response = client.head("/")
+    assert response.status_code == 200
+    assert response.content == b""
+
+
 def test_live_returns_200_without_database(client: TestClient) -> None:
     response = client.get("/health/live")
     assert response.status_code == 200

@@ -63,7 +63,7 @@ def test_alembic_head_is_applied(engine) -> None:
 
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "20261022_0003"
+    assert version == "20261022_0004"
 
 
 def test_production_disables_openapi_docs(monkeypatch) -> None:
@@ -77,6 +77,7 @@ def test_production_disables_openapi_docs(monkeypatch) -> None:
         assert "/docs" not in paths
         assert "/redoc" not in paths
         assert "/openapi.json" not in paths
+        assert "/" in paths
         assert "/health/live" in paths
         assert "/health/ready" in paths
     finally:
