@@ -4,14 +4,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from tests.conftest import register_payload
+from tests.conftest import register_payload, verified_register_payload
 
 
 def test_registration_success_persists_user_and_registration(
     client: TestClient,
     engine: Engine,
 ) -> None:
-    response = client.post("/api/v1/registrations", json=register_payload())
+    response = client.post("/api/v1/registrations", json=verified_register_payload(client))
     assert response.status_code == 201
     body = response.json()
     assert body["registration_id"].startswith("SB-")
@@ -46,7 +46,7 @@ def test_registration_rejects_short_pin(client: TestClient) -> None:
 
 
 def test_registration_ignores_client_supplied_ids_and_flags(client: TestClient) -> None:
-    payload = register_payload()
+    payload = verified_register_payload(client)
     payload.update(
         {
             "id": "client-id",
@@ -68,21 +68,20 @@ def test_registration_ignores_client_supplied_ids_and_flags(client: TestClient) 
 
 
 def test_duplicate_mobile_returns_409(client: TestClient) -> None:
-    first = client.post("/api/v1/registrations", json=register_payload())
+    first = client.post("/api/v1/registrations", json=verified_register_payload(client))
     assert first.status_code == 201
-    second = client.post(
-        "/api/v1/registrations",
-        json=register_payload(email="other@example.com"),
-    )
+    duplicate = register_payload(email="other@example.com")
+    duplicate["verification_token"] = "not-a-real-verification-token"
+    second = client.post("/api/v1/registrations", json=duplicate)
     assert second.status_code == 409
     assert "already exists" in second.json()["detail"]
 
 
 def test_duplicate_email_returns_409(client: TestClient) -> None:
-    first = client.post("/api/v1/registrations", json=register_payload())
+    first = client.post("/api/v1/registrations", json=verified_register_payload(client))
     assert first.status_code == 201
     second = client.post(
         "/api/v1/registrations",
-        json=register_payload(mobile="9876543211"),
+        json=verified_register_payload(client, mobile="9876543211"),
     )
     assert second.status_code == 409

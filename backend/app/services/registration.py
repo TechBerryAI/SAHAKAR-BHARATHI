@@ -12,20 +12,23 @@ from app.repositories.audit import AuditRepository
 from app.repositories.registrations import RegistrationRepository
 from app.repositories.users import UserRepository
 from app.schemas.registration import RegistrationCreate, RegistrationResponse
+from app.services.phone_verification import PhoneVerificationService
 
 
 class RegistrationService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, phone_verifications: PhoneVerificationService) -> None:
         self.db = db
         self.users = UserRepository(db)
         self.registrations = RegistrationRepository(db)
         self.audit = AuditRepository(db)
+        self.phone_verifications = phone_verifications
 
     def register(self, payload: RegistrationCreate) -> RegistrationResponse:
         if self.users.get_by_mobile(payload.mobile):
             raise DuplicateAccountError()
         if payload.email and self.users.get_by_email(payload.email):
             raise DuplicateAccountError()
+        self.phone_verifications.consume(payload.mobile, payload.verification_token)
 
         login_id = generate_login_id()
         while self.users.get_by_login_id(login_id):

@@ -16,6 +16,60 @@ class RegistrationViewModel(
 ) : ViewModel() {
     var state by mutableStateOf<UiState<RegistrationResult>>(UiState.Idle)
         private set
+    var verificationToken by mutableStateOf<String?>(null)
+        private set
+    var otpNote by mutableStateOf("")
+        private set
+    var otpBusy by mutableStateOf(false)
+        private set
+    private var challengeId: String? = null
+
+    fun clearOtp() {
+        verificationToken = null
+        challengeId = null
+        otpNote = ""
+    }
+
+    fun sendOtp(mobile: String) {
+        if (otpBusy) return
+        viewModelScope.launch {
+            otpBusy = true
+            otpNote = ""
+            val result = authRepository.sendOtp(mobile)
+            otpBusy = false
+            result.fold(
+                onSuccess = {
+                    challengeId = it
+                    verificationToken = null
+                    otpNote = "OTP sent. It expires in 5 minutes."
+                },
+                onFailure = { otpNote = it.message ?: "Could not send the OTP." },
+            )
+        }
+    }
+
+    fun confirmOtp(code: String) {
+        val id = challengeId
+        if (otpBusy || id.isNullOrBlank()) {
+            if (id.isNullOrBlank()) otpNote = "Send an OTP before verifying."
+            return
+        }
+        viewModelScope.launch {
+            otpBusy = true
+            val result = authRepository.confirmOtp(id, code)
+            otpBusy = false
+            result.fold(
+                onSuccess = {
+                    verificationToken = it
+                    otpNote = "Mobile number verified."
+                },
+                onFailure = {
+                    verificationToken = null
+                    otpNote = it.message ?: "Could not verify the OTP."
+                },
+            )
+        }
+    }
 
     fun submit(request: RegistrationRequest) {
         if (state is UiState.Loading) return
