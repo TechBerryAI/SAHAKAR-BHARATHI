@@ -77,3 +77,76 @@ def test_unconfigured_gateway_does_not_call_textbee(client: TestClient, monkeypa
     assert response.status_code == 503
     assert response.json()["detail"] == "SMS gateway is not configured."
     get_settings.cache_clear()
+
+
+def test_resend_retires_the_previous_code(client: TestClient, engine: Engine) -> None:
+    first = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
+    assert first.status_code == 202
+    first_code = client.app.state.sms_gateway.latest_code()
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE phone_verifications SET created_at = created_at - interval '5 minutes'")
+        )
+
+    second = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
+    assert second.status_code == 202
+    second_code = client.app.state.sms_gateway.latest_code()
+
+    stale = client.post(
+        f"/api/v1/phone-verifications/{first.json()['id']}/confirm",
+        json={"code": first_code},
+    )
+    assert stale.status_code == 400
+    fresh = client.post(
+        f"/api/v1/phone-verifications/{second.json()['id']}/confirm",
+        json={"code": second_code},
+    )
+    assert fresh.status_code == 200, fresh.text
+
+
+def test_sms_is_sent_after_the_challenge_is_stored(client: TestClient, engine: Engine) -> None:
+    from app.core.config import get_settings
+    from app.db.session import SessionLocal
+    from app.services.phone_verification import PhoneVerificationService
+
+    gateway = client.app.state.sms_gateway
+    deferred: list[tuple[object, tuple[object, ...]]] = []
+    with SessionLocal() as db:
+        created = PhoneVerificationService(db, get_settings(), gateway).send(
+            "9876543210", lambda func, *args: deferred.append((func, args))
+        )
+
+    assert gateway.messages == []
+    with engine.connect() as connection:
+        stored = connection.execute(text("SELECT count(*) FROM phone_verifications")).scalar_one()
+    assert stored == 1
+
+    func, args = deferred[0]
+    func(*args)
+    assert gateway.messages[-1][0] == "9876543210"
+    code = gateway.latest_code()
+    confirmed = client.post(f"/api/v1/phone-verifications/{created.id}/confirm", json={"code": code})
+    assert confirmed.status_code == 200, confirmed.text
+
+
+def test_failed_sms_lets_the_user_resend_at_once(client: TestClient, engine: Engine) -> None:
+    from app.core.errors import SmsDeliveryError
+
+    class FailingGateway:
+        def send(self, recipient_e164: str, message: str) -> None:
+            raise SmsDeliveryError("The SMS gateway is busy. Try again later.")
+
+        def wait_until_sent(self, timeout: float = 20.0) -> bool:
+            return False
+
+    working = client.app.state.sms_gateway
+    client.app.state.sms_gateway = FailingGateway()
+    first = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
+    assert first.status_code == 202
+    with engine.connect() as connection:
+        stored = connection.execute(text("SELECT count(*) FROM phone_verifications")).scalar_one()
+    assert stored == 0
+
+    client.app.state.sms_gateway = working
+    retry = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
+    assert retry.status_code == 202, retry.text

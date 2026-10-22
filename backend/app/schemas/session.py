@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import Field, field_validator
 
@@ -33,6 +33,13 @@ class SessionResponse(ORMModel):
     login_id: str
     full_name: str
     mobile: str
+    email: str | None = None
+    gender: str | None = None
+    date_of_birth: date | None = None
     occupation: str | None = None
+    address_line: str | None = None
+    locality: str | None = None
     state: str | None = None
     district: str | None = None
+    pincode: str | None = None
+    status: str = "active"
