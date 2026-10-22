@@ -34,7 +34,7 @@ export function SignInScreen() {
 
   return (
     <>
-      <AppBar title="Sign In" showEmblem />
+      <AppBar title="Sign In" onBack={() => navigate('/')} />
       <Screen>
         <Card kicker="Rath Yatra" title="Registered participant access">
           <p className="card__body">
