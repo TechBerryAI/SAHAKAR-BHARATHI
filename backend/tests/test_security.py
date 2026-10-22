@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from app.core.security import hash_pin, verify_pin
-from tests.conftest import register_and_login, register_payload
+from tests.conftest import register_and_login, register_payload, verified_register_payload
 
 
 def test_pin_hash_is_not_plaintext() -> None:
@@ -20,7 +20,7 @@ def test_stored_pin_is_hashed_and_excluded_from_responses(
     client: TestClient,
     engine: Engine,
 ) -> None:
-    response = client.post("/api/v1/registrations", json=register_payload())
+    response = client.post("/api/v1/registrations", json=verified_register_payload(client))
     assert response.status_code == 201
     dumped = response.text.lower()
     assert "2468" not in dumped
@@ -45,12 +45,11 @@ def test_failed_registration_does_not_leave_partial_rows(
     client: TestClient,
     engine: Engine,
 ) -> None:
-    first = client.post("/api/v1/registrations", json=register_payload())
+    first = client.post("/api/v1/registrations", json=verified_register_payload(client))
     assert first.status_code == 201
-    second = client.post(
-        "/api/v1/registrations",
-        json=register_payload(email="other@example.com"),
-    )
+    duplicate = register_payload(email="other@example.com")
+    duplicate["verification_token"] = "not-a-real-verification-token"
+    second = client.post("/api/v1/registrations", json=duplicate)
     assert second.status_code == 409
     with engine.connect() as connection:
         users = connection.execute(text("SELECT count(*) FROM users")).scalar_one()

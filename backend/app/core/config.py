@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     max_request_bytes: int = 65_536
     cors_origins: str = ""
 
+    textbee_api_key: str = ""
+    textbee_device_id: str = ""
+    textbee_base_url: str = "https://api.textbee.dev/api/v1"
+    otp_ttl_seconds: int = 5 * 60
+    otp_verification_ttl_seconds: int = 15 * 60
+    otp_max_attempts: int = 5
+    otp_resend_seconds: int = 60
+    otp_send_rate_limit: int = 5
+    otp_send_rate_window_seconds: int = 60 * 60
+    otp_confirm_rate_limit: int = 10
+    otp_confirm_rate_window_seconds: int = 15 * 60
+
     def sqlalchemy_url(self, database: str | None = None) -> str:
         if database is None and self.database_url.strip():
             return self.database_url.strip()
