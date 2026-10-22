@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
+import { useLanguage } from '../lib/language.tsx'
 
 export function BottomNav() {
+  const { copy } = useLanguage()
   return (
     <nav className="bottom-nav" aria-label="Main">
       <NavLink to="/" end className={({ isActive }) => `nav-item${isActive ? ' is-active' : ''}`}>
@@ -10,7 +12,7 @@ export function BottomNav() {
             d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"
           />
         </svg>
-        Home
+        {copy.home}
       </NavLink>
       <NavLink
         to="/profile"
@@ -22,7 +24,7 @@ export function BottomNav() {
             d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V22h19.2v-2.8c0-3.2-6.4-4.8-9.6-4.8z"
           />
         </svg>
-        Profile
+        {copy.profile}
       </NavLink>
     </nav>
   )

@@ -9,7 +9,7 @@ type AppShellProps = {
 export function AppShell({ children, showNav = false }: AppShellProps) {
   return (
     <div className="app-canvas">
-      <div className="app-frame">
+      <div className="app-frame" data-app-frame>
         <div className="app-body">{children}</div>
         {showNav ? <BottomNav /> : null}
       </div>

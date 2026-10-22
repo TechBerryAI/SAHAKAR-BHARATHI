@@ -936,7 +936,7 @@ private data class FormExtraCopy(
 )
 
 private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
-    if (language == AppLanguage.HI) FormExtraCopy(
+    if (AppLanguage.usesHindiCopy(language)) FormExtraCopy(
         contactTitle = "मोबाइल नंबर",
         contactStep = "चरण 1 / 4: मोबाइल नंबर (25%)",
         contactCard = "साइन इन के लिए मोबाइल",

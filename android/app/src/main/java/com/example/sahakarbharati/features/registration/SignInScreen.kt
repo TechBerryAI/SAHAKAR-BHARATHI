@@ -57,7 +57,7 @@ fun SignInScreen(
 ) {
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
-    val hindi = LocalLanguage.current == AppLanguage.HI
+    val hindi = AppLanguage.usesHindiCopy(LocalLanguage.current)
     val viewModel: SignInViewModel = sahakarViewModel()
     var loginId by rememberSaveable { mutableStateOf("") }
     var pin by rememberSaveable { mutableStateOf("") }
