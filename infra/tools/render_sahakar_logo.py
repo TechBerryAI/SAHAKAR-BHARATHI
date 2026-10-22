@@ -131,7 +131,7 @@ def render():
 def main():
     img = render()
     img.save("/tmp/sahakar_logo_full.png")
-    root = Path(__file__).resolve().parents[1] / "frontend" / "app" / "src" / "main" / "res"
+    root = Path(__file__).resolve().parents[2] / "android" / "app" / "src" / "main" / "res"
     for folder, edge in {
         "drawable-mdpi": 162,
         "drawable-hdpi": 243,

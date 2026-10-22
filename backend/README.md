@@ -45,7 +45,7 @@ ruff check
 
 Tests use `TEST_DATABASE_URL` or `POSTGRES_TEST_DB` only. They never fall back to `DATABASE_URL`.
 
-Android emulator debug builds should use `http://10.0.2.2:8000/`. A physical device needs the development machine LAN address. Production builds must use HTTPS via `api.base.url` in `local.properties`. Do not invent a hostname until Render assigns one.
+Android emulator debug builds should use `http://10.0.2.2:8000/`. A physical device needs the development machine LAN address. Production builds must use HTTPS via `api.base.url=https://sahakar-bharathi-api.onrender.com/` in `local.properties`.
 
 ## Environment variables
 
@@ -124,14 +124,14 @@ Do not run Alembic from every web worker at startup.
 
 1. If the Render plan has a pre-deploy command, set it to `alembic upgrade head`.
 2. Otherwise open a one-off Render shell against the same service and run `alembic upgrade head` before sending traffic to a new revision.
-3. If the database was created from [`supabase/schema.sql`](../supabase/schema.sql) instead of Alembic, stamp the matching revision first (`alembic stamp 20261022_0003` after applying that script, or `alembic stamp 20261021_0002` then `alembic upgrade head`), then use `upgrade head` going forward.
+3. If the database was created from [`infra/supabase/schema.sql`](../infra/supabase/schema.sql) instead of Alembic, stamp the matching revision first (`alembic stamp 20261022_0003` after applying that script, or `alembic stamp 20261021_0002` then `alembic upgrade head`), then use `upgrade head` going forward.
 4. Never run `alembic downgrade`, `alembic stamp` against the wrong revision, or a database reset on production.
 
 The FastAPI role must be able to read and write the application tables. Do not enable PostgREST access to `pin_hash` or `token_hash`. The backend does not use Supabase Auth.
 
 ## Client compatibility
 
-- **Android** already uses these routes, snake_case fields, and `Authorization: Bearer`. Keep PIN 4–6 digits. After Render gives the service a URL, set `api.base.url=https://<service>.onrender.com/` in gitignored `local.properties` for release builds. Debug stays `http://10.0.2.2:8000/`.
+- **Android** already uses these routes, snake_case fields, and `Authorization: Bearer`. Keep PIN 4–6 digits. Release builds set `api.base.url=https://sahakar-bharathi-api.onrender.com/` in gitignored `local.properties`. Debug stays `http://10.0.2.2:8000/`.
 - **React (`web/`)** calls these same routes with `Authorization: Bearer`. Local development uses `VITE_API_BASE_URL=http://127.0.0.1:8000`. Production Hosting builds use `https://sahakar-bharathi-api.onrender.com`. Production `CORS_ORIGINS` must include `https://sahakarbharati-e3b04.web.app` (and the `firebaseapp.com` alias). Firebase Hosting stays; Firebase Auth/Firestore are not the data plane.
 
 ## Remaining risks

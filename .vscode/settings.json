@@ -1,0 +1,15 @@
+{
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/.gradle": true,
+    "**/.kotlin": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/__pycache__": true,
+    "**/*.egg-info": true,
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/dist": true,
+    "**/.firebase": true
+  }
+}
