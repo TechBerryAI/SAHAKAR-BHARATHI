@@ -26,6 +26,18 @@ def test_login_success_with_login_id(client: TestClient) -> None:
     assert response.status_code == 200
 
 
+def test_login_validation_does_not_echo_pin(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/sessions",
+        json={"identifier": "9876543210", "pin": "12"},
+    )
+    assert response.status_code == 422
+    assert "12" not in response.text
+    for item in response.json()["detail"]:
+        if "pin" in [str(part).lower() for part in item.get("loc", [])]:
+            assert "input" not in item
+
+
 def test_login_failure_wrong_pin(client: TestClient) -> None:
     client.post("/api/v1/registrations", json=register_payload())
     response = client.post(

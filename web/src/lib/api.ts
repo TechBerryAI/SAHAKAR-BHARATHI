@@ -1,13 +1,12 @@
-import { clearSession, getToken, setProfile, setSession } from './session.ts'
-import type {
-  Profile,
-  ProfileUpdate,
-  RegistrationCreate,
-  RegistrationResponse,
-  SessionCreate,
-  SessionResponse,
-} from './types.ts'
-import { profileFromSession } from './types.ts'
+import {
+  applyAuthenticated,
+  clearSession,
+  getAccessToken,
+  getSnapshot,
+  markReady,
+  setAccessToken,
+} from './session.ts'
+import type { Profile, ProfileUpdate, RegistrationCreate, SessionResponse } from './types.ts'
 
 export class ApiError extends Error {
   status: number
@@ -19,116 +18,179 @@ export class ApiError extends Error {
   }
 }
 
-type DetailItem = {
-  msg?: string
+const rawBase = import.meta.env.VITE_API_BASE_URL
+if (!rawBase?.trim()) {
+  throw new Error(
+    'Missing VITE_API_BASE_URL. Copy web/.env.example to web/.env.local for local development.',
+  )
 }
 
-function parseDetail(data: unknown): string {
-  if (!data || typeof data !== 'object' || !('detail' in data)) {
-    return 'Something went wrong. Try again.'
-  }
-  const detail = (data as { detail: unknown }).detail
-  if (typeof detail === 'string' && detail.trim()) return detail
-  if (Array.isArray(detail)) {
-    const parts = detail
-      .map((item) => {
-        if (typeof item === 'string') return item
-        const msg = (item as DetailItem).msg
-        return msg ? msg.replace(/^Value error, /, '') : ''
-      })
-      .filter(Boolean)
-    if (parts.length) return parts.join(' ')
-  }
-  return 'Something went wrong. Try again.'
+const API_BASE_URL = rawBase.replace(/\/+$/, '')
+
+function asString(value: unknown): string | null {
+  return typeof value === 'string' && value.length ? value : null
 }
 
-async function request<T>(path: string, init: RequestInit = {}, authed = false): Promise<T> {
-  const headers = new Headers(init.headers)
-  if (init.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+export function profileFromPayload(data: Record<string, unknown>): Profile {
+  return {
+    login_id: String(data.login_id ?? ''),
+    full_name: String(data.full_name ?? ''),
+    mobile: String(data.mobile ?? ''),
+    email: asString(data.email),
+    gender: asString(data.gender),
+    date_of_birth: asString(data.date_of_birth),
+    occupation: asString(data.occupation),
+    address_line: asString(data.address_line),
+    locality: asString(data.locality),
+    district: asString(data.district),
+    state: asString(data.state),
+    pincode: asString(data.pincode),
+    status: String(data.status ?? 'active'),
   }
-  const token = getToken()
-  if (authed && token) {
-    headers.set('Authorization', `Bearer ${token}`)
+}
+
+function messageFromDetail(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== 'object' || !('detail' in payload)) {
+    return fallback
+  }
+  const detail = (payload as { detail: unknown }).detail
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0]
+    if (first && typeof first === 'object' && 'msg' in first) {
+      const msg = (first as { msg?: unknown }).msg
+      if (typeof msg === 'string' && msg.trim()) {
+        return msg
+      }
+    }
+  }
+  return fallback
+}
+
+async function parseJson(response: Response): Promise<unknown> {
+  const raw = await response.text()
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  body?: unknown
+  auth?: boolean
+  fallback: string
+}
+
+async function request<T>(path: string, options: RequestOptions): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (options.body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+  const requiresAuth = options.auth !== false
+  if (requiresAuth) {
+    const token = getAccessToken()
+    if (!token) {
+      clearSession()
+      throw new ApiError(401, 'Authentication required.')
+    }
+    headers.Authorization = `Bearer ${token}`
   }
 
   let response: Response
   try {
-    response = await fetch(path, { ...init, headers })
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    })
   } catch {
-    throw new ApiError(0, 'Cannot reach the API. Is the backend running?')
+    throw new ApiError(0, 'The server could not be reached. Check your connection.')
   }
 
   if (response.status === 204) {
     return undefined as T
   }
 
-  const data: unknown = await response.json().catch(() => null)
+  const payload = await parseJson(response)
   if (!response.ok) {
-    if (response.status === 401 && authed && token) {
+    if (response.status === 401 && requiresAuth) {
       clearSession()
     }
-    throw new ApiError(response.status, parseDetail(data))
+    throw new ApiError(response.status, messageFromDetail(payload, options.fallback))
   }
-  return data as T
+  return payload as T
 }
 
-export function createRegistration(body: RegistrationCreate): Promise<RegistrationResponse> {
-  return request<RegistrationResponse>('/api/v1/registrations', {
-    method: 'POST',
-    body: JSON.stringify(body),
+export async function getMe(): Promise<Profile> {
+  const payload = await request<Record<string, unknown>>('/api/v1/me', {
+    fallback: 'Could not load profile.',
   })
+  const profile = profileFromPayload(payload)
+  applyAuthenticated(profile)
+  return profile
 }
 
-export function createSession(body: SessionCreate): Promise<SessionResponse> {
-  return request<SessionResponse>('/api/v1/sessions', {
-    method: 'POST',
-    body: JSON.stringify(body),
+export async function updateMe(body: ProfileUpdate): Promise<Profile> {
+  const payload = await request<Record<string, unknown>>('/api/v1/me', {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update profile.',
   })
-}
-
-export function getMe(): Promise<Profile> {
-  return request<Profile>('/api/v1/me', { method: 'GET' }, true)
-}
-
-export function updateMe(body: ProfileUpdate): Promise<Profile> {
-  return request<Profile>(
-    '/api/v1/me',
-    {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    },
-    true,
-  )
-}
-
-export function logoutRemote(): Promise<void> {
-  return request<void>('/api/v1/sessions/current', { method: 'DELETE' }, true)
+  const profile = profileFromPayload(payload)
+  applyAuthenticated(profile)
+  return profile
 }
 
 export async function signIn(identifier: string, pin: string): Promise<Profile> {
-  const session = await createSession({ identifier, pin })
-  setSession(session.access_token, session.expires_at, profileFromSession(session))
-  try {
-    const profile = await getMe()
-    setProfile(profile)
-    return profile
-  } catch {
-    return profileFromSession(session)
-  }
+  const session = await request<SessionResponse>('/api/v1/sessions', {
+    method: 'POST',
+    body: { identifier: identifier.trim(), pin },
+    auth: false,
+    fallback: 'Sign in failed.',
+  })
+  setAccessToken(session.access_token)
+  return getMe()
 }
 
 export async function registerAndSignIn(body: RegistrationCreate): Promise<Profile> {
-  await createRegistration(body)
+  await request('/api/v1/registrations', {
+    method: 'POST',
+    body,
+    auth: false,
+    fallback: 'Registration failed.',
+  })
   return signIn(body.mobile, body.pin)
 }
 
 export async function logout(): Promise<void> {
+  const token = getAccessToken()
+  clearSession()
+  if (!token) return
   try {
-    if (getToken()) await logoutRemote()
+    await fetch(`${API_BASE_URL}/api/v1/sessions/current`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
   } catch {
-    // Local sign-out still proceeds if the token is already invalid.
-  } finally {
-    clearSession()
+    // Local session is already cleared.
+  }
+}
+
+export async function restoreSession(): Promise<void> {
+  if (!getAccessToken()) {
+    markReady()
+    return
+  }
+  try {
+    await getMe()
+  } catch {
+    if (!getSnapshot().ready) {
+      markReady()
+    }
   }
 }

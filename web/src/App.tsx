@@ -7,21 +7,38 @@ import { ProfileScreen } from './screens/ProfileScreen.tsx'
 import { RegisterScreen } from './screens/RegisterScreen.tsx'
 import { RegisterSuccessScreen } from './screens/RegisterSuccessScreen.tsx'
 import { SignInScreen } from './screens/SignInScreen.tsx'
+import { StartScreen } from './screens/StartScreen.tsx'
 
 function GuestRoute({ children }: { children: ReactNode }) {
-  const { token } = useSession()
-  if (token) return <Navigate to="/" replace />
+  const { uid } = useSession()
+  if (uid) return <Navigate to="/" replace />
   return children
 }
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { token } = useSession()
-  if (!token) return <Navigate to="/sign-in" replace />
+  const { uid } = useSession()
+  if (!uid) return <Navigate to="/" replace />
   return children
+}
+
+function HomeOrStart() {
+  const { uid } = useSession()
+  if (!uid) return <StartScreen />
+  return <HomeScreen />
 }
 
 function AppRoutes() {
   const location = useLocation()
+  const { ready } = useSession()
+
+  if (!ready) {
+    return (
+      <div className="center-state">
+        <div className="spinner" aria-label="Loading" />
+      </div>
+    )
+  }
+
   return (
     <div className="screen-slot" key={location.pathname}>
       <Routes location={location}>
@@ -42,14 +59,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <HomeScreen />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/" element={<HomeOrStart />} />
         <Route
           path="/profile"
           element={
@@ -66,7 +76,8 @@ function AppRoutes() {
 
 export default function App() {
   const location = useLocation()
-  const showNav = location.pathname === '/' || location.pathname === '/profile'
+  const { uid } = useSession()
+  const showNav = Boolean(uid) && (location.pathname === '/' || location.pathname === '/profile')
 
   return (
     <AppShell showNav={showNav}>

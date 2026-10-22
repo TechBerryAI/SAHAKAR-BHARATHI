@@ -1,10 +1,27 @@
 from functools import lru_cache
 from pathlib import Path
-from urllib.parse import quote_plus
+from typing import Any
+from urllib.parse import parse_qs, quote_plus, urlparse
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_PRODUCTION_ENVIRONMENTS = {"production", "prod"}
+
+
+def normalize_database_url(url: str) -> str:
+    cleaned = url.strip()
+    if not cleaned:
+        return ""
+    lower = cleaned.lower()
+    if lower.startswith("postgres://"):
+        cleaned = "postgresql://" + cleaned[len("postgres://") :]
+        lower = cleaned.lower()
+    if lower.startswith("postgresql://"):
+        cleaned = "postgresql+psycopg://" + cleaned[len("postgresql://") :]
+    return cleaned
 
 
 class Settings(BaseSettings):
@@ -39,14 +56,22 @@ class Settings(BaseSettings):
     max_request_bytes: int = 65_536
     cors_origins: str = ""
 
+    @property
+    def is_production(self) -> bool:
+        return self.environment.strip().lower() in _PRODUCTION_ENVIRONMENTS
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+
     def sqlalchemy_url(self, database: str | None = None) -> str:
         if database is None and self.database_url.strip():
-            return self.database_url.strip()
+            return normalize_database_url(self.database_url)
         return self._build_postgres_url(database or self.postgres_db)
 
     def sqlalchemy_test_url(self) -> str:
         if self.test_database_url.strip():
-            return self.test_database_url.strip()
+            return normalize_database_url(self.test_database_url)
         return self._build_postgres_url(self.postgres_test_db)
 
     def _build_postgres_url(self, database: str) -> str:
@@ -57,9 +82,49 @@ class Settings(BaseSettings):
             f"postgresql+psycopg://{auth}@{self.postgres_host}:{self.postgres_port}/{database}"
         )
 
-    @property
-    def cors_origin_list(self) -> list[str]:
-        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+    def is_transaction_pooler(self, url: str | None = None) -> bool:
+        parsed = urlparse(url or self.sqlalchemy_url())
+        host = (parsed.hostname or "").lower()
+        return parsed.port == 6543 or "pooler.supabase" in host
+
+    def engine_kwargs(self, url: str | None = None) -> dict[str, Any]:
+        target = url or self.sqlalchemy_url()
+        parsed = urlparse(target)
+        query = parse_qs(parsed.query)
+        host = (parsed.hostname or "").lower()
+        connect_args: dict[str, Any] = {"connect_timeout": 10}
+
+        sslmode = query.get("sslmode", [None])[0]
+        if sslmode:
+            connect_args["sslmode"] = sslmode
+        elif self.is_production or "supabase" in host:
+            connect_args["sslmode"] = "require"
+
+        if self.is_transaction_pooler(target):
+            connect_args["prepare_threshold"] = 0
+
+        return {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 5,
+            "max_overflow": 5,
+            "pool_timeout": 30,
+            "connect_args": connect_args,
+        }
+
+    @model_validator(mode="after")
+    def validate_production(self) -> "Settings":
+        if not self.is_production:
+            return self
+        if not self.database_url.strip():
+            raise ValueError("DATABASE_URL is required when ENVIRONMENT=production")
+        parsed = urlparse(normalize_database_url(self.database_url))
+        host = (parsed.hostname or "").lower()
+        if host in _LOCAL_HOSTS:
+            raise ValueError("DATABASE_URL must not target localhost in production")
+        if "*" in self.cors_origin_list:
+            raise ValueError("CORS_ORIGINS=* is not allowed in production")
+        return self
 
 
 @lru_cache

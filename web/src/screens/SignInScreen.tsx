@@ -4,6 +4,8 @@ import { AppBar } from '../components/AppBar.tsx'
 import { Button, Card, ErrorBanner, Field, Screen } from '../components/ui.tsx'
 import { ApiError, signIn } from '../lib/api.ts'
 
+const PIN_PATTERN = /^\d{4,6}$/
+
 export function SignInScreen() {
   const navigate = useNavigate()
   const [identifier, setIdentifier] = useState('')
@@ -14,8 +16,8 @@ export function SignInScreen() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     const login = identifier.trim()
-    if (!login || pin.length < 4) {
-      setError('Enter your login ID and PIN.')
+    if (!login || !PIN_PATTERN.test(pin)) {
+      setError('Enter your login ID or mobile and a 4 to 6 digit PIN.')
       return
     }
     setBusy(true)
@@ -32,7 +34,7 @@ export function SignInScreen() {
 
   return (
     <>
-      <AppBar title="Sign In" showEmblem />
+      <AppBar title="Sign In" onBack={() => navigate('/')} />
       <Screen>
         <Card kicker="Rath Yatra" title="Registered participant access">
           <p className="card__body">
@@ -42,10 +44,9 @@ export function SignInScreen() {
         <form className="stack" onSubmit={onSubmit}>
           <ErrorBanner message={error} />
           <Field
-            label="Login ID / Mobile"
+            label="Login ID or mobile"
             name="identifier"
             autoComplete="username"
-            inputMode="text"
             value={identifier}
             onChange={(event) => setIdentifier(event.target.value)}
             hint="Use the login ID from registration or your 10-digit mobile number."

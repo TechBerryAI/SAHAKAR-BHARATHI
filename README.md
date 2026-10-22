@@ -1,21 +1,25 @@
 # Sahakar Bharati
 
-Native Android application and Python API for the Sahakar Bharati Rath Yatra digital platform. The approved UI is Jetpack Compose and Material 3.
+Native Android, React web, and FastAPI for the Sahakar Bharati Rath Yatra platform.
 
-## Layout
+Clients never talk to the database. Registration, sign-in, and profile go through the API. Local success is not production readiness. Tracking, QR attendance, benefits, and notifications are not operational.
 
-- `frontend/app/` — Android frontend (Kotlin, Compose). Gradle still addresses it as `:app`.
-- `backend/` — FastAPI + PostgreSQL service for registration, sessions, and profile.
-- `tools/` — optional local helpers, such as regenerating density-specific logo drawables.
-- `gradlew` / `gradlew.bat` — Gradle wrapper. Keep these at the repository root.
+## Workspace
 
-The Android frontend must never connect directly to the database. All persisted participant data goes through the API.
+| Section | Path | Role |
+|---|---|---|
+| Android | [`android/`](android/) | Jetpack Compose + Material 3. Gradle module `:app`. |
+| API | [`backend/`](backend/) | FastAPI + PostgreSQL. Render service root. |
+| Web | [`web/`](web/) | Vite + React. Firebase Hosting. |
+| Infra | [`infra/`](infra/) | Supabase schema snapshot and optional local helpers. |
+| Deploy | [`render.yaml`](render.yaml) | Render Blueprint. Service name stays `sahakar-bharati-api`. |
+| CI | [`.github/workflows/`](.github/workflows/) | Backend tests and Firebase Hosting deploy. |
 
-Local registration is not production readiness. Tracking, QR attendance, benefits, and notifications are not operational.
+Generated caches (`.gradle`, `node_modules`, `.venv`, `dist`) stay out of the explorer via [`.vscode/settings.json`](.vscode/settings.json). Secrets stay in gitignored `.env` and `local.properties`.
 
-## Backend
+## API
 
-See [`backend/README.md`](backend/README.md) for environment variables, migrations, and session design.
+See [`backend/README.md`](backend/README.md) for environment variables, migrations, Render commands, and session design.
 
 ```bash
 # PostgreSQL must already be running locally. Create databases sahakar and sahakar_test.
@@ -28,13 +32,14 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Android emulator debug builds use `http://10.0.2.2:8000/`. Release builds require HTTPS via `api.base.url` in `local.properties`.
+**Render:** public URL confirmed from the dashboard as `https://sahakar-bharathi-api.onrender.com`. Root directory `backend`, build `pip install .`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'`. Required env: `ENVIRONMENT=production`, `DATABASE_URL`. Live `/health` is not claimed from this repository. Do not rename the existing Render service.
 
-## Android build
+## Android
 
-From the repository root:
+Open the `android/` folder in Android Studio. The project root for Gradle is `android/`, not the repository root. `local.properties` can live in `android/` or the repository root; it is not committed.
 
 ```bash
+cd android
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ```
@@ -42,19 +47,24 @@ From the repository root:
 On Windows:
 
 ```bat
+cd android
 gradlew.bat :app:assembleDebug
 gradlew.bat :app:testDebugUnitTest
 ```
 
-`local.properties` is machine-specific and is not committed. Android Studio writes `sdk.dir` there. Do not check that file in.
+Emulator debug builds use `http://10.0.2.2:8000/`. Release builds require `api.base.url=https://sahakar-bharathi-api.onrender.com/` in gitignored `local.properties`.
 
 ### WSL note
 
-This checkout often lives on a Windows drive (`D:\`) while the Android SDK is a Windows install (`C:\Users\...\Android\Sdk`). Linux Gradle cannot use the Windows `aapt.exe` build-tools. Prefer Android Studio or `gradlew.bat` on Windows for local builds. If you must build from WSL, point `ANDROID_HOME` at a Linux SDK; do not overwrite a teammate’s `local.properties`.
+This checkout often lives on a Windows drive (`D:\`) while the Android SDK is a Windows install (`C:\Users\...\Android\Sdk`). Linux Gradle cannot use the Windows `aapt.exe` build-tools. Prefer Android Studio or `gradlew.bat` on Windows. If you must build from WSL, point `ANDROID_HOME` at a Linux SDK; do not overwrite a teammate’s `local.properties`.
 
-## Application identity
+## Web
 
-These values are intentional and should not change without an explicit decision:
+See [`web/README.md`](web/README.md). Local development uses `VITE_API_BASE_URL=http://127.0.0.1:8000`. Production Hosting builds set `https://sahakar-bharathi-api.onrender.com` in GitHub Actions. Firebase Auth and Firestore are not the application data plane.
 
-- application ID / namespace: `com.example.sahakarbharati`
-- frontend package layout: `ui/theme`, `ui/navigation`, `core/ui`, `core/copy`, `data`, and `features/*`
+## Identity
+
+Do not change these without an explicit decision:
+
+- Application ID / namespace: `com.example.sahakarbharati`
+- Android package layout: `ui/theme`, `ui/navigation`, `core/ui`, `core/copy`, `data`, and `features/*`

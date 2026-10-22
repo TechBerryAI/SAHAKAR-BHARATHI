@@ -1,50 +1,25 @@
 import { useSyncExternalStore } from 'react'
 import type { Profile } from './types.ts'
 
-const STORAGE_KEY = 'sahakar.session'
+export const ACCESS_TOKEN_KEY = 'sahakar_access_token'
 
 export type AuthSnapshot = {
-  token: string | null
-  expiresAt: string | null
+  ready: boolean
+  uid: string | null
   profile: Profile | null
 }
 
 const empty: AuthSnapshot = {
-  token: null,
-  expiresAt: null,
+  ready: false,
+  uid: null,
   profile: null,
 }
 
 const listeners = new Set<() => void>()
 
-function readStored(): AuthSnapshot {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return empty
-    const parsed = JSON.parse(raw) as AuthSnapshot
-    if (!parsed.token) return empty
-    return {
-      token: parsed.token,
-      expiresAt: parsed.expiresAt ?? null,
-      profile: parsed.profile ?? null,
-    }
-  } catch {
-    return empty
-  }
-}
-
-let snapshot: AuthSnapshot = readStored()
-
-function persist() {
-  if (!snapshot.token) {
-    localStorage.removeItem(STORAGE_KEY)
-    return
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
-}
+let snapshot: AuthSnapshot = empty
 
 function emit() {
-  persist()
   for (const listener of listeners) listener()
 }
 
@@ -59,22 +34,49 @@ export function getSnapshot(): AuthSnapshot {
   return snapshot
 }
 
-export function getToken(): string | null {
-  return snapshot.token
+export function getAccessToken(): string | null {
+  try {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+    return token && token.length ? token : null
+  } catch {
+    return null
+  }
 }
 
-export function setSession(token: string, expiresAt: string | null, profile: Profile | null) {
-  snapshot = { token, expiresAt, profile }
+export function setAccessToken(token: string) {
+  localStorage.setItem(ACCESS_TOKEN_KEY, token)
+}
+
+export function applyAuthenticated(profile: Profile) {
+  snapshot = {
+    ready: true,
+    uid: profile.login_id,
+    profile,
+  }
   emit()
 }
 
-export function setProfile(profile: Profile) {
-  snapshot = { ...snapshot, profile }
+export function setProfile(profile: Profile | null) {
+  snapshot = {
+    ...snapshot,
+    uid: profile?.login_id ?? snapshot.uid,
+    profile,
+  }
+  emit()
+}
+
+export function markReady() {
+  snapshot = { ...snapshot, ready: true }
   emit()
 }
 
 export function clearSession() {
-  snapshot = empty
+  try {
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+  } catch {
+    // Ignore quota / private-mode failures; in-memory session still clears.
+  }
+  snapshot = { ready: true, uid: null, profile: null }
   emit()
 }
 

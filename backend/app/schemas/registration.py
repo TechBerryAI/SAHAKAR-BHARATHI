@@ -3,7 +3,14 @@ from typing import Literal
 
 from pydantic import EmailStr, Field, field_validator, model_validator
 
-from app.core.security import is_valid_mobile, is_valid_pin, is_valid_pincode, normalize_email, normalize_mobile, normalize_name
+from app.core.security import (
+    is_valid_mobile,
+    is_valid_pin,
+    is_valid_pincode,
+    normalize_email,
+    normalize_mobile,
+    normalize_name,
+)
 from app.schemas.common import ORMModel
 
 Gender = Literal["Male", "Female", "Other"]

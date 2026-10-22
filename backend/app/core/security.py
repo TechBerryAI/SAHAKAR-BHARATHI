@@ -13,6 +13,7 @@ _PIN_RE = re.compile(r"^\d{4,6}$")
 _MOBILE_RE = re.compile(r"^[6-9]\d{9}$")
 _PINCODE_RE = re.compile(r"^\d{6}$")
 _HASHER = PasswordHash.recommended()
+_DUMMY_PIN_HASH: str | None = None
 
 
 def normalize_mobile(value: str) -> str:
@@ -31,6 +32,13 @@ def normalize_email(value: str | None) -> str | None:
 
 def normalize_name(value: str) -> str:
     return " ".join(value.split())
+
+
+def canonical_login_identifier(value: str) -> str:
+    mobile = normalize_mobile(value)
+    if is_valid_mobile(mobile):
+        return mobile
+    return value.replace(" ", "").upper()
 
 
 def is_valid_pin(value: str) -> bool:
@@ -53,6 +61,13 @@ def hash_pin(pin: str) -> str:
 
 def verify_pin(pin: str, pin_hash: str) -> bool:
     return _HASHER.verify(pin, pin_hash)
+
+
+def dummy_pin_hash() -> str:
+    global _DUMMY_PIN_HASH
+    if _DUMMY_PIN_HASH is None:
+        _DUMMY_PIN_HASH = hash_pin("000000")
+    return _DUMMY_PIN_HASH
 
 
 def generate_login_id() -> str:
