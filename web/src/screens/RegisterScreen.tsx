@@ -10,6 +10,13 @@ import { GENDERS, OCCUPATIONS } from '../lib/types.ts'
 
 const STEPS = ['Personal', 'Contact', 'Address', 'Password']
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const INDIAN_MOBILE = /^[6-9]\d{9}$/
+
+type Gate = 'mobile' | 'details'
+
+function createOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
 
 type FormState = {
   full_name: string
@@ -62,7 +69,7 @@ function validateStep(step: number, form: FormState): string {
     return ''
   }
   if (step === 1) {
-    if (!/^[6-9]\d{9}$/.test(form.mobile)) return 'Enter a valid 10-digit Indian mobile number.'
+    if (!INDIAN_MOBILE.test(form.mobile)) return 'Enter a valid 10-digit Indian mobile number.'
     if (!EMAIL_PATTERN.test(form.email.trim())) return 'Enter a valid email address.'
     return ''
   }
@@ -79,8 +86,11 @@ export function RegisterScreen() {
   const navigate = useNavigate()
   const { ready, uid } = useSession()
   const createdOnThisPage = useRef(false)
+  const [gate, setGate] = useState<Gate>('mobile')
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [sentOtp, setSentOtp] = useState('')
+  const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -93,12 +103,41 @@ export function RegisterScreen() {
   }
 
   function goBack() {
+    setError('')
+    if (gate === 'mobile') {
+      navigate('/')
+      return
+    }
     if (step === 0) {
-      navigate('/sign-in')
+      setGate('mobile')
+      return
+    }
+    setStep((current) => current - 1)
+  }
+
+  function sendOtp() {
+    if (!INDIAN_MOBILE.test(form.mobile)) {
+      setError('Enter a valid 10-digit Indian mobile number.')
+      return
+    }
+    setSentOtp(createOtp())
+    setOtp('')
+    setError('')
+  }
+
+  function verifyOtp(event: FormEvent) {
+    event.preventDefault()
+    if (otp.length !== 6) {
+      setError('Enter the 6-digit OTP.')
+      return
+    }
+    if (otp !== sentOtp) {
+      setError('That OTP is incorrect.')
       return
     }
     setError('')
-    setStep((current) => current - 1)
+    setStep(0)
+    setGate('details')
   }
 
   async function onContinue(event: FormEvent) {
@@ -139,6 +178,93 @@ export function RegisterScreen() {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (gate !== 'details') {
+    return (
+      <section className="verify">
+        <header className="verify__bar">
+          <button type="button" className="verify__back" aria-label="Back" onClick={goBack}>
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M19 11H7.83l4.58-4.59L11 5l-7 7 7 7 1.41-1.41L7.83 13H19z" />
+            </svg>
+          </button>
+          <h1>Verify mobile</h1>
+        </header>
+        <form
+          className="verify__form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (!sentOtp) sendOtp()
+            else verifyOtp(event)
+          }}
+        >
+          <div className="verify__body">
+          <ErrorBanner message={error} />
+          <Card title="Mobile number">
+            <p className="card__body">
+              Enter your mobile number before registration. Send the OTP, verify it, and the personal details page will open.
+            </p>
+          </Card>
+          <Card>
+            <label className="field" htmlFor="mobile">
+              <span className="field__label">Mobile number</span>
+              <span className="verify__phone">
+                <span className="verify__prefix">+91</span>
+                <input
+                  id="mobile"
+                  name="mobile"
+                  className="verify__input"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  maxLength={10}
+                  value={form.mobile}
+                  onChange={(event) => {
+                    update('mobile', event.target.value.replace(/\D/g, '').slice(0, 10))
+                    setSentOtp('')
+                    setOtp('')
+                  }}
+                />
+              </span>
+              <p className="field__hint">10-digit Indian mobile number.</p>
+            </label>
+            {sentOtp ? (
+              <div className="verify__otp">
+                <p className="verify__code">Your OTP is {sentOtp}</p>
+                <Field
+                  label="OTP"
+                  name="otp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  hint="Enter the 6-digit code on this page."
+                />
+                <button
+                  type="button"
+                  className="btn btn--text"
+                  onClick={() => {
+                    setSentOtp(createOtp())
+                    setOtp('')
+                    setError('')
+                  }}
+                >
+                  Resend OTP
+                </button>
+              </div>
+            ) : null}
+          </Card>
+          </div>
+          <div className="verify__footer">
+            <Button type="submit" className="verify__submit">
+              {sentOtp ? 'Verify OTP' : 'Send OTP'}
+              <span aria-hidden="true">→</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    )
   }
 
   return (
@@ -211,9 +337,9 @@ export function RegisterScreen() {
                 inputMode="numeric"
                 autoComplete="tel"
                 maxLength={10}
+                readOnly
                 value={form.mobile}
-                onChange={(event) => update('mobile', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                hint="10-digit Indian mobile number."
+                hint="Verified with OTP."
               />
               <Field
                 label="Email"

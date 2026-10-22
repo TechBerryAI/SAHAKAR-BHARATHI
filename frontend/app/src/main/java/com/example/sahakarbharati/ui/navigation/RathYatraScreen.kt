@@ -44,13 +44,13 @@ fun RathYatraScreen(
     val openedOnProtectedScreen = initialStack.any { it !in RathYatraDestinations.publicAccess }
     var stack by rememberSaveable { mutableStateOf(initialStack.ifEmpty { listOf(RathYatraDestinations.SPLASH) }) }
     var languageKey by rememberSaveable { mutableStateOf(AppLanguage.EN.key) }
-    var loggedIn by rememberSaveable { mutableStateOf(session.isLoggedIn || openedOnProtectedScreen) }
+    var loggedIn by rememberSaveable { mutableStateOf(session.isLoggedIn() || openedOnProtectedScreen) }
     val language = AppLanguage.fromKey(languageKey)
     val copy = copyFor(language)
     val current = stack.lastOrNull() ?: RathYatraDestinations.SPLASH
 
     fun canOpen(destination: String): Boolean {
-        return destination in RathYatraDestinations.publicAccess || loggedIn || session.isLoggedIn
+        return destination in RathYatraDestinations.publicAccess || loggedIn || session.isLoggedIn()
     }
 
     fun go(destination: String, replaceRoot: Boolean = false) {
@@ -66,11 +66,11 @@ fun RathYatraScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (session.isLoggedIn && stack == listOf(RathYatraDestinations.SPLASH)) {
+        if (session.isLoggedIn() && stack == listOf(RathYatraDestinations.SPLASH)) {
             loggedIn = true
             stack = listOf(RathYatraDestinations.HOME)
         }
-        if (current !in RathYatraDestinations.publicAccess && !loggedIn && !session.isLoggedIn) {
+        if (current !in RathYatraDestinations.publicAccess && !loggedIn && !session.isLoggedIn()) {
             stack = listOf(RathYatraDestinations.SPLASH)
         }
     }
@@ -178,7 +178,7 @@ fun RathYatraScreen(
         )
         else -> {
             LaunchedEffect(current) {
-                stack = if (loggedIn || session.isLoggedIn) {
+                stack = if (loggedIn || session.isLoggedIn()) {
                     listOf(RathYatraDestinations.HOME)
                 } else {
                     listOf(RathYatraDestinations.SPLASH)

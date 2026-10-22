@@ -7,6 +7,7 @@ import { ProfileScreen } from './screens/ProfileScreen.tsx'
 import { RegisterScreen } from './screens/RegisterScreen.tsx'
 import { RegisterSuccessScreen } from './screens/RegisterSuccessScreen.tsx'
 import { SignInScreen } from './screens/SignInScreen.tsx'
+import { StartScreen } from './screens/StartScreen.tsx'
 
 function GuestRoute({ children }: { children: ReactNode }) {
   const { uid } = useSession()
@@ -16,8 +17,14 @@ function GuestRoute({ children }: { children: ReactNode }) {
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { uid } = useSession()
-  if (!uid) return <Navigate to="/sign-in" replace />
+  if (!uid) return <Navigate to="/" replace />
   return children
+}
+
+function HomeOrStart() {
+  const { uid } = useSession()
+  if (!uid) return <StartScreen />
+  return <HomeScreen />
 }
 
 function AppRoutes() {
@@ -52,14 +59,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <HomeScreen />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/" element={<HomeOrStart />} />
         <Route
           path="/profile"
           element={
@@ -76,7 +76,8 @@ function AppRoutes() {
 
 export default function App() {
   const location = useLocation()
-  const showNav = location.pathname === '/' || location.pathname === '/profile'
+  const { uid } = useSession()
+  const showNav = Boolean(uid) && (location.pathname === '/' || location.pathname === '/profile')
 
   return (
     <AppShell showNav={showNav}>
