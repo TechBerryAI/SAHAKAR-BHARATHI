@@ -55,8 +55,8 @@ class AuthService:
         session = AuthSession(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
         self.sessions.add(session)
         self.audit.add("login_success", user_id=user.id, identifier_hash=identifier_hash)
-        self.db.commit()
-        return SessionResponse(
+        # Read user fields before commit; commit expires them and a later read reloads the row.
+        response = SessionResponse(
             access_token=raw_token,
             expires_at=expires_at,
             login_id=user.login_id,
@@ -66,6 +66,8 @@ class AuthService:
             state=user.state,
             district=user.district,
         )
+        self.db.commit()
+        return response
 
     def authenticate(self, raw_token: str | None) -> tuple[User, AuthSession]:
         if not raw_token:
