@@ -19,8 +19,11 @@ class UserRepository:
     def get_by_mobile(self, mobile: str) -> User | None:
         return self.db.scalar(select(User).where(User.mobile == mobile))
 
-    def get_by_email(self, email: str) -> User | None:
-        return self.db.scalar(select(User).where(User.email == email))
+    def exists_with_mobile_or_email(self, mobile: str, email: str | None) -> bool:
+        filters = [User.mobile == mobile]
+        if email:
+            filters.append(User.email == email)
+        return self.db.scalar(select(User.id).where(or_(*filters)).limit(1)) is not None
 
     def get_by_login_id(self, login_id: str) -> User | None:
         return self.db.scalar(select(User).where(User.login_id == login_id.upper()))
