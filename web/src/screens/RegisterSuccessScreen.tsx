@@ -14,7 +14,7 @@ export function RegisterSuccessScreen() {
       <Screen>
         <Card kicker="Account ready" title="Keep this login ID">
           <p className="card__body">
-            Keep this ID for your records. Sign in with your email and password.
+            Keep this ID for your records. Sign in with your login ID or mobile and PIN.
           </p>
         </Card>
         <Card>

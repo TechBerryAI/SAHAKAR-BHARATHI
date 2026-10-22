@@ -2,7 +2,8 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -24,6 +25,23 @@ logger = logging.getLogger(__name__)
 _CORS_METHODS = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
 _CORS_HEADERS = ["Authorization", "Content-Type"]
 _READY_TIMEOUT_MS = 2000
+_SENSITIVE_FIELDS = frozenset({"pin", "password", "token", "access_token", "authorization"})
+
+
+def sanitize_validation_errors(errors: list[object]) -> list[object]:
+    sanitized: list[object] = []
+    for error in errors:
+        item = dict(error)
+        loc = item.get("loc", ())
+        names = {str(part).lower() for part in loc} if isinstance(loc, (list, tuple)) else set()
+        if names & _SENSITIVE_FIELDS:
+            item.pop("input", None)
+        sanitized.append(item)
+    return jsonable_encoder(sanitized)
+
+
+def validation_error_response(exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse({"detail": sanitize_validation_errors(exc.errors())}, status_code=422)
 
 
 class RequestSizeLimitMiddleware:
@@ -68,7 +86,7 @@ class SafeErrorMiddleware:
             )
             await response(scope, receive, send)
         except RequestValidationError as exc:
-            await JSONResponse({"detail": exc.errors()}, status_code=422)(scope, receive, send)
+            await validation_error_response(exc)(scope, receive, send)
         except Exception:
             logger.exception("Unhandled application error")
             await JSONResponse({"detail": "An unexpected error occurred."}, status_code=500)(
@@ -94,6 +112,10 @@ def _database_ready() -> bool:
     except (SQLAlchemyError, OSError):
         logger.warning("Readiness check failed", exc_info=True)
         return False
+
+
+async def _validation_error_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    return validation_error_response(exc)
 
 
 def _health_response(ready: bool) -> JSONResponse:
@@ -125,6 +147,7 @@ def create_app() -> FastAPI:
             allow_methods=_CORS_METHODS,
             allow_headers=_CORS_HEADERS,
         )
+    application.add_exception_handler(RequestValidationError, _validation_error_handler)
     application.include_router(api_router, prefix="/api/v1")
 
     @application.get("/health/live")

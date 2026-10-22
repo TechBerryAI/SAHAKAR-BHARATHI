@@ -20,7 +20,9 @@ export function HomeScreen() {
         }
       })
       .catch((err: unknown) => {
-        if (!cancelled && !getSnapshot().profile) {
+        if (cancelled) return
+        if (err instanceof ApiError && err.status === 401) return
+        if (!getSnapshot().profile) {
           setError(err instanceof ApiError ? err.message : 'Could not load profile.')
         }
       })
@@ -67,8 +69,8 @@ export function HomeScreen() {
             </Card>
             <Card kicker="Account" title="Your Rath Yatra profile">
               <p className="card__body">
-                Status: {profile?.status || 'active'}. Sign in with your email and password, and
-                update your details from Profile.
+                Status: {profile?.status || 'active'}. Sign in with your login ID or mobile and PIN,
+                and update your details from Profile.
               </p>
             </Card>
             <Card kicker="Mobile" title={profile?.mobile ? `+91 ${profile.mobile}` : 'Mobile on file'}>

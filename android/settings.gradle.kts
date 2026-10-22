@@ -24,4 +24,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Sahakar Bharati"
 include(":app")
-project(":app").projectDir = file("frontend/app")

@@ -48,7 +48,9 @@ export function ProfileScreen() {
         setStateName(next.state ?? '')
         setPincode(next.pincode ?? '')
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        if (cancelled) return
+        if (err instanceof ApiError && err.status === 401) return
         // Keep the cached session profile if refresh fails.
       })
     return () => {
@@ -206,7 +208,7 @@ export function ProfileScreen() {
             <h2 className="card__title" id="logout-title">
               Log out?
             </h2>
-            <p className="card__body">You will need your email and password to open the app again.</p>
+            <p className="card__body">You will need your login ID or mobile and PIN to open the app again.</p>
             <div className="stack" style={{ marginTop: 16 }}>
               <Button type="button" variant="danger" onClick={onLogout} disabled={loggingOut}>
                 Log out

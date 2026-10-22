@@ -8,8 +8,9 @@ import { useSession } from '../lib/session.ts'
 import type { Gender, Occupation, RegistrationCreate } from '../lib/types.ts'
 import { GENDERS, OCCUPATIONS } from '../lib/types.ts'
 
-const STEPS = ['Personal', 'Contact', 'Address', 'Password']
+const STEPS = ['Personal', 'Contact', 'Address', 'PIN']
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PIN_PATTERN = /^\d{4,6}$/
 const INDIAN_MOBILE = /^[6-9]\d{9}$/
 
 type Gate = 'mobile' | 'details'
@@ -30,8 +31,8 @@ type FormState = {
   district: string
   state: string
   pincode: string
-  password: string
-  confirmPassword: string
+  pin: string
+  confirmPin: string
 }
 
 const emptyForm: FormState = {
@@ -46,8 +47,8 @@ const emptyForm: FormState = {
   district: '',
   state: '',
   pincode: '',
-  password: '',
-  confirmPassword: '',
+  pin: '',
+  confirmPin: '',
 }
 
 function ageYears(iso: string): number {
@@ -70,15 +71,17 @@ function validateStep(step: number, form: FormState): string {
   }
   if (step === 1) {
     if (!INDIAN_MOBILE.test(form.mobile)) return 'Enter a valid 10-digit Indian mobile number.'
-    if (!EMAIL_PATTERN.test(form.email.trim())) return 'Enter a valid email address.'
+    if (form.email.trim() && !EMAIL_PATTERN.test(form.email.trim())) {
+      return 'Enter a valid email address.'
+    }
     return ''
   }
   if (step === 2) {
     if (form.pincode && !/^\d{6}$/.test(form.pincode)) return 'PIN code must be 6 digits.'
     return ''
   }
-  if (form.password.length < 6) return 'Password must be at least 6 characters.'
-  if (form.password !== form.confirmPassword) return 'Password and confirm password must match.'
+  if (!PIN_PATTERN.test(form.pin)) return 'PIN must be 4 to 6 digits.'
+  if (form.pin !== form.confirmPin) return 'PIN and confirm PIN must match.'
   return ''
 }
 
@@ -159,13 +162,13 @@ export function RegisterScreen() {
       date_of_birth: blankToNull(form.date_of_birth),
       occupation: form.occupation || null,
       mobile: form.mobile,
-      email: form.email.trim(),
+      email: blankToNull(form.email.trim()),
       address_line: blankToNull(form.address_line),
       locality: blankToNull(form.locality),
       district: blankToNull(form.district),
       state: blankToNull(form.state),
       pincode: blankToNull(form.pincode),
-      password: form.password,
+      pin: form.pin,
     }
 
     setBusy(true)
@@ -348,7 +351,7 @@ export function RegisterScreen() {
                 autoComplete="email"
                 value={form.email}
                 onChange={(event) => update('email', event.target.value)}
-                hint="Required. You will use this email to sign in."
+                hint="Optional."
               />
             </>
           ) : null}
@@ -392,21 +395,27 @@ export function RegisterScreen() {
           {step === 3 ? (
             <>
               <Field
-                label="Create password"
-                name="password"
+                label="Create PIN"
+                name="pin"
                 type="password"
+                inputMode="numeric"
                 autoComplete="new-password"
-                value={form.password}
-                onChange={(event) => update('password', event.target.value)}
-                hint="At least 6 characters. Needed every time you sign in."
+                maxLength={6}
+                value={form.pin}
+                onChange={(event) => update('pin', event.target.value.replace(/\D/g, '').slice(0, 6))}
+                hint="4 to 6 digits. Needed every time you sign in."
               />
               <Field
-                label="Confirm password"
-                name="confirmPassword"
+                label="Confirm PIN"
+                name="confirmPin"
                 type="password"
+                inputMode="numeric"
                 autoComplete="new-password"
-                value={form.confirmPassword}
-                onChange={(event) => update('confirmPassword', event.target.value)}
+                maxLength={6}
+                value={form.confirmPin}
+                onChange={(event) =>
+                  update('confirmPin', event.target.value.replace(/\D/g, '').slice(0, 6))
+                }
               />
             </>
           ) : null}
