@@ -1,14 +1,12 @@
-import { FirebaseError } from 'firebase/app'
 import {
-  createUserWithEmailAndPassword,
-  deleteUser,
-  signInWithEmailAndPassword,
-  signOut,
-} from 'firebase/auth'
-import { doc, getDoc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
-import { auth, db } from './firebase.ts'
-import { clearSession, getSnapshot, setProfile, setUser } from './session.ts'
-import type { Profile, ProfileUpdate, RegistrationCreate } from './types.ts'
+  applyAuthenticated,
+  clearSession,
+  getAccessToken,
+  getSnapshot,
+  markReady,
+  setAccessToken,
+} from './session.ts'
+import type { Profile, ProfileUpdate, RegistrationCreate, SessionResponse } from './types.ts'
 
 export class ApiError extends Error {
   status: number
@@ -20,17 +18,20 @@ export class ApiError extends Error {
   }
 }
 
-function generateLoginId(): string {
-  const bytes = new Uint8Array(4)
-  crypto.getRandomValues(bytes)
-  return `SB-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase()}`
+const rawBase = import.meta.env.VITE_API_BASE_URL
+if (!rawBase?.trim()) {
+  throw new Error(
+    'Missing VITE_API_BASE_URL. Copy web/.env.example to web/.env.local for local development.',
+  )
 }
+
+const API_BASE_URL = rawBase.replace(/\/+$/, '')
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length ? value : null
 }
 
-export function profileFromDoc(data: Record<string, unknown>): Profile {
+export function profileFromPayload(data: Record<string, unknown>): Profile {
   return {
     login_id: String(data.login_id ?? ''),
     full_name: String(data.full_name ?? ''),
@@ -48,151 +49,148 @@ export function profileFromDoc(data: Record<string, unknown>): Profile {
   }
 }
 
-function mapFirebaseError(err: unknown, context: 'auth' | 'register' | 'profile' = 'auth'): ApiError {
-  if (err instanceof ApiError) return err
-  if (err instanceof FirebaseError) {
-    switch (err.code) {
-      case 'auth/email-already-in-use':
-      case 'already-exists':
-        return new ApiError(409, 'An account with these details already exists.')
-      case 'permission-denied':
-        return context === 'register'
-          ? new ApiError(409, 'An account with these details already exists.')
-          : new ApiError(403, 'You do not have access to this profile.')
-      case 'auth/invalid-credential':
-      case 'auth/invalid-email':
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-      case 'auth/user-disabled':
-        return new ApiError(401, 'Email or password is incorrect.')
-      case 'auth/weak-password':
-        return new ApiError(422, 'Password must be at least 6 characters.')
-      case 'auth/too-many-requests':
-        return new ApiError(429, 'Too many attempts. Try again later.')
-      case 'auth/network-request-failed':
-      case 'unavailable':
-        return new ApiError(0, 'Cannot reach Firebase. Check your connection.')
-      case 'auth/operation-not-allowed':
-        return new ApiError(500, 'Email/password sign-in is not enabled.')
-      default:
-        return new ApiError(400, 'Something went wrong. Try again.')
+function messageFromDetail(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== 'object' || !('detail' in payload)) {
+    return fallback
+  }
+  const detail = (payload as { detail: unknown }).detail
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0]
+    if (first && typeof first === 'object' && 'msg' in first) {
+      const msg = (first as { msg?: unknown }).msg
+      if (typeof msg === 'string' && msg.trim()) {
+        return msg
+      }
     }
   }
-  return new ApiError(400, 'Something went wrong. Try again.')
+  return fallback
 }
 
-function requireUid(): string {
-  const uid = getSnapshot().uid ?? auth.currentUser?.uid ?? null
-  if (!uid) throw new ApiError(401, 'Authentication required.')
-  return uid
+async function parseJson(response: Response): Promise<unknown> {
+  const raw = await response.text()
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  body?: unknown
+  auth?: boolean
+  fallback: string
+}
+
+async function request<T>(path: string, options: RequestOptions): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (options.body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+  const requiresAuth = options.auth !== false
+  if (requiresAuth) {
+    const token = getAccessToken()
+    if (!token) {
+      clearSession()
+      throw new ApiError(401, 'Authentication required.')
+    }
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    })
+  } catch {
+    throw new ApiError(0, 'The server could not be reached. Check your connection.')
+  }
+
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  const payload = await parseJson(response)
+  if (!response.ok) {
+    if (response.status === 401 && requiresAuth) {
+      clearSession()
+    }
+    throw new ApiError(response.status, messageFromDetail(payload, options.fallback))
+  }
+  return payload as T
 }
 
 export async function getMe(): Promise<Profile> {
-  try {
-    const uid = requireUid()
-    const snap = await getDoc(doc(db, 'users', uid))
-    if (!snap.exists()) {
-      throw new ApiError(404, 'Could not load profile.')
-    }
-    const profile = profileFromDoc(snap.data())
-    setProfile(profile)
-    return profile
-  } catch (err) {
-    throw mapFirebaseError(err, 'profile')
-  }
+  const payload = await request<Record<string, unknown>>('/api/v1/me', {
+    fallback: 'Could not load profile.',
+  })
+  const profile = profileFromPayload(payload)
+  applyAuthenticated(profile)
+  return profile
 }
 
 export async function updateMe(body: ProfileUpdate): Promise<Profile> {
-  try {
-    const uid = requireUid()
-    await updateDoc(doc(db, 'users', uid), {
-      full_name: body.full_name ?? null,
-      occupation: body.occupation ?? null,
-      address_line: body.address_line ?? null,
-      locality: body.locality ?? null,
-      district: body.district ?? null,
-      state: body.state ?? null,
-      pincode: body.pincode ?? null,
-      updated_at: serverTimestamp(),
-    })
-    return await getMe()
-  } catch (err) {
-    throw mapFirebaseError(err, 'profile')
-  }
+  const payload = await request<Record<string, unknown>>('/api/v1/me', {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update profile.',
+  })
+  const profile = profileFromPayload(payload)
+  applyAuthenticated(profile)
+  return profile
 }
 
-export async function signIn(email: string, password: string): Promise<Profile> {
-  try {
-    const credential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password)
-    setUser(credential.user)
-    return await getMe()
-  } catch (err) {
-    throw mapFirebaseError(err)
-  }
-}
-
-async function writeRegistration(uid: string, email: string, body: RegistrationCreate): Promise<Profile> {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const loginId = generateLoginId()
-    const batch = writeBatch(db)
-    const profile = {
-      login_id: loginId,
-      full_name: body.full_name,
-      mobile: body.mobile,
-      email,
-      gender: body.gender ?? null,
-      date_of_birth: body.date_of_birth ?? null,
-      occupation: body.occupation ?? null,
-      address_line: body.address_line ?? null,
-      locality: body.locality ?? null,
-      district: body.district ?? null,
-      state: body.state ?? null,
-      pincode: body.pincode ?? null,
-      status: 'active',
-    }
-    batch.set(doc(db, 'users', uid), {
-      ...profile,
-      created_at: serverTimestamp(),
-      updated_at: serverTimestamp(),
-    })
-    batch.set(doc(db, 'loginIds', loginId), { uid })
-    batch.set(doc(db, 'mobiles', body.mobile), { uid })
-    try {
-      await batch.commit()
-      setProfile(profile)
-      return profile
-    } catch (err) {
-      lastError = err
-    }
-  }
-  throw lastError
+export async function signIn(identifier: string, pin: string): Promise<Profile> {
+  const session = await request<SessionResponse>('/api/v1/sessions', {
+    method: 'POST',
+    body: { identifier: identifier.trim(), pin },
+    auth: false,
+    fallback: 'Sign in failed.',
+  })
+  setAccessToken(session.access_token)
+  return getMe()
 }
 
 export async function registerAndSignIn(body: RegistrationCreate): Promise<Profile> {
-  const email = body.email.trim().toLowerCase()
-  let createdUid: string | null = null
-  try {
-    const credential = await createUserWithEmailAndPassword(auth, email, body.password)
-    createdUid = credential.user.uid
-    setUser(credential.user)
-    return await writeRegistration(createdUid, email, body)
-  } catch (err) {
-    if (createdUid && auth.currentUser) {
-      try {
-        await deleteUser(auth.currentUser)
-      } catch {
-        await signOut(auth)
-      }
-    }
-    throw mapFirebaseError(err, 'register')
-  }
+  await request('/api/v1/registrations', {
+    method: 'POST',
+    body,
+    auth: false,
+    fallback: 'Registration failed.',
+  })
+  return signIn(body.mobile, body.pin)
 }
 
 export async function logout(): Promise<void> {
+  const token = getAccessToken()
+  clearSession()
+  if (!token) return
   try {
-    await signOut(auth)
-  } finally {
-    clearSession()
+    await fetch(`${API_BASE_URL}/api/v1/sessions/current`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch {
+    // Local session is already cleared.
+  }
+}
+
+export async function restoreSession(): Promise<void> {
+  if (!getAccessToken()) {
+    markReady()
+    return
+  }
+  try {
+    await getMe()
+  } catch {
+    if (!getSnapshot().ready) {
+      markReady()
+    }
   }
 }

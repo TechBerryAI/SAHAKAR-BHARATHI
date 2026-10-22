@@ -4,24 +4,26 @@ import { AppBar } from '../components/AppBar.tsx'
 import { Button, Card, ErrorBanner, Field, Screen } from '../components/ui.tsx'
 import { ApiError, signIn } from '../lib/api.ts'
 
+const PIN_PATTERN = /^\d{4,6}$/
+
 export function SignInScreen() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [identifier, setIdentifier] = useState('')
+  const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const login = email.trim()
-    if (!login || password.length < 6) {
-      setError('Enter your email and password.')
+    const login = identifier.trim()
+    if (!login || !PIN_PATTERN.test(pin)) {
+      setError('Enter your login ID or mobile and a 4 to 6 digit PIN.')
       return
     }
     setBusy(true)
     setError('')
     try {
-      await signIn(login, password)
+      await signIn(login, pin)
       navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Sign in failed.')
@@ -32,7 +34,7 @@ export function SignInScreen() {
 
   return (
     <>
-      <AppBar title="Sign In" showEmblem />
+      <AppBar title="Sign In" onBack={() => navigate('/')} />
       <Screen>
         <Card kicker="Rath Yatra" title="Registered participant access">
           <p className="card__body">
@@ -42,22 +44,22 @@ export function SignInScreen() {
         <form className="stack" onSubmit={onSubmit}>
           <ErrorBanner message={error} />
           <Field
-            label="Email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            hint="Use the email from registration."
+            label="Login ID or mobile"
+            name="identifier"
+            autoComplete="username"
+            value={identifier}
+            onChange={(event) => setIdentifier(event.target.value)}
+            hint="Use the login ID from registration or your 10-digit mobile number."
           />
           <Field
-            label="Password"
-            name="password"
+            label="PIN"
+            name="pin"
             type="password"
+            inputMode="numeric"
             autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            maxLength={6}
+            value={pin}
+            onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
           />
           <Button type="submit" disabled={busy}>
             {busy ? 'Signing in…' : 'Sign in'}

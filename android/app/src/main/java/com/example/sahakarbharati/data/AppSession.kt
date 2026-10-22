@@ -20,9 +20,6 @@ class AppSession(
     val isRegistered: Boolean
         get() = !loginId.isBlank()
 
-    val isLoggedIn: Boolean
-        get() = isLoggedIn()
-
     val loginId: String
         get() = securePrefs.getString(KEY_LOGIN_ID, "") ?: ""
 

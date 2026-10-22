@@ -39,6 +39,10 @@ def test_registration_rejects_invalid_mobile(client: TestClient) -> None:
 def test_registration_rejects_short_pin(client: TestClient) -> None:
     response = client.post("/api/v1/registrations", json=register_payload(pin="12"))
     assert response.status_code == 422
+    assert "12" not in response.text
+    for item in response.json()["detail"]:
+        if "pin" in [str(part).lower() for part in item.get("loc", [])]:
+            assert "input" not in item
 
 
 def test_registration_ignores_client_supplied_ids_and_flags(client: TestClient) -> None:

@@ -156,8 +156,8 @@ fun RegistrationFormScreen(
 
     val ageYears = remember(dob) { ageYearsFromDob(dob) }
     val ageText = if (language == AppLanguage.HI) "$ageYears वर्ष" else "$ageYears Years"
-    val titles = listOf(copy.formTitle, extra.contactTitle, extra.profileTitle, extra.securityTitle)
-    val stepLabels = listOf(copy.stepLabel, extra.contactStep, extra.profileStep, extra.securityStep)
+    val titles = listOf(extra.contactTitle, copy.formTitle, extra.profileTitle, extra.securityTitle)
+    val stepLabels = listOf(extra.contactStep, copy.stepLabel, extra.profileStep, extra.securityStep)
 
     fun goBack() {
         stepError = ""
@@ -214,15 +214,15 @@ fun RegistrationFormScreen(
     fun advance() {
         stepError = when (step) {
             0 -> when {
+                !isIndianMobile(mobile) -> extra.mobileRequired
+                else -> ""
+            }
+            1 -> when {
                 name.isBlank() -> extra.nameRequired
                 gender.isBlank() -> extra.genderRequired
                 dob.isBlank() -> extra.dobRequired
                 ageYears in 1..17 -> extra.ageTooYoung
                 occupation.isBlank() -> extra.occupationRequired
-                else -> ""
-            }
-            1 -> when {
-                mobile.filter(Char::isDigit).length != 10 -> extra.mobileRequired
                 else -> ""
             }
             2 -> when {
@@ -324,7 +324,12 @@ fun RegistrationFormScreen(
             }
 
             when (step) {
-                0 -> PersonalStep(
+                0 -> PhoneStep(
+                    extra = extra,
+                    mobile = mobile,
+                    onMobile = { mobile = it.filter(Char::isDigit).take(10) },
+                )
+                1 -> PersonalStep(
                     copy = copy,
                     extra = extra,
                     name = name,
@@ -339,11 +344,6 @@ fun RegistrationFormScreen(
                     ageYears = ageYears,
                     occupation = occupation,
                     onOccupation = { occupation = it },
-                )
-                1 -> ContactStep(
-                    extra = extra,
-                    mobile = mobile,
-                    onMobile = { mobile = it.filter(Char::isDigit).take(10) },
                     email = email,
                     onEmail = { email = it },
                 )
@@ -454,6 +454,8 @@ private fun ColumnScope.PersonalStep(
     ageYears: Int,
     occupation: String,
     onOccupation: (String) -> Unit,
+    email: String,
+    onEmail: (String) -> Unit,
 ) {
     WhiteCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -609,15 +611,20 @@ private fun ColumnScope.PersonalStep(
             }
         }
     }
+    LabeledField(
+        label = extra.emailLabel,
+        value = email,
+        onValueChange = onEmail,
+        hint = extra.emailHint,
+        keyboardType = KeyboardType.Email,
+    )
 }
 
 @Composable
-private fun ColumnScope.ContactStep(
+private fun ColumnScope.PhoneStep(
     extra: FormExtraCopy,
     mobile: String,
     onMobile: (String) -> Unit,
-    email: String,
-    onEmail: (String) -> Unit,
 ) {
     WhiteCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -632,13 +639,6 @@ private fun ColumnScope.ContactStep(
         hint = extra.mobileHint,
         keyboardType = KeyboardType.Phone,
         prefix = "+91",
-    )
-    LabeledField(
-        label = extra.emailLabel,
-        value = email,
-        onValueChange = onEmail,
-        hint = extra.emailHint,
-        keyboardType = KeyboardType.Email,
     )
 }
 
@@ -880,14 +880,14 @@ private data class FormExtraCopy(
 
 private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
     if (language == AppLanguage.HI) FormExtraCopy(
-        contactTitle = "संपर्क विवरण",
-        contactStep = "चरण 2 / 4: संपर्क विवरण (50%)",
-        contactCard = "मोबाइल और ईमेल",
-        contactBody = "उत्सव अपडेट और सहायता के लिए एक सक्रिय मोबाइल नंबर लिखें।",
+        contactTitle = "मोबाइल नंबर",
+        contactStep = "चरण 1 / 4: मोबाइल नंबर (25%)",
+        contactCard = "साइन इन के लिए मोबाइल",
+        contactBody = "जो मोबाइल नंबर साइन इन के लिए उपयोग करेंगे, वह लिखें। उसके बाद नाम और पता आएगा।",
         mobileLabel = "मोबाइल नंबर",
-        mobileHint = "10 अंकों का भारतीय मोबाइल नंबर।",
+        mobileHint = "10 अंकों का भारतीय मोबाइल नंबर। यही आपका लॉगिन है।",
         emailLabel = "ईमेल (वैकल्पिक)",
-        emailHint = "पास और सूचनाएँ भेजने के लिए।",
+        emailHint = "वैकल्पिक। साइन इन मोबाइल नंबर से होगा।",
         profileTitle = "पता",
         profileStep = "चरण 3 / 4: पता (75%)",
         profileCard = "पता",
@@ -927,14 +927,14 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         pinRequired = "कम से कम 4 अंकों का पिन बनाएँ।",
         pinMismatch = "पिन मेल नहीं खाते।",
     ) else FormExtraCopy(
-        contactTitle = "Contact Details",
-        contactStep = "STEP 2 OF 4: CONTACT DETAILS (50%)",
-        contactCard = "Mobile and email",
-        contactBody = "Add an active mobile number so celebration updates and help can reach you.",
+        contactTitle = "Mobile number",
+        contactStep = "STEP 1 OF 4: MOBILE NUMBER (25%)",
+        contactCard = "Sign in with your mobile",
+        contactBody = "Enter the mobile number you will use to sign in. Name, address, and other KYC details come next.",
         mobileLabel = "MOBILE NUMBER",
-        mobileHint = "10-digit Indian mobile number.",
+        mobileHint = "10-digit Indian mobile number. This is your login.",
         emailLabel = "EMAIL (OPTIONAL)",
-        emailHint = "Used only to send the pass and notices.",
+        emailHint = "Optional. You sign in with your mobile number.",
         profileTitle = "Address",
         profileStep = "STEP 3 OF 4: ADDRESS (75%)",
         profileCard = "Address",
@@ -1078,6 +1078,9 @@ private fun parseDobToUtcMillis(dob: String): Long? {
     calendar.set(java.util.Calendar.DAY_OF_MONTH, day)
     return calendar.timeInMillis
 }
+
+private fun isIndianMobile(mobile: String): Boolean =
+    mobile.matches(Regex("^[6-9]\\d{9}$"))
 
 private fun isoDob(dob: String): String? {
     val parts = dob.split("/").map { it.trim() }
