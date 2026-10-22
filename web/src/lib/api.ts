@@ -6,7 +6,14 @@ import {
   markReady,
   setAccessToken,
 } from './session.ts'
-import type { Profile, ProfileUpdate, RegistrationCreate, SessionResponse } from './types.ts'
+import type {
+  PhoneVerificationConfirmed,
+  PhoneVerificationCreated,
+  Profile,
+  ProfileUpdate,
+  RegistrationCreate,
+  SessionResponse,
+} from './types.ts'
 
 export class ApiError extends Error {
   status: number
@@ -124,6 +131,27 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
     throw new ApiError(response.status, messageFromDetail(payload, options.fallback))
   }
   return payload as T
+}
+
+export function sendPhoneVerification(mobile: string): Promise<PhoneVerificationCreated> {
+  return request<PhoneVerificationCreated>('/api/v1/phone-verifications', {
+    method: 'POST',
+    body: { mobile },
+    auth: false,
+    fallback: 'Could not send the verification code.',
+  })
+}
+
+export function confirmPhoneVerification(
+  challengeId: string,
+  code: string,
+): Promise<PhoneVerificationConfirmed> {
+  return request<PhoneVerificationConfirmed>(`/api/v1/phone-verifications/${challengeId}/confirm`, {
+    method: 'POST',
+    body: { code },
+    auth: false,
+    fallback: 'Could not verify the code.',
+  })
 }
 
 export async function getMe(): Promise<Profile> {

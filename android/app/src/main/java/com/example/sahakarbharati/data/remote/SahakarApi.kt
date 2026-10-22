@@ -6,8 +6,18 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 interface SahakarApi {
+    @POST("api/v1/phone-verifications")
+    suspend fun sendPhoneVerification(@Body body: PhoneVerificationRequest): PhoneVerificationCreatedDto
+
+    @POST("api/v1/phone-verifications/{challengeId}/confirm")
+    suspend fun confirmPhoneVerification(
+        @Path("challengeId") challengeId: String,
+        @Body body: PhoneVerificationConfirmRequest,
+    ): PhoneVerificationConfirmedDto
+
     @POST("api/v1/registrations")
     suspend fun register(@Body body: RegistrationRequest): RegistrationResponseDto
 

@@ -150,6 +150,14 @@ def create_app() -> FastAPI:
     application.add_exception_handler(RequestValidationError, _validation_error_handler)
     application.include_router(api_router, prefix="/api/v1")
 
+    @application.api_route("/", methods=["GET", "HEAD"])
+    def root() -> dict[str, str]:
+        return {
+            "status": "ok",
+            "service": settings.app_name,
+            "health": "/health",
+        }
+
     @application.get("/health/live")
     def live() -> HealthResponse:
         return HealthResponse(status="ok", database="unchecked")

@@ -3,7 +3,17 @@ from __future__ import annotations
 import logging
 from collections.abc import MutableMapping
 
-_SENSITIVE = {"pin", "password", "token", "authorization", "otp", "access_token", "code"}
+_SENSITIVE = {
+    "pin",
+    "password",
+    "token",
+    "authorization",
+    "otp",
+    "access_token",
+    "code",
+    "verification_token",
+    "api_key",
+}
 
 
 class RedactingFilter(logging.Filter):

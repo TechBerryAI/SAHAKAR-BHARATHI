@@ -77,6 +77,7 @@ def test_production_disables_openapi_docs(monkeypatch) -> None:
         assert "/docs" not in paths
         assert "/redoc" not in paths
         assert "/openapi.json" not in paths
+        assert "/" in paths
         assert "/health/live" in paths
         assert "/health/ready" in paths
     finally:
