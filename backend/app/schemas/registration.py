@@ -30,6 +30,7 @@ class RegistrationCreate(ORMModel):
     state: str | None = Field(default=None, max_length=120)
     pincode: str | None = None
     pin: str = Field(min_length=4, max_length=6)
+    verification_token: str = Field(min_length=20, max_length=200)
 
     @field_validator("full_name")
     @classmethod
