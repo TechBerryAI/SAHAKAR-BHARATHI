@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from tests.conftest import register_and_login
+from tests.conftest import register_and_login, register_payload
 
 
 def test_login_success_with_mobile(client: TestClient) -> None:
@@ -27,7 +27,7 @@ def test_login_success_with_login_id(client: TestClient) -> None:
 
 
 def test_login_failure_wrong_pin(client: TestClient) -> None:
-    register_and_login(client)
+    client.post("/api/v1/registrations", json=register_payload())
     response = client.post(
         "/api/v1/sessions",
         json={"identifier": "9876543210", "pin": "9999"},

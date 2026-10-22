@@ -15,25 +15,6 @@ data class RegistrationRequest(
     val state: String?,
     val pincode: String?,
     val pin: String,
-    @SerializedName("verification_token") val verificationToken: String,
-)
-
-data class PhoneVerificationRequest(
-    val mobile: String,
-)
-
-data class PhoneVerificationCreatedDto(
-    val id: String,
-    @SerializedName("expires_in_seconds") val expiresInSeconds: Int,
-)
-
-data class PhoneVerificationConfirmRequest(
-    val code: String,
-)
-
-data class PhoneVerificationConfirmedDto(
-    @SerializedName("verification_token") val verificationToken: String,
-    @SerializedName("expires_in_seconds") val expiresInSeconds: Int,
 )
 
 data class RegistrationResponseDto(

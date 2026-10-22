@@ -95,7 +95,6 @@ import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.core.ui.StackTopBar
 import com.example.sahakarbharati.core.ui.StatusChip
-import com.example.sahakarbharati.core.ui.WhiteActionButton
 import com.example.sahakarbharati.core.ui.WhiteCard
 import com.example.sahakarbharati.ui.theme.FieldShape
 import com.example.sahakarbharati.ui.theme.RathYatraColors
@@ -143,7 +142,6 @@ fun RegistrationFormScreen(
     var locationNote by rememberSaveable { mutableStateOf("") }
     var stepError by rememberSaveable { mutableStateOf("") }
     var photoPath by rememberSaveable { mutableStateOf("") }
-    var otp by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(viewModel.state) {
         val current = viewModel.state
@@ -225,7 +223,6 @@ fun RegistrationFormScreen(
             }
             1 -> when {
                 mobile.filter(Char::isDigit).length != 10 -> extra.mobileRequired
-                viewModel.verificationToken.isNullOrBlank() -> extra.otpRequired
                 else -> ""
             }
             2 -> when {
@@ -256,7 +253,6 @@ fun RegistrationFormScreen(
                     state = stateName.ifBlank { null },
                     pincode = pincode.ifBlank { null },
                     pin = pin,
-                    verificationToken = viewModel.verificationToken.orEmpty(),
                 ),
             )
         }
@@ -347,23 +343,9 @@ fun RegistrationFormScreen(
                 1 -> ContactStep(
                     extra = extra,
                     mobile = mobile,
-                    onMobile = {
-                        val next = it.filter(Char::isDigit).take(10)
-                        if (next != mobile) {
-                            otp = ""
-                            viewModel.clearOtp()
-                        }
-                        mobile = next
-                    },
+                    onMobile = { mobile = it.filter(Char::isDigit).take(10) },
                     email = email,
                     onEmail = { email = it },
-                    otp = otp,
-                    onOtp = { otp = it.filter(Char::isDigit).take(6) },
-                    otpNote = viewModel.otpNote,
-                    otpVerified = !viewModel.verificationToken.isNullOrBlank(),
-                    otpBusy = viewModel.otpBusy,
-                    onSendOtp = { viewModel.sendOtp(mobile) },
-                    onConfirmOtp = { viewModel.confirmOtp(otp) },
                 )
                 2 -> AddressStep(
                     extra = extra,
@@ -636,13 +618,6 @@ private fun ColumnScope.ContactStep(
     onMobile: (String) -> Unit,
     email: String,
     onEmail: (String) -> Unit,
-    otp: String,
-    onOtp: (String) -> Unit,
-    otpNote: String,
-    otpVerified: Boolean,
-    otpBusy: Boolean,
-    onSendOtp: () -> Unit,
-    onConfirmOtp: () -> Unit,
 ) {
     WhiteCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -658,31 +633,6 @@ private fun ColumnScope.ContactStep(
         keyboardType = KeyboardType.Phone,
         prefix = "+91",
     )
-    WhiteActionButton(
-        text = when {
-            otpBusy && !otpVerified -> extra.sendingOtp
-            otpVerified -> extra.otpVerified
-            else -> extra.sendOtp
-        },
-        onClick = { if (!otpBusy && !otpVerified) onSendOtp() },
-        filled = !otpVerified,
-    )
-    if (!otpVerified) {
-        LabeledField(
-            label = extra.otpLabel,
-            value = otp,
-            onValueChange = onOtp,
-            hint = extra.otpHint,
-            keyboardType = KeyboardType.Number,
-        )
-        WhiteActionButton(
-            text = extra.verifyOtp,
-            onClick = { if (!otpBusy) onConfirmOtp() },
-        )
-    }
-    if (otpNote.isNotBlank()) {
-        Text(otpNote, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.Navy)
-    }
     LabeledField(
         label = extra.emailLabel,
         value = email,
@@ -923,13 +873,6 @@ private data class FormExtraCopy(
     val occupationRequired: String,
     val ageTooYoung: String,
     val mobileRequired: String,
-    val sendOtp: String,
-    val sendingOtp: String,
-    val otpLabel: String,
-    val otpHint: String,
-    val verifyOtp: String,
-    val otpVerified: String,
-    val otpRequired: String,
     val addressRequired: String,
     val pinRequired: String,
     val pinMismatch: String,
@@ -980,13 +923,6 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         occupationRequired = "व्यवसाय चुनें।",
         ageTooYoung = "स्वतंत्र पास के लिए न्यूनतम आयु 18 वर्ष है।",
         mobileRequired = "10 अंकों का मोबाइल नंबर लिखें।",
-        sendOtp = "मोबाइल पर OTP भेजें",
-        sendingOtp = "OTP भेजा जा रहा है…",
-        otpLabel = "OTP",
-        otpHint = "SMS में आया 6 अंकों का कोड।",
-        verifyOtp = "OTP जाँचें",
-        otpVerified = "मोबाइल नंबर जाँच लिया गया",
-        otpRequired = "आगे बढ़ने से पहले OTP जाँचें।",
         addressRequired = "पता लिखें या लोकेशन से भरें।",
         pinRequired = "कम से कम 4 अंकों का पिन बनाएँ।",
         pinMismatch = "पिन मेल नहीं खाते।",
@@ -1034,13 +970,6 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         occupationRequired = "Select an occupation.",
         ageTooYoung = "Minimum age is 18 for an independent pass.",
         mobileRequired = "Enter a 10-digit mobile number.",
-        sendOtp = "Send OTP",
-        sendingOtp = "Sending OTP…",
-        otpLabel = "OTP",
-        otpHint = "6-digit code from the SMS.",
-        verifyOtp = "Verify OTP",
-        otpVerified = "Mobile number verified",
-        otpRequired = "Verify the OTP before continuing.",
         addressRequired = "Enter an address or fill it from location.",
         pinRequired = "Create a PIN of at least 4 digits.",
         pinMismatch = "PIN values do not match.",

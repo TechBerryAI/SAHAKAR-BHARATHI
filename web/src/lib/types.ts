@@ -55,17 +55,6 @@ export type RegistrationCreate = {
   state?: string | null
   pincode?: string | null
   pin: string
-  verification_token: string
-}
-
-export type PhoneVerificationCreated = {
-  id: string
-  expires_in_seconds: number
-}
-
-export type PhoneVerificationConfirmed = {
-  verification_token: string
-  expires_in_seconds: number
 }
 
 export type ProfileUpdate = {

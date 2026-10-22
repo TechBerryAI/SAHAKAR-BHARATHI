@@ -2,8 +2,6 @@ import { clearSession, getToken, setProfile, setSession } from './session.ts'
 import type {
   Profile,
   ProfileUpdate,
-  PhoneVerificationConfirmed,
-  PhoneVerificationCreated,
   RegistrationCreate,
   RegistrationResponse,
   SessionCreate,
@@ -73,23 +71,6 @@ async function request<T>(path: string, init: RequestInit = {}, authed = false):
     throw new ApiError(response.status, parseDetail(data))
   }
   return data as T
-}
-
-export function sendPhoneVerification(mobile: string): Promise<PhoneVerificationCreated> {
-  return request<PhoneVerificationCreated>('/api/v1/phone-verifications', {
-    method: 'POST',
-    body: JSON.stringify({ mobile }),
-  })
-}
-
-export function confirmPhoneVerification(
-  challengeId: string,
-  code: string,
-): Promise<PhoneVerificationConfirmed> {
-  return request<PhoneVerificationConfirmed>(`/api/v1/phone-verifications/${challengeId}/confirm`, {
-    method: 'POST',
-    body: JSON.stringify({ code }),
-  })
 }
 
 export function createRegistration(body: RegistrationCreate): Promise<RegistrationResponse> {

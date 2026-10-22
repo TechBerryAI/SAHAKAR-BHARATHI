@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, Card, ChoiceChip, ErrorBanner, Field, Screen } from '../components/ui.tsx'
-import { ApiError, confirmPhoneVerification, registerAndSignIn, sendPhoneVerification } from '../lib/api.ts'
+import { ApiError, registerAndSignIn } from '../lib/api.ts'
 import { blankToNull } from '../lib/format.ts'
 import { getToken } from '../lib/session.ts'
 import type { Gender, Occupation, RegistrationCreate } from '../lib/types.ts'
@@ -54,7 +54,7 @@ function ageYears(iso: string): number {
   return years
 }
 
-function validateStep(step: number, form: FormState, mobileVerified: boolean): string {
+function validateStep(step: number, form: FormState): string {
   if (step === 0) {
     if (form.full_name.trim().length < 2) return 'Full name is required.'
     if (form.date_of_birth && ageYears(form.date_of_birth) < 18) return 'Minimum age is 18.'
@@ -62,7 +62,6 @@ function validateStep(step: number, form: FormState, mobileVerified: boolean): s
   }
   if (step === 1) {
     if (!/^[6-9]\d{9}$/.test(form.mobile)) return 'Enter a valid 10-digit Indian mobile number.'
-    if (!mobileVerified) return 'Verify the OTP sent to this mobile number.'
     return ''
   }
   if (step === 2) {
@@ -83,11 +82,6 @@ export function RegisterScreen() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [otpBusy, setOtpBusy] = useState(false)
-  const [otp, setOtp] = useState('')
-  const [challengeId, setChallengeId] = useState('')
-  const [verificationToken, setVerificationToken] = useState('')
-  const [otpNote, setOtpNote] = useState('')
 
   useEffect(() => {
     if (alreadySignedIn) navigate('/', { replace: true })
@@ -95,56 +89,6 @@ export function RegisterScreen() {
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
-    if (key === 'mobile') {
-      setVerificationToken('')
-      setChallengeId('')
-      setOtp('')
-      setOtpNote('')
-    }
-  }
-
-  async function sendOtp() {
-    if (!/^[6-9]\d{9}$/.test(form.mobile)) {
-      setError('Enter a valid 10-digit Indian mobile number.')
-      return
-    }
-    setError('')
-    setOtpBusy(true)
-    try {
-      const sent = await sendPhoneVerification(form.mobile)
-      setChallengeId(sent.id)
-      setVerificationToken('')
-      setOtp('')
-      setOtpNote('OTP sent. It expires in 5 minutes.')
-    } catch (err) {
-      setOtpNote('')
-      setError(err instanceof ApiError ? err.message : 'Could not send the OTP.')
-    } finally {
-      setOtpBusy(false)
-    }
-  }
-
-  async function confirmOtp() {
-    if (!challengeId) {
-      setError('Send an OTP before verifying.')
-      return
-    }
-    if (!/^\d{6}$/.test(otp)) {
-      setError('Enter the 6-digit OTP.')
-      return
-    }
-    setError('')
-    setOtpBusy(true)
-    try {
-      const confirmed = await confirmPhoneVerification(challengeId, otp)
-      setVerificationToken(confirmed.verification_token)
-      setOtpNote('Mobile number verified.')
-    } catch (err) {
-      setVerificationToken('')
-      setError(err instanceof ApiError ? err.message : 'Could not verify the OTP.')
-    } finally {
-      setOtpBusy(false)
-    }
   }
 
   function goBack() {
@@ -158,7 +102,7 @@ export function RegisterScreen() {
 
   async function onContinue(event: FormEvent) {
     event.preventDefault()
-    const message = validateStep(step, form, Boolean(verificationToken))
+    const message = validateStep(step, form)
     if (message) {
       setError(message)
       return
@@ -182,7 +126,6 @@ export function RegisterScreen() {
       state: blankToNull(form.state),
       pincode: blankToNull(form.pincode),
       pin: form.pin,
-      verification_token: verificationToken,
     }
 
     setBusy(true)
@@ -270,27 +213,6 @@ export function RegisterScreen() {
                 onChange={(event) => update('mobile', event.target.value.replace(/\D/g, '').slice(0, 10))}
                 hint="10-digit Indian mobile number."
               />
-              <Button type="button" variant="ghost" disabled={otpBusy || Boolean(verificationToken)} onClick={sendOtp}>
-                {verificationToken ? 'Mobile verified' : 'Send OTP'}
-              </Button>
-              {challengeId && !verificationToken ? (
-                <>
-                  <Field
-                    label="OTP"
-                    name="otp"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                    hint="6-digit code from the SMS."
-                  />
-                  <Button type="button" disabled={otpBusy} onClick={confirmOtp}>
-                    Verify OTP
-                  </Button>
-                </>
-              ) : null}
-              {otpNote ? <p className="field__hint">{otpNote}</p> : null}
               <Field
                 label="Email"
                 name="email"

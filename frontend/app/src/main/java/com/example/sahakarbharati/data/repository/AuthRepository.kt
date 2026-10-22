@@ -4,8 +4,6 @@ import com.example.sahakarbharati.data.model.ParticipantProfile
 import com.example.sahakarbharati.data.model.RegistrationResult
 import com.example.sahakarbharati.data.model.SessionResult
 import com.example.sahakarbharati.data.remote.ProfileResponseDto
-import com.example.sahakarbharati.data.remote.PhoneVerificationConfirmRequest
-import com.example.sahakarbharati.data.remote.PhoneVerificationRequest
 import com.example.sahakarbharati.data.remote.RegistrationRequest
 import com.example.sahakarbharati.data.remote.RegistrationResponseDto
 import com.example.sahakarbharati.data.remote.SahakarApi
@@ -14,8 +12,6 @@ import com.example.sahakarbharati.data.remote.SessionResponseDto
 import com.example.sahakarbharati.data.remote.mapApiError
 
 interface AuthRepository {
-    suspend fun sendOtp(mobile: String): Result<String>
-    suspend fun confirmOtp(challengeId: String, code: String): Result<String>
     suspend fun register(request: RegistrationRequest): Result<RegistrationResult>
     suspend fun signIn(identifier: String, pin: String): Result<SessionResult>
     suspend fun logout()
@@ -25,22 +21,6 @@ class RemoteAuthRepository(
     private val api: SahakarApi,
     private val sessionStore: SessionStore,
 ) : AuthRepository {
-    override suspend fun sendOtp(mobile: String): Result<String> {
-        return runCatching {
-            api.sendPhoneVerification(PhoneVerificationRequest(mobile)).id
-        }.recoverCatching { error ->
-            throw Exception(mapApiError(error, "Could not send the OTP."))
-        }
-    }
-
-    override suspend fun confirmOtp(challengeId: String, code: String): Result<String> {
-        return runCatching {
-            api.confirmPhoneVerification(challengeId, PhoneVerificationConfirmRequest(code)).verificationToken
-        }.recoverCatching { error ->
-            throw Exception(mapApiError(error, "Could not verify the OTP."))
-        }
-    }
-
     override suspend fun register(request: RegistrationRequest): Result<RegistrationResult> {
         return runCatching {
             val created = api.register(request)

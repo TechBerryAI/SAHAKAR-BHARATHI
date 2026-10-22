@@ -5,14 +5,13 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import AuditEvent, AuthSession, PhoneVerification, Registration, User  # noqa: F401
+from app.models import AuditEvent, AuthSession, Registration, User  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# ConfigParser treats % as interpolation. URL-encoded passwords contain %XX.
-config.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url().replace("%", "%%"))
+config.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url())
 target_metadata = Base.metadata
 
 

@@ -24,21 +24,3 @@ class RateLimitedError(AppError):
 class UnauthorizedError(AppError):
     def __init__(self, detail: str = "Authentication required.") -> None:
         super().__init__(status.HTTP_401_UNAUTHORIZED, detail)
-
-
-class InvalidOtpError(AppError):
-    def __init__(self) -> None:
-        super().__init__(status.HTTP_400_BAD_REQUEST, "The code is incorrect or has expired.")
-
-
-class VerificationRequiredError(AppError):
-    def __init__(self) -> None:
-        super().__init__(
-            status.HTTP_400_BAD_REQUEST,
-            "Verify this mobile number before registering.",
-        )
-
-
-class SmsDeliveryError(AppError):
-    def __init__(self, detail: str = "Could not send the verification SMS. Try again.") -> None:
-        super().__init__(status.HTTP_503_SERVICE_UNAVAILABLE, detail)

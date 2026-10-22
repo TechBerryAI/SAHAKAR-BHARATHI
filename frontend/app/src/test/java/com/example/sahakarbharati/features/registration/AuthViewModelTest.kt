@@ -129,15 +129,12 @@ private fun sampleRequest() = RegistrationRequest(
     state = "Maharashtra",
     pincode = "422001",
     pin = "2468",
-    verificationToken = "verification-token-value",
 )
 
 private class FakeAuthRepository(
     private val registerResult: Result<RegistrationResult> = Result.failure(Exception("unused")),
     private val signInResult: Result<SessionResult> = Result.failure(Exception("unused")),
 ) : AuthRepository {
-    override suspend fun sendOtp(mobile: String) = Result.success("challenge")
-    override suspend fun confirmOtp(challengeId: String, code: String) = Result.success("verification-token-value")
     override suspend fun register(request: RegistrationRequest) = registerResult
     override suspend fun signIn(identifier: String, pin: String) = signInResult
     override suspend fun logout() = Unit

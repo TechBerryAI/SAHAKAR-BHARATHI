@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -56,33 +55,15 @@ def engine(database_url: str) -> Iterator[Engine]:
 
 
 @pytest.fixture(autouse=True)
-def clean_tables(request: pytest.FixtureRequest) -> Iterator[None]:
-    if "engine" not in request.fixturenames and "client" not in request.fixturenames:
-        yield
-        return
-    engine: Engine = request.getfixturevalue("engine")
+def clean_tables(engine: Engine) -> Iterator[None]:
     yield
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE audit_events, sessions, registrations, users, phone_verifications "
+                "TRUNCATE audit_events, sessions, registrations, users "
                 "RESTART IDENTITY CASCADE"
             )
         )
-
-
-class RecordingSmsGateway:
-    def __init__(self) -> None:
-        self.messages: list[tuple[str, str]] = []
-
-    def send(self, recipient_e164: str, message: str) -> None:
-        self.messages.append((recipient_e164, message))
-
-    def latest_code(self) -> str:
-        match = re.search(r"\b(\d{6})\b", self.messages[-1][1])
-        if match is None:
-            raise AssertionError("verification SMS did not contain a code")
-        return match.group(1)
 
 
 @pytest.fixture
@@ -98,10 +79,8 @@ def client(engine: Engine, database_url: str) -> Iterator[TestClient]:
     db_session.engine = engine
     db_session.SessionLocal.configure(bind=engine)
     app.state.limiter = SlidingWindowLimiter()
-    app.state.sms_gateway = RecordingSmsGateway()
     with TestClient(app) as test_client:
         yield test_client
-    app.state.sms_gateway = None
     app.state.limiter.reset()
 
 
@@ -124,31 +103,11 @@ def register_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def verify_mobile(client: TestClient, mobile: str) -> str:
-    sent = client.post("/api/v1/phone-verifications", json={"mobile": mobile})
-    assert sent.status_code == 202, sent.text
-    code = client.app.state.sms_gateway.latest_code()
-    confirmed = client.post(
-        f"/api/v1/phone-verifications/{sent.json()['id']}/confirm",
-        json={"code": code},
-    )
-    assert confirmed.status_code == 200, confirmed.text
-    token = confirmed.json()["verification_token"]
-    assert isinstance(token, str)
-    return token
-
-
-def verified_register_payload(client: TestClient, **overrides: object) -> dict[str, object]:
-    payload = register_payload(**overrides)
-    payload["verification_token"] = verify_mobile(client, str(payload["mobile"]))
-    return payload
-
-
 def register_and_login(
     client: TestClient,
     **overrides: object,
 ) -> tuple[dict[str, object], dict[str, object]]:
-    created = client.post("/api/v1/registrations", json=verified_register_payload(client, **overrides))
+    created = client.post("/api/v1/registrations", json=register_payload(**overrides))
     assert created.status_code == 201, created.text
     body = created.json()
     identifier = overrides.get("mobile", body["login_id"])
