@@ -117,6 +117,7 @@ export type AppCopy = {
   logOutConfirm: string
   logOutBody: string
   cancel: string
+  registrationTitle: string
   formTitle: string
   contactTitle: string
   profileTitle: string
@@ -125,7 +126,7 @@ export type AppCopy = {
   stepContactTrack: string
   stepProfileTrack: string
   stepSecurityTrack: string
-  stepBadge: string
+  formProgress: string
   govtPortal: string
   legalName: string
   nameAadhaarHint: string
@@ -287,6 +288,7 @@ const HI: Partial<AppCopy> = {
   logOutConfirm: 'लॉग आउट करें?',
   logOutBody: 'ऐप फिर खोलने के लिए लॉगिन आईडी या मोबाइल और पिन चाहिए।',
   cancel: 'रद्द करें',
+  registrationTitle: 'पंजीकरण',
   formTitle: 'व्यक्तिगत विवरण',
   contactTitle: 'संपर्क विवरण',
   profileTitle: 'पता',
@@ -295,7 +297,7 @@ const HI: Partial<AppCopy> = {
   stepContactTrack: '2 संपर्क',
   stepProfileTrack: '3 पता',
   stepSecurityTrack: '4 सुरक्षा',
-  stepBadge: 'चरण {current} / 4: {title} ({percent}%)',
+  formProgress: '{done} / 4 खंड पूर्ण ({percent}%)',
   govtPortal: 'राष्ट्रीय पोर्टल',
   legalName: 'पूरा कानूनी नाम',
   nameAadhaarHint: 'आधार कार्ड के अनुसार नाम',
@@ -458,6 +460,7 @@ const EN: AppCopy = {
   logOutConfirm: 'Log out?',
   logOutBody: 'You will need your login ID or mobile and PIN to open the app again.',
   cancel: 'Cancel',
+  registrationTitle: 'Registration',
   formTitle: 'Personal Details',
   contactTitle: 'Contact Details',
   profileTitle: 'Address',
@@ -466,7 +469,7 @@ const EN: AppCopy = {
   stepContactTrack: '2 Contact',
   stepProfileTrack: '3 Address',
   stepSecurityTrack: '4 Security',
-  stepBadge: 'STEP {current} OF 4: {title} ({percent}%)',
+  formProgress: '{done} OF 4 SECTIONS COMPLETE ({percent}%)',
   govtPortal: 'National Portal',
   legalName: 'FULL LEGAL NAME',
   nameAadhaarHint: 'Name as per aadhaar card',

@@ -1233,9 +1233,53 @@ html[dir='rtl'] .lang-sheet__option {
   color: #8a8176;
 }
 
-.reg-steps .is-current {
+.reg-steps button {
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.reg-steps .is-done {
   color: #e9872a;
   font-weight: 600;
+}
+
+.reg-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-margin-top: 12px;
+}
+
+.reg-section__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #17263f;
+}
+
+.reg-section__num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff1df;
+  color: #b85d12;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reg-section__num.is-done {
+  background: #e9872a;
+  color: #fff;
 }
 
 .reg-required {
