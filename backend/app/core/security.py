@@ -6,13 +6,17 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
 
 from app.core.config import Settings
 
 _PIN_RE = re.compile(r"^\d{4,6}$")
 _MOBILE_RE = re.compile(r"^[6-9]\d{9}$")
 _PINCODE_RE = re.compile(r"^\d{6}$")
-_HASHER = PasswordHash.recommended()
+# OWASP minimum for Argon2id (19 MiB, 2 passes, 1 lane). The library default
+# (64 MiB, 3 passes, 4 lanes) costs ~8x more CPU, which takes seconds on a
+# fractional-CPU host. Older hashes still verify and are upgraded on login.
+_HASHER = PasswordHash((Argon2Hasher(time_cost=2, memory_cost=19_456, parallelism=1),))
 _DUMMY_PIN_HASH: str | None = None
 
 
@@ -61,6 +65,11 @@ def hash_pin(pin: str) -> str:
 
 def verify_pin(pin: str, pin_hash: str) -> bool:
     return _HASHER.verify(pin, pin_hash)
+
+
+def verify_pin_and_update(pin: str, pin_hash: str) -> tuple[bool, str | None]:
+    """Verify, and return a fresh hash when the stored one uses outdated parameters."""
+    return _HASHER.verify_and_update(pin, pin_hash)
 
 
 def dummy_pin_hash() -> str:

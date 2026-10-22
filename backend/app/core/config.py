@@ -115,7 +115,15 @@ class Settings(BaseSettings):
         parsed = urlparse(target)
         query = parse_qs(parsed.query)
         host = (parsed.hostname or "").lower()
-        connect_args: dict[str, Any] = {"connect_timeout": 10}
+        # TCP keepalives stop idle pooled connections being silently dropped,
+        # so they can be kept longer instead of reconnecting (TCP + TLS + auth).
+        connect_args: dict[str, Any] = {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+        }
 
         sslmode = query.get("sslmode", [None])[0]
         if sslmode:
@@ -128,7 +136,7 @@ class Settings(BaseSettings):
 
         return {
             "pool_pre_ping": True,
-            "pool_recycle": 300,
+            "pool_recycle": 1800,
             "pool_size": 5,
             "max_overflow": 5,
             "pool_timeout": 30,

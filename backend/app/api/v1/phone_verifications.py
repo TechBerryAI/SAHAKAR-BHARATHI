@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 
 from app.core.config import Settings, get_settings
 from app.core.deps import get_limiter, get_phone_verification_service
@@ -21,6 +21,7 @@ router = APIRouter(prefix="/phone-verifications", tags=["phone-verifications"])
 def send_phone_verification(
     payload: PhoneVerificationCreate,
     request: Request,
+    background: BackgroundTasks,
     service: PhoneVerificationService = Depends(get_phone_verification_service),
     limiter: SlidingWindowLimiter = Depends(get_limiter),
     settings: Settings = Depends(get_settings),
@@ -32,7 +33,7 @@ def send_phone_verification(
         settings.otp_send_rate_window_seconds,
     ):
         raise RateLimitedError()
-    return service.send(payload.mobile)
+    return service.send(payload.mobile, background.add_task)
 
 
 @router.post(

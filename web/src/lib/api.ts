@@ -203,7 +203,9 @@ export async function signIn(identifier: string, pin: string): Promise<Profile> 
     fallback: 'Sign in failed.',
   })
   setAccessToken(session.access_token)
-  return getMe({ fresh: true })
+  // The session response already carries the full profile, so there is no /me round trip;
+  // it also primes the cache so the home screen does not fetch /me either.
+  return rememberProfile(session)
 }
 
 export async function registerAndSignIn(body: RegistrationCreate): Promise<Profile> {

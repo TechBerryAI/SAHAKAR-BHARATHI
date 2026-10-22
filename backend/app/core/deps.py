@@ -1,3 +1,6 @@
+from functools import lru_cache
+
+import httpx
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -28,6 +31,16 @@ def get_auth_service(
     return AuthService(db, settings)
 
 
+@lru_cache
+def _textbee_http_client() -> httpx.Client:
+    # One pooled client per process: skips TLS setup and keeps the connection
+    # to Textbee warm between OTP requests.
+    return httpx.Client(
+        timeout=15.0,
+        limits=httpx.Limits(max_keepalive_connections=5, keepalive_expiry=120.0),
+    )
+
+
 def get_sms_gateway(
     request: Request,
     settings: Settings = Depends(get_settings),
@@ -42,6 +55,7 @@ def get_sms_gateway(
         device_id=settings.textbee_device_id.strip(),
         base_url=settings.textbee_base_url.strip() or "https://api.textbee.dev/api/v1",
         resolve_sim=True,
+        client=_textbee_http_client(),
     )
 
 

@@ -64,7 +64,14 @@ export type SessionResponse = {
   login_id: string
   full_name: string
   mobile: string
+  email: string | null
+  gender: string | null
+  date_of_birth: string | null
   occupation: string | null
+  address_line: string | null
+  locality: string | null
   state: string | null
   district: string | null
+  pincode: string | null
+  status: string
 }
