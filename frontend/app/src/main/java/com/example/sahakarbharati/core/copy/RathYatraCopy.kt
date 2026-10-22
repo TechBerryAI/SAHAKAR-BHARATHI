@@ -116,10 +116,7 @@ class RathYatraCopy {
     lateinit var stepContact: String
     lateinit var stepProfile: String
     lateinit var stepSecurity: String
-    lateinit var formCardTitle: String
-    lateinit var formCardBody: String
     lateinit var legalName: String
-    lateinit var asInId: String
     lateinit var nameHint: String
     lateinit var gender: String
     lateinit var mandatory: String
@@ -409,10 +406,7 @@ class RathYatraCopy {
             copy.stepContact = stepContact
             copy.stepProfile = stepProfile
             copy.stepSecurity = stepSecurity
-            copy.formCardTitle = formCardTitle
-            copy.formCardBody = formCardBody
             copy.legalName = legalName
-            copy.asInId = asInId
             copy.nameHint = nameHint
             copy.gender = gender
             copy.mandatory = mandatory
@@ -705,11 +699,8 @@ private val English: RathYatraCopy = RathYatraCopy().apply {
     stepContact = "2 Contact"
     stepProfile = "3 Profile"
     stepSecurity = "4 Security"
-    formCardTitle = "Participant Registration"
-    formCardBody = "Enter your name as it should appear on the celebration participant pass."
     legalName = "FULL LEGAL NAME"
-    asInId = "As on ID"
-    nameHint = "Shown on your participant pass."
+    nameHint = "Name as per aadhar card"
     gender = "GENDER"
     mandatory = "Required"
     male = "Male"
@@ -998,11 +989,8 @@ private val Hindi: RathYatraCopy = English.cloneCopy().apply {
     stepContact = "2 संपर्क"
     stepProfile = "3 प्रोफ़ाइल"
     stepSecurity = "4 सुरक्षा"
-    formCardTitle = "प्रतिभागी पंजीकरण"
-    formCardBody = "वह नाम लिखें जो उत्सव प्रतिभागी पास पर दिखना चाहिए।"
     legalName = "पूरा कानूनी नाम"
-    asInId = "पहचान पत्र के अनुसार"
-    nameHint = "आपके प्रतिभागी पास पर यही नाम दिखेगा।"
+    nameHint = "आधार कार्ड के अनुसार नाम"
     gender = "लिंग"
     mandatory = "आवश्यक"
     male = "पुरुष"

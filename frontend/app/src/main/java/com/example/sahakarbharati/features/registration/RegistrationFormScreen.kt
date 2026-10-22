@@ -18,6 +18,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -26,11 +27,14 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,7 +44,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.AddAPhoto
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Female
 import androidx.compose.material.icons.outlined.Info
@@ -50,19 +53,20 @@ import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Transgender
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,9 +79,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -124,7 +135,6 @@ fun RegistrationFormScreen(
 
     var step by rememberSaveable { mutableStateOf(0) }
     var showSos by rememberSaveable { mutableStateOf(false) }
-    var showDobPicker by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var dob by rememberSaveable { mutableStateOf("") }
     var gender by rememberSaveable { mutableStateOf("") }
@@ -326,15 +336,12 @@ fun RegistrationFormScreen(
             when (step) {
                 0 -> PersonalStep(
                     copy = copy,
-                    extra = extra,
                     name = name,
                     onName = { name = it },
-                    photoPath = photoPath,
-                    onPickPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     gender = gender,
                     onGender = { gender = it },
                     dob = dob,
-                    onOpenDob = { showDobPicker = true },
+                    onDobChange = { dob = it },
                     ageText = ageText,
                     ageYears = ageYears,
                     occupation = occupation,
@@ -343,12 +350,19 @@ fun RegistrationFormScreen(
                 1 -> ContactStep(
                     extra = extra,
                     mobile = mobile,
-                    onMobile = { mobile = it.filter(Char::isDigit).take(10) },
+                    onMobile = {
+                        mobile = it.filter(Char::isDigit).take(10)
+                        if (stepError == extra.mobileRequired) stepError = ""
+                    },
+                    mobileError = if (stepError == extra.mobileRequired) stepError else null,
                     email = email,
                     onEmail = { email = it },
                 )
                 2 -> AddressStep(
                     extra = extra,
+                    name = name,
+                    photoPath = photoPath,
+                    onPickPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     addressLine = addressLine,
                     onAddressLine = { addressLine = it },
                     locality = locality,
@@ -424,99 +438,30 @@ fun RegistrationFormScreen(
             onDismiss = { showSos = false },
         )
     }
-    if (showDobPicker) {
-        BirthdayPickerDialog(
-            initialDob = dob,
-            confirmLabel = if (language == AppLanguage.HI) "ठीक है" else "OK",
-            dismissLabel = if (language == AppLanguage.HI) "रद्द करें" else "Cancel",
-            onConfirm = { millis ->
-                dob = formatDob(millis)
-                showDobPicker = false
-            },
-            onDismiss = { showDobPicker = false },
-        )
-    }
 }
 
 @Composable
 private fun ColumnScope.PersonalStep(
     copy: RathYatraCopy,
-    extra: FormExtraCopy,
     name: String,
     onName: (String) -> Unit,
-    photoPath: String,
-    onPickPhoto: () -> Unit,
     gender: String,
     onGender: (String) -> Unit,
     dob: String,
-    onOpenDob: () -> Unit,
+    onDobChange: (String) -> Unit,
     ageText: String,
     ageYears: Int,
     occupation: String,
     onOccupation: (String) -> Unit,
 ) {
     WhiteCard {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(copy.formCardTitle, style = MaterialTheme.typography.titleSmall, color = RathYatraColors.Navy)
-            Text(copy.formCardBody, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-        }
-    }
-    WhiteCard {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(extra.photoTitle, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-            ProfilePhoto(
-                photoPath = photoPath,
-                initials = name.split(" ").filter { it.isNotBlank() }.take(2)
-                    .joinToString("") { it.first().uppercase() }
-                    .ifBlank { "SB" },
-                size = 88.dp,
-                onClick = onPickPhoto,
-            )
-            Text(
-                extra.photoHint,
-                style = MaterialTheme.typography.bodySmall,
-                color = RathYatraColors.OnSurfaceVariant,
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.clickable(onClick = onPickPhoto),
-            ) {
-                Icon(
-                    Icons.Outlined.AddAPhoto,
-                    contentDescription = extra.photoGallery,
-                    tint = RathYatraColors.Navy,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(
-                    extra.photoGallery,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = RathYatraColors.Navy,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
-    }
-    WhiteCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(copy.legalName, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-                StatusChip(copy.asInId, container = RathYatraColors.SurfaceContainerLow, content = RathYatraColors.Navy)
-            }
+            Text(copy.legalName, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
             OutlinedTextField(
                 value = name,
                 onValueChange = onName,
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
-                trailingIcon = {
-                    Icon(Icons.Outlined.Check, contentDescription = copy.legalName, tint = RathYatraColors.Navy)
-                },
                 colors = fieldColors(),
             )
             Text(copy.nameHint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
@@ -535,36 +480,15 @@ private fun ColumnScope.PersonalStep(
             }
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        WhiteCard(Modifier.weight(1.2f)) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(copy.dob, style = MaterialTheme.typography.labelSmall)
-                OutlinedTextField(
-                    value = dob,
-                    onValueChange = {},
-                    readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = FieldShape,
-                    trailingIcon = {
-                        IconButton(onClick = onOpenDob) {
-                            Icon(Icons.Outlined.CalendarMonth, contentDescription = "Date of birth")
-                        }
-                    },
-                    colors = fieldColors(),
-                )
-                Text(copy.ageMin, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-            }
-        }
-        WhiteCard(Modifier.weight(0.9f)) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(copy.calculatedAge, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                    Icon(Icons.Outlined.Info, null, Modifier.size(14.dp), RathYatraColors.GoldDark)
-                }
+    WhiteCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(copy.dob, style = MaterialTheme.typography.labelSmall)
+            BirthDateFields(dob = dob, onDobChange = onDobChange)
+            Text(copy.ageMin, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
+            if (dob.isNotBlank()) {
                 StatusChip(ageText, container = RathYatraColors.GoldPale, content = RathYatraColors.GoldDark)
                 if (ageYears >= 18) {
                     Text(copy.eligible, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.Success)
-                    Text(copy.eligibleNote, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
                 }
             }
         }
@@ -573,39 +497,64 @@ private fun ColumnScope.PersonalStep(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(copy.occupation, style = MaterialTheme.typography.labelSmall)
             Text(copy.occupationHint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-            val occupations = listOf(
-                Triple("Farmer", copy.farmer, copy.farmerDesc),
-                Triple("Fisherman", copy.fisherman, copy.fishermanDesc),
-                Triple("Both", copy.both, copy.bothDesc),
-                Triple("Allied", copy.allied, copy.alliedDesc),
+            OccupationDropdown(
+                occupation = occupation,
+                options = listOf(
+                    "Farmer" to copy.farmer,
+                    "Fisherman" to copy.fisherman,
+                    "Both" to copy.both,
+                    "Allied" to copy.allied,
+                ),
+                onOccupation = onOccupation,
             )
-            occupations.chunked(2).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { (key, title, body) ->
-                        val selected = occupation == key
-                        Column(
-                            Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(
-                                    width = if (selected) 2.dp else 1.dp,
-                                    color = if (selected) RathYatraColors.Saffron else RathYatraColors.SurfaceContainerHighest,
-                                    shape = RoundedCornerShape(12.dp),
-                                )
-                                .clickable { onOccupation(key) }
-                                .padding(12.dp),
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (selected) {
-                                    Box(Modifier.size(8.dp).background(RathYatraColors.Saffron, CircleShape))
-                                    Spacer(Modifier.size(6.dp))
-                                }
-                                Text(title, style = MaterialTheme.typography.titleSmall)
-                            }
-                            Text(body, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-                        }
-                    }
-                }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OccupationDropdown(
+    occupation: String,
+    options: List<Pair<String, String>>,
+    onOccupation: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.first == occupation }?.second.orEmpty()
+    Box(Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = FieldShape,
+            placeholder = {
+                Text("Select", color = RathYatraColors.Outline)
+            },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            colors = fieldColors(),
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .clickable { expanded = !expanded },
+        )
+        DownwardMenu(expanded = expanded, onDismiss = { expanded = false }) {
+            options.forEach { (key, label) ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = label,
+                            color = if (key == occupation) RathYatraColors.BurntSaffron else RathYatraColors.Navy,
+                            fontWeight = if (key == occupation) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        onOccupation(key)
+                        expanded = false
+                    },
+                )
             }
         }
     }
@@ -616,6 +565,7 @@ private fun ColumnScope.ContactStep(
     extra: FormExtraCopy,
     mobile: String,
     onMobile: (String) -> Unit,
+    mobileError: String?,
     email: String,
     onEmail: (String) -> Unit,
 ) {
@@ -630,6 +580,7 @@ private fun ColumnScope.ContactStep(
         value = mobile,
         onValueChange = onMobile,
         hint = extra.mobileHint,
+        error = mobileError,
         keyboardType = KeyboardType.Phone,
         prefix = "+91",
     )
@@ -645,6 +596,9 @@ private fun ColumnScope.ContactStep(
 @Composable
 private fun ColumnScope.AddressStep(
     extra: FormExtraCopy,
+    name: String,
+    photoPath: String,
+    onPickPhoto: () -> Unit,
     addressLine: String,
     onAddressLine: (String) -> Unit,
     locality: String,
@@ -659,29 +613,51 @@ private fun ColumnScope.AddressStep(
     locationNote: String,
     onUseLocation: () -> Unit,
 ) {
+    ProfilePhotoCard(
+        title = extra.photoTitle,
+        hint = extra.photoHint,
+        galleryLabel = extra.photoGallery,
+        name = name,
+        photoPath = photoPath,
+        onPickPhoto = onPickPhoto,
+    )
     WhiteCard {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(extra.profileCard, style = MaterialTheme.typography.titleSmall, color = RathYatraColors.Navy)
-            Text(extra.profileBody, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-        }
-    }
-    WhiteCard {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(extra.addressLabel, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    extra.profileCard,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = RathYatraColors.Navy,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    extra.profileBody,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = RathYatraColors.OnSurfaceVariant,
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(RathYatraColors.SecondaryPale)
+                    .background(RathYatraColors.PrimaryFixed)
                     .clickable(enabled = !locating, onClick = onUseLocation)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (locating) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = RathYatraColors.Navy, strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Outlined.MyLocation, contentDescription = extra.useMyLocation, tint = RathYatraColors.Navy)
+                Box(
+                    Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(RathYatraColors.White),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (locating) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = RathYatraColors.Saffron, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Outlined.MyLocation, contentDescription = extra.useMyLocation, tint = RathYatraColors.BurntSaffron)
+                    }
                 }
                 Column(Modifier.weight(1f)) {
                     Text(extra.useMyLocation, style = MaterialTheme.typography.titleSmall, color = RathYatraColors.Navy)
@@ -691,13 +667,73 @@ private fun ColumnScope.AddressStep(
             if (locationNote.isNotEmpty()) {
                 Text(locationNote, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.Navy)
             }
+            AddressField(extra.houseLabel, addressLine, onAddressLine, extra.houseHint)
+            AddressField(extra.localityLabel, locality, onLocality)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f)) {
+                    AddressField(extra.districtLabel, district, onDistrict)
+                }
+                Box(Modifier.weight(1f)) {
+                    AddressField(extra.stateLabel, stateName, onState)
+                }
+            }
+            AddressField(extra.pincodeLabel, pincode, onPincode, keyboardType = KeyboardType.Number)
         }
     }
-    LabeledField(extra.houseLabel, addressLine, onAddressLine, extra.houseHint)
-    LabeledField(extra.localityLabel, locality, onLocality)
-    LabeledField(extra.districtLabel, district, onDistrict)
-    LabeledField(extra.stateLabel, stateName, onState)
-    LabeledField(extra.pincodeLabel, pincode, onPincode, keyboardType = KeyboardType.Number)
+}
+
+@Composable
+private fun ColumnScope.ProfilePhotoCard(
+    title: String,
+    hint: String,
+    galleryLabel: String,
+    name: String,
+    photoPath: String,
+    onPickPhoto: () -> Unit,
+) {
+    WhiteCard {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
+            ProfilePhoto(
+                photoPath = photoPath,
+                initials = name.split(" ").filter { it.isNotBlank() }.take(2)
+                    .joinToString("") { it.first().uppercase() }
+                    .ifBlank { "SB" },
+                size = 88.dp,
+                onClick = onPickPhoto,
+            )
+            Text(
+                hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = RathYatraColors.OnSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.clickable(onClick = onPickPhoto),
+            ) {
+                Icon(
+                    Icons.Outlined.AddAPhoto,
+                    contentDescription = galleryLabel,
+                    tint = RathYatraColors.Navy,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    galleryLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RathYatraColors.Navy,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -732,11 +768,37 @@ private fun ColumnScope.SecurityStep(
 }
 
 @Composable
+private fun AddressField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = RathYatraColors.Navy, fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            shape = FieldShape,
+            colors = fieldColors(),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            singleLine = true,
+        )
+        if (!hint.isNullOrBlank()) {
+            Text(hint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 private fun LabeledField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
     hint: String? = null,
+    error: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     prefix: String? = null,
     password: Boolean = false,
@@ -749,14 +811,20 @@ private fun LabeledField(
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
-                colors = fieldColors(),
+                colors = fieldColors(isError = error != null),
+                isError = error != null,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                 prefix = prefix?.let { { Text(it, color = RathYatraColors.OnSurfaceVariant) } },
                 singleLine = true,
             )
-            if (hint != null) {
-                Text(hint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
+            val message = error ?: hint
+            if (!message.isNullOrBlank()) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (error != null) RathYatraColors.Emergency else RathYatraColors.OnSurfaceVariant,
+                )
             }
         }
     }
@@ -785,48 +853,169 @@ private fun GenderChip(
 }
 
 @Composable
-private fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = RathYatraColors.Saffron,
-    unfocusedBorderColor = RathYatraColors.Gold,
+private fun fieldColors(isError: Boolean = false) = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = if (isError) RathYatraColors.Emergency else RathYatraColors.Saffron,
+    unfocusedBorderColor = if (isError) RathYatraColors.Emergency else RathYatraColors.Gold,
+    errorBorderColor = RathYatraColors.Emergency,
     focusedContainerColor = RathYatraColors.White,
     unfocusedContainerColor = RathYatraColors.White,
+    errorContainerColor = RathYatraColors.White,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BirthdayPickerDialog(
-    initialDob: String,
-    confirmLabel: String,
-    dismissLabel: String,
-    onConfirm: (Long) -> Unit,
-    onDismiss: () -> Unit,
+private fun BirthDateFields(
+    dob: String,
+    onDobChange: (String) -> Unit,
 ) {
-    val today = remember { System.currentTimeMillis() }
-    val currentYear = remember {
-        java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+    val hindi = LocalLanguage.current == AppLanguage.HI
+    val parts = dob.split("/").map { it.trim() }
+    var day by remember { mutableStateOf(parts.getOrNull(0)?.toIntOrNull()) }
+    var month by remember { mutableStateOf(parts.getOrNull(1)?.toIntOrNull()) }
+    var year by remember { mutableStateOf(parts.getOrNull(2)?.toIntOrNull()) }
+    val currentYear = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
+    val years = (currentYear - 18 downTo currentYear - 100).toList()
+    val monthNames = if (hindi) {
+        listOf("जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर")
+    } else {
+        listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
     }
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = parseDobToUtcMillis(initialDob),
-        yearRange = IntRange(currentYear - 120, currentYear),
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= today
-        },
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { datePickerState.selectedDateMillis?.let(onConfirm) }) {
-                Text(confirmLabel, color = RathYatraColors.Navy)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(dismissLabel, color = RathYatraColors.OnSurfaceVariant)
-            }
-        },
+    val maxDay = daysInMonth(month ?: 1, year ?: 2000)
+    val dayLabel = if (hindi) "तारीख" else "Date"
+    val monthLabel = if (hindi) "महीना" else "Month"
+    val yearLabel = if (hindi) "वर्ष" else "Year"
+
+    fun publish(nextDay: Int?, nextMonth: Int?, nextYear: Int?) {
+        val safeDay = if (nextDay != null && nextMonth != null && nextYear != null) {
+            nextDay.coerceAtMost(daysInMonth(nextMonth, nextYear))
+        } else {
+            nextDay
+        }
+        day = safeDay
+        month = nextMonth
+        year = nextYear
+        onDobChange(
+            if (safeDay != null && nextMonth != null && nextYear != null) {
+                "%02d/%02d/%04d".format(safeDay, nextMonth, nextYear)
+            } else {
+                ""
+            },
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        DatePicker(state = datePickerState)
+        DatePartDropdown(
+            label = dayLabel,
+            value = day?.toString().orEmpty(),
+            options = (1..maxDay).map { it.toString() },
+            modifier = Modifier.weight(1.05f),
+            onSelect = { publish(it.toInt(), month, year) },
+        )
+        DatePartDropdown(
+            label = monthLabel,
+            value = month?.let { monthNames[it - 1] }.orEmpty(),
+            options = monthNames,
+            modifier = Modifier.weight(1.3f),
+            onSelect = { publish(day, monthNames.indexOf(it) + 1, year) },
+        )
+        DatePartDropdown(
+            label = yearLabel,
+            value = year?.toString().orEmpty(),
+            options = years.map { it.toString() },
+            modifier = Modifier.weight(1f),
+            onSelect = { publish(day, month, it.toInt()) },
+        )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePartDropdown(
+    label: String,
+    value: String,
+    options: List<String>,
+    modifier: Modifier = Modifier,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = FieldShape,
+            placeholder = {
+                Text(
+                    label,
+                    color = RathYatraColors.Outline,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = fieldColors(),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium,
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .clickable { expanded = !expanded },
+        )
+        DownwardMenu(expanded = expanded, onDismiss = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.DownwardMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var anchorSize by remember { mutableStateOf(IntSize.Zero) }
+    Box(Modifier.matchParentSize().onSizeChanged { anchorSize = it })
+    if (!expanded || anchorSize == IntSize.Zero) return
+    val density = LocalDensity.current
+    val gap = with(density) { 4.dp.roundToPx() }
+    Popup(
+        alignment = Alignment.TopStart,
+        offset = IntOffset(0, anchorSize.height + gap),
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true, clippingEnabled = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .width(with(density) { anchorSize.width.toDp() })
+                .heightIn(max = 240.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = RathYatraColors.White,
+            shadowElevation = 8.dp,
+        ) {
+            Column(Modifier.verticalScroll(rememberScrollState()), content = content)
+        }
+    }
+}
+
+private fun daysInMonth(month: Int, year: Int): Int {
+    val calendar = java.util.Calendar.getInstance()
+    calendar.set(java.util.Calendar.YEAR, year)
+    calendar.set(java.util.Calendar.MONTH, month - 1)
+    calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
+    return calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
 }
 
 private data class FormExtraCopy(
@@ -1087,15 +1276,6 @@ private fun isoDob(dob: String): String? {
     val year = parts[2]
     if (day.length != 2 || month.length != 2 || year.length != 4) return null
     return "$year-$month-$day"
-}
-
-private fun formatDob(utcMillis: Long): String {
-    val calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-    calendar.timeInMillis = utcMillis
-    val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
-    val month = calendar.get(java.util.Calendar.MONTH) + 1
-    val year = calendar.get(java.util.Calendar.YEAR)
-    return "%02d / %02d / %04d".format(day, month, year)
 }
 
 private fun ageYearsFromDob(dob: String): Int {
