@@ -198,7 +198,7 @@ fun SplashStartScreen(
                 text = copy.getStarted,
                 onClick = onGetStarted,
                 trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = "Get Started",
+                contentDescription = copy.getStarted,
             )
             Spacer(Modifier.height(12.dp))
             GhostNavyButton(

@@ -4,6 +4,7 @@ object RathYatraDestinations {
     const val SPLASH = "splash"
     const val WELCOME = "welcome"
     const val REGISTRATION_INTRO = "registration_intro"
+    const val PHONE_OTP = "phone_otp"
     const val REGISTRATION_FORM = "registration_form"
     const val REGISTRATION_SUCCESS = "registration_success"
     const val HOME = "home"
@@ -19,6 +20,7 @@ object RathYatraDestinations {
         SPLASH,
         WELCOME,
         REGISTRATION_INTRO,
+        PHONE_OTP,
         REGISTRATION_FORM,
         REGISTRATION_SUCCESS,
         HOME,
@@ -37,6 +39,7 @@ object RathYatraDestinations {
         SPLASH,
         WELCOME,
         REGISTRATION_INTRO,
+        PHONE_OTP,
         REGISTRATION_FORM,
         REGISTRATION_SUCCESS,
         SIGN_IN,

@@ -20,7 +20,7 @@ class RathYatraScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun splash_getStarted_opensWelcome() {
+    fun splash_registerNow_opensRegistrationForm() {
         composeRule.setContent {
             SahakarBharatiTheme(dynamicColor = false) {
                 RathYatraScreen()
@@ -28,8 +28,10 @@ class RathYatraScreenTest {
         }
 
         composeRule.onNodeWithText("Sahakar Bharati").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Get Started").performClick()
-        composeRule.onNodeWithText("Create Account").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Register Now").performClick()
+        composeRule.onNodeWithText("Send OTP").assertIsDisplayed()
+        composeRule.onNodeWithText("Personal Details").assertDoesNotExist()
+        composeRule.onNodeWithText("Create Account").assertDoesNotExist()
         composeRule.onNodeWithText("NATIONAL PORTAL").assertDoesNotExist()
     }
 

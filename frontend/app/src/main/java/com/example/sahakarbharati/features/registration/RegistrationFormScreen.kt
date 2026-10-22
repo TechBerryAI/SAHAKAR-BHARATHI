@@ -122,6 +122,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 fun RegistrationFormScreen(
     onBack: () -> Unit,
     onContinue: () -> Unit,
+    verifiedMobile: String = "",
     modifier: Modifier = Modifier,
 ) {
     ApplySystemBarIcons(lightIcons = false)
@@ -139,7 +140,8 @@ fun RegistrationFormScreen(
     var dob by rememberSaveable { mutableStateOf("") }
     var gender by rememberSaveable { mutableStateOf("") }
     var occupation by rememberSaveable { mutableStateOf("") }
-    var mobile by rememberSaveable { mutableStateOf("") }
+    val lockedMobile = verifiedMobile.filter(Char::isDigit).take(10)
+    var mobile by rememberSaveable(lockedMobile) { mutableStateOf(lockedMobile) }
     var email by rememberSaveable { mutableStateOf("") }
     var addressLine by rememberSaveable { mutableStateOf("") }
     var locality by rememberSaveable { mutableStateOf("") }
@@ -350,10 +352,13 @@ fun RegistrationFormScreen(
                 1 -> ContactStep(
                     extra = extra,
                     mobile = mobile,
-                    onMobile = {
-                        mobile = it.filter(Char::isDigit).take(10)
-                        if (stepError == extra.mobileRequired) stepError = ""
+                    onMobile = { value ->
+                        if (lockedMobile.length != 10) {
+                            mobile = value.filter(Char::isDigit).take(10)
+                            if (stepError == extra.mobileRequired) stepError = ""
+                        }
                     },
+                    mobileReadOnly = lockedMobile.length == 10,
                     mobileError = if (stepError == extra.mobileRequired) stepError else null,
                     email = email,
                     onEmail = { email = it },
@@ -565,6 +570,7 @@ private fun ColumnScope.ContactStep(
     extra: FormExtraCopy,
     mobile: String,
     onMobile: (String) -> Unit,
+    mobileReadOnly: Boolean = false,
     mobileError: String?,
     email: String,
     onEmail: (String) -> Unit,
@@ -579,10 +585,11 @@ private fun ColumnScope.ContactStep(
         label = extra.mobileLabel,
         value = mobile,
         onValueChange = onMobile,
-        hint = extra.mobileHint,
+        hint = if (mobileReadOnly) extra.mobileVerified else extra.mobileHint,
         error = mobileError,
         keyboardType = KeyboardType.Phone,
         prefix = "+91",
+        readOnly = mobileReadOnly,
     )
     LabeledField(
         label = extra.emailLabel,
@@ -802,6 +809,7 @@ private fun LabeledField(
     keyboardType: KeyboardType = KeyboardType.Text,
     prefix: String? = null,
     password: Boolean = false,
+    readOnly: Boolean = false,
 ) {
     WhiteCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -811,6 +819,7 @@ private fun LabeledField(
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
+                readOnly = readOnly,
                 colors = fieldColors(isError = error != null),
                 isError = error != null,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
@@ -1025,6 +1034,7 @@ private data class FormExtraCopy(
     val contactBody: String,
     val mobileLabel: String,
     val mobileHint: String,
+    val mobileVerified: String,
     val emailLabel: String,
     val emailHint: String,
     val profileTitle: String,
@@ -1075,6 +1085,7 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         contactBody = "उत्सव अपडेट और सहायता के लिए एक सक्रिय मोबाइल नंबर लिखें।",
         mobileLabel = "मोबाइल नंबर",
         mobileHint = "10 अंकों का भारतीय मोबाइल नंबर।",
+        mobileVerified = "यह नंबर OTP से सत्यापित है।",
         emailLabel = "ईमेल (वैकल्पिक)",
         emailHint = "पास और सूचनाएँ भेजने के लिए।",
         profileTitle = "पता",
@@ -1122,6 +1133,7 @@ private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
         contactBody = "Add an active mobile number so celebration updates and help can reach you.",
         mobileLabel = "MOBILE NUMBER",
         mobileHint = "10-digit Indian mobile number.",
+        mobileVerified = "This number is verified with OTP.",
         emailLabel = "EMAIL (OPTIONAL)",
         emailHint = "Used only to send the pass and notices.",
         profileTitle = "Address",

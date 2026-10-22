@@ -19,7 +19,7 @@ class AppLanguageCoverageTest {
         assertEquals(AppLanguage.EN, AppLanguage.fromKey("hi-IN"))
         assertEquals(AppLanguage.EN, AppLanguage.fromKey("ta-IN"))
         val english = copyFor(DefaultAppLanguage)
-        assertEquals("Get Started", english.getStarted)
+        assertEquals("Register Now", english.getStarted)
         assertEquals("Choose language", english.chooseLanguage)
         assertEquals("Kisan Home", english.homeTitle)
         assertEquals("Contact Details", formExtraCopy(DefaultAppLanguage).contactTitle)

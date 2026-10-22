@@ -18,11 +18,11 @@ import com.example.sahakarbharati.features.tracking.ChariotTrackingScreen
 import com.example.sahakarbharati.features.home.CitizenHomeScreen
 import com.example.sahakarbharati.features.profile.ProfileScreen
 import com.example.sahakarbharati.features.attendance.QrAttendanceScreen
+import com.example.sahakarbharati.features.registration.PhoneVerificationScreen
 import com.example.sahakarbharati.features.registration.RegistrationFormScreen
 import com.example.sahakarbharati.features.registration.RegistrationSuccessScreen
 import com.example.sahakarbharati.features.registration.SignInScreen
 import com.example.sahakarbharati.features.onboarding.SplashStartScreen
-import com.example.sahakarbharati.features.onboarding.WelcomeDiscoveryScreen
 import com.example.sahakarbharati.ui.theme.SahakarBharatiTheme
 import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.DefaultAppLanguage
@@ -48,6 +48,7 @@ fun RathYatraScreen(
     var stack by rememberSaveable { mutableStateOf(initialStack.ifEmpty { listOf(RathYatraDestinations.SPLASH) }) }
     var languageKey by rememberSaveable { mutableStateOf(DefaultAppLanguage.key) }
     var loggedIn by rememberSaveable { mutableStateOf(session.isLoggedIn() || openedOnProtectedScreen) }
+    var verifiedMobile by rememberSaveable { mutableStateOf("") }
     val language = AppLanguage.fromKey(languageKey)
     val copy = copyFor(language)
     val current = stack.lastOrNull() ?: RathYatraDestinations.SPLASH
@@ -90,18 +91,20 @@ fun RathYatraScreen(
     ) {
     when (current) {
         RathYatraDestinations.SPLASH -> SplashStartScreen(
-            onGetStarted = { go(RathYatraDestinations.WELCOME) },
+            onGetStarted = { go(RathYatraDestinations.PHONE_OTP) },
             onSignIn = { go(RathYatraDestinations.SIGN_IN) },
             modifier = modifier.fillMaxSize(),
         )
-        RathYatraDestinations.WELCOME,
-        RathYatraDestinations.REGISTRATION_INTRO,
-        -> WelcomeDiscoveryScreen(
-            onGetStarted = { go(RathYatraDestinations.REGISTRATION_FORM) },
-            onSignIn = { go(RathYatraDestinations.SIGN_IN) },
+        RathYatraDestinations.PHONE_OTP -> PhoneVerificationScreen(
+            onBack = { back() },
+            onVerified = { mobile ->
+                verifiedMobile = mobile
+                go(RathYatraDestinations.REGISTRATION_FORM)
+            },
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.REGISTRATION_FORM -> RegistrationFormScreen(
+            verifiedMobile = verifiedMobile,
             onBack = { back() },
             onContinue = {
                 loggedIn = true
@@ -150,7 +153,7 @@ fun RathYatraScreen(
                 loggedIn = true
                 go(RathYatraDestinations.HOME, replaceRoot = true)
             },
-            onCreateAccount = { go(RathYatraDestinations.REGISTRATION_FORM) },
+            onCreateAccount = { go(RathYatraDestinations.PHONE_OTP) },
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.NOTIFICATIONS -> DemoUnavailableScreen(
