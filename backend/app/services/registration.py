@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import DuplicateAccountError
 from app.core.security import generate_login_id, hash_identifier, hash_pin
+from app.db.session import is_unique_violation
 from app.models.registration import Registration
 from app.models.user import User
 from app.repositories.audit import AuditRepository
@@ -57,9 +58,11 @@ class RegistrationService:
         )
         try:
             self.db.commit()
-        except IntegrityError:
+        except IntegrityError as exc:
             self.db.rollback()
-            raise DuplicateAccountError() from None
+            if is_unique_violation(exc):
+                raise DuplicateAccountError() from None
+            raise
         self.db.refresh(user)
         return RegistrationResponse(
             registration_id=login_id,

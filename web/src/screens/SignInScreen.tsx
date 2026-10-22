@@ -6,22 +6,22 @@ import { ApiError, signIn } from '../lib/api.ts'
 
 export function SignInScreen() {
   const navigate = useNavigate()
-  const [identifier, setIdentifier] = useState('')
-  const [pin, setPin] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const login = identifier.trim()
-    if (!login || pin.length < 4) {
-      setError('Enter your login ID and PIN.')
+    const login = email.trim()
+    if (!login || password.length < 6) {
+      setError('Enter your email and password.')
       return
     }
     setBusy(true)
     setError('')
     try {
-      await signIn(login, pin)
+      await signIn(login, password)
       navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Sign in failed.')
@@ -42,23 +42,22 @@ export function SignInScreen() {
         <form className="stack" onSubmit={onSubmit}>
           <ErrorBanner message={error} />
           <Field
-            label="Login ID / Mobile"
-            name="identifier"
-            autoComplete="username"
-            inputMode="text"
-            value={identifier}
-            onChange={(event) => setIdentifier(event.target.value)}
-            hint="Use the login ID from registration or your 10-digit mobile number."
+            label="Email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            hint="Use the email from registration."
           />
           <Field
-            label="PIN"
-            name="pin"
+            label="Password"
+            name="password"
             type="password"
-            inputMode="numeric"
             autoComplete="current-password"
-            maxLength={6}
-            value={pin}
-            onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
           />
           <Button type="submit" disabled={busy}>
             {busy ? 'Signing in…' : 'Sign in'}

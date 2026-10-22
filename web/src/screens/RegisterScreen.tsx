@@ -1,14 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, Card, ChoiceChip, ErrorBanner, Field, Screen } from '../components/ui.tsx'
 import { ApiError, registerAndSignIn } from '../lib/api.ts'
 import { blankToNull } from '../lib/format.ts'
-import { getToken } from '../lib/session.ts'
+import { useSession } from '../lib/session.ts'
 import type { Gender, Occupation, RegistrationCreate } from '../lib/types.ts'
 import { GENDERS, OCCUPATIONS } from '../lib/types.ts'
 
-const STEPS = ['Personal', 'Contact', 'Address', 'PIN']
+const STEPS = ['Personal', 'Contact', 'Address', 'Password']
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type FormState = {
   full_name: string
@@ -22,8 +23,8 @@ type FormState = {
   district: string
   state: string
   pincode: string
-  pin: string
-  confirmPin: string
+  password: string
+  confirmPassword: string
 }
 
 const emptyForm: FormState = {
@@ -38,8 +39,8 @@ const emptyForm: FormState = {
   district: '',
   state: '',
   pincode: '',
-  pin: '',
-  confirmPin: '',
+  password: '',
+  confirmPassword: '',
 }
 
 function ageYears(iso: string): number {
@@ -62,30 +63,30 @@ function validateStep(step: number, form: FormState): string {
   }
   if (step === 1) {
     if (!/^[6-9]\d{9}$/.test(form.mobile)) return 'Enter a valid 10-digit Indian mobile number.'
+    if (!EMAIL_PATTERN.test(form.email.trim())) return 'Enter a valid email address.'
     return ''
   }
   if (step === 2) {
     if (form.pincode && !/^\d{6}$/.test(form.pincode)) return 'PIN code must be 6 digits.'
     return ''
   }
-  if (form.pin.length < 4 || form.pin.length > 6 || !/^\d+$/.test(form.pin)) {
-    return 'PIN must be 4 to 6 digits.'
-  }
-  if (form.pin !== form.confirmPin) return 'PIN and confirm PIN must match.'
+  if (form.password.length < 6) return 'Password must be at least 6 characters.'
+  if (form.password !== form.confirmPassword) return 'Password and confirm password must match.'
   return ''
 }
 
 export function RegisterScreen() {
   const navigate = useNavigate()
-  const [alreadySignedIn] = useState(() => Boolean(getToken()))
+  const { ready, uid } = useSession()
+  const createdOnThisPage = useRef(false)
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (alreadySignedIn) navigate('/', { replace: true })
-  }, [alreadySignedIn, navigate])
+    if (ready && uid && !createdOnThisPage.current) navigate('/', { replace: true })
+  }, [ready, uid, navigate])
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -119,17 +120,18 @@ export function RegisterScreen() {
       date_of_birth: blankToNull(form.date_of_birth),
       occupation: form.occupation || null,
       mobile: form.mobile,
-      email: blankToNull(form.email),
+      email: form.email.trim(),
       address_line: blankToNull(form.address_line),
       locality: blankToNull(form.locality),
       district: blankToNull(form.district),
       state: blankToNull(form.state),
       pincode: blankToNull(form.pincode),
-      pin: form.pin,
+      password: form.password,
     }
 
     setBusy(true)
     try {
+      createdOnThisPage.current = true
       await registerAndSignIn(body)
       navigate('/register/success', { replace: true })
     } catch (err) {
@@ -220,7 +222,7 @@ export function RegisterScreen() {
                 autoComplete="email"
                 value={form.email}
                 onChange={(event) => update('email', event.target.value)}
-                hint="Optional."
+                hint="Required. You will use this email to sign in."
               />
             </>
           ) : null}
@@ -264,27 +266,21 @@ export function RegisterScreen() {
           {step === 3 ? (
             <>
               <Field
-                label="Create PIN"
-                name="pin"
+                label="Create password"
+                name="password"
                 type="password"
-                inputMode="numeric"
                 autoComplete="new-password"
-                maxLength={6}
-                value={form.pin}
-                onChange={(event) => update('pin', event.target.value.replace(/\D/g, '').slice(0, 6))}
-                hint="4 to 6 digits. Needed every time you sign in."
+                value={form.password}
+                onChange={(event) => update('password', event.target.value)}
+                hint="At least 6 characters. Needed every time you sign in."
               />
               <Field
-                label="Confirm PIN"
-                name="confirmPin"
+                label="Confirm password"
+                name="confirmPassword"
                 type="password"
-                inputMode="numeric"
                 autoComplete="new-password"
-                maxLength={6}
-                value={form.confirmPin}
-                onChange={(event) =>
-                  update('confirmPin', event.target.value.replace(/\D/g, '').slice(0, 6))
-                }
+                value={form.confirmPassword}
+                onChange={(event) => update('confirmPassword', event.target.value)}
               />
             </>
           ) : null}
