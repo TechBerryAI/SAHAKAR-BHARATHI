@@ -40,7 +40,8 @@ class PhoneVerificationService:
         if self.users.get_by_mobile(mobile):
             raise DuplicateAccountError()
         now = datetime.now(UTC)
-        latest = self.challenges.latest_for_mobile(mobile)
+        existing = self.challenges.for_mobile(mobile)
+        latest = existing[0] if existing else None
         if latest is not None and _aware(latest.created_at) + timedelta(
             seconds=self.settings.otp_resend_seconds
         ) > now:
@@ -55,7 +56,7 @@ class PhoneVerificationService:
             expires_at=now + timedelta(seconds=self.settings.otp_ttl_seconds),
             attempts=0,
         )
-        self.challenges.retire_unused(mobile, now)
+        self.challenges.retire_unused(existing, now)
         self.challenges.add(challenge)
         self.db.commit()
         defer(

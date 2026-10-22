@@ -37,6 +37,8 @@ class ProfileService:
         for field, value in data.items():
             setattr(user, field, value)
         self.audit.add("profile_update", user_id=user.id)
+        # Every response field is set in Python, so build it before commit instead of reloading the row.
+        response = self.to_response(user)
         try:
             self.db.commit()
         except IntegrityError as exc:
@@ -44,5 +46,4 @@ class ProfileService:
             if is_unique_violation(exc):
                 raise DuplicateAccountError() from None
             raise
-        self.db.refresh(user)
-        return self.to_response(user)
+        return response

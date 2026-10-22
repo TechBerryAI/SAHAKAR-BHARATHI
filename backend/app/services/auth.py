@@ -60,8 +60,7 @@ class AuthService:
         session = AuthSession(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
         self.sessions.add(session)
         self.audit.add("login_success", user_id=user.id, identifier_hash=identifier_hash)
-        # Built before commit: commit expires `user`, and reading it afterwards
-        # would cost another database round trip.
+        # Read user fields before commit; commit expires them and a later read reloads the row.
         response = SessionResponse(
             access_token=raw_token,
             expires_at=expires_at,
