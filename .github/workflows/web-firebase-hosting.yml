@@ -13,9 +13,19 @@ permissions:
   contents: read
   checks: write
 
+concurrency:
+  # Never run two deploys at once; let an in-flight deploy finish.
+  group: firebase-hosting-live
+  cancel-in-progress: false
+
 jobs:
   build_and_deploy:
+    # Manual runs from other branches must not reach the live channel.
+    if: github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Configure required reviewers on this environment in GitHub settings.
+    environment: production
     defaults:
       run:
         working-directory: web
@@ -34,10 +44,15 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
+      - name: Unit tests
+        run: npm test
       - name: Build
         run: npm run build
       - name: Verify build output
-        run: test -f dist/index.html
+        run: |
+          test -f dist/index.html
+          test -f dist/sw.js
+          grep -q 'Content-Security-Policy' dist/index.html
       - name: Require Firebase service account
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SAHAKARBHARATI_E3B04 }}

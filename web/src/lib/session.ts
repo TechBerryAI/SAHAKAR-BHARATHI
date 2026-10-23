@@ -7,12 +7,16 @@ export type AuthSnapshot = {
   ready: boolean
   uid: string | null
   profile: Profile | null
+  // A stored token exists but the server could not be reached to confirm it.
+  // The app must not treat this as signed out (the token may still be valid).
+  restoreFailed: boolean
 }
 
 const empty: AuthSnapshot = {
   ready: false,
   uid: null,
   profile: null,
+  restoreFailed: false,
 }
 
 const listeners = new Set<() => void>()
@@ -52,6 +56,7 @@ export function applyAuthenticated(profile: Profile) {
     ready: true,
     uid: profile.login_id,
     profile,
+    restoreFailed: false,
   }
   emit()
 }
@@ -70,13 +75,23 @@ export function markReady() {
   emit()
 }
 
+export function markRestoring() {
+  snapshot = { ...snapshot, ready: false, restoreFailed: false }
+  emit()
+}
+
+export function markRestoreFailed() {
+  snapshot = { ready: true, uid: null, profile: null, restoreFailed: true }
+  emit()
+}
+
 export function clearSession() {
   try {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
   } catch {
     // Ignore quota / private-mode failures; in-memory session still clears.
   }
-  snapshot = { ready: true, uid: null, profile: null }
+  snapshot = { ready: true, uid: null, profile: null, restoreFailed: false }
   emit()
 }
 

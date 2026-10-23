@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Seal } from '../components/Seal.tsx'
 import { Button, ErrorBanner, Field } from '../components/ui.tsx'
 import { apiErrorText, signIn } from '../lib/api.ts'
@@ -9,8 +9,11 @@ const PIN_PATTERN = /^\d{4,6}$/
 
 export function SignInScreen() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { copy } = useLanguage()
-  const [identifier, setIdentifier] = useState('')
+  // Set by registration when the account was created but the automatic sign-in failed.
+  const createdLoginId = (location.state as { createdLoginId?: string } | null)?.createdLoginId ?? ''
+  const [identifier, setIdentifier] = useState(createdLoginId)
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -50,6 +53,11 @@ export function SignInScreen() {
           <Seal className="signin__emblem" />
           <h2 className="signin__title">{copy.accessTitle}</h2>
           <p className="signin__lead">{copy.accessBody}</p>
+          {createdLoginId && !error ? (
+            <div className="banner banner--ok" role="status">
+              {copy.accountReady} — {copy.loginId}: <strong>{createdLoginId}</strong>
+            </div>
+          ) : null}
           <ErrorBanner message={error} />
           <Field
             label={copy.loginIdLabel}

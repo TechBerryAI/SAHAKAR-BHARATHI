@@ -6,6 +6,7 @@ import {
   apiErrorText,
   confirmPhoneVerification,
   registerAndSignIn,
+  RegisteredButSignInFailedError,
   sendPhoneVerification,
 } from '../lib/api.ts'
 import { blankToNull } from '../lib/format.ts'
@@ -360,6 +361,11 @@ export function RegisterScreen() {
       await registerAndSignIn(body)
       navigate('/register/success', { replace: true })
     } catch (err) {
+      if (err instanceof RegisteredButSignInFailedError) {
+        // The account exists; send the participant to sign in rather than a retry that would fail.
+        navigate('/sign-in', { replace: true, state: { createdLoginId: err.loginId } })
+        return
+      }
       showError(apiErrorText(err, copy, copy.registrationFailed), null)
     } finally {
       setBusy(false)

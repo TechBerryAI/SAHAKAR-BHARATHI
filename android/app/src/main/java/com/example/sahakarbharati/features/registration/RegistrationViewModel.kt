@@ -73,8 +73,9 @@ class RegistrationViewModel(
 
     fun submit(request: RegistrationRequest) {
         if (state is UiState.Loading) return
+        // Set before launching so a second tap is rejected even if the coroutine has not started.
+        state = UiState.Loading
         viewModelScope.launch {
-            state = UiState.Loading
             val result = authRepository.register(request)
             state = result.fold(
                 onSuccess = { UiState.Success(it) },

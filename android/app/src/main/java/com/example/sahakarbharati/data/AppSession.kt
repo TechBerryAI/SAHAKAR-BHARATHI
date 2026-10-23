@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -17,6 +19,12 @@ class AppSession(
     private val securePrefs: SharedPreferences,
     private val localPrefs: SharedPreferences,
 ) : SessionStore {
+    private val signedInState = mutableStateOf(!accessToken().isNullOrBlank())
+
+    /** Observable from Compose; turns false when the server rejects the stored token. */
+    val signedIn: State<Boolean>
+        get() = signedInState
+
     val isRegistered: Boolean
         get() = !loginId.isBlank()
 
@@ -81,6 +89,7 @@ class AppSession(
             .putString(KEY_DISTRICT, profile.district.orEmpty())
             .putString(KEY_STATE, profile.state.orEmpty())
             .apply()
+        signedInState.value = true
     }
 
     override fun saveProfile(profile: ParticipantProfile) {
@@ -101,6 +110,14 @@ class AppSession(
             .remove(KEY_PHOTO)
             .putBoolean(KEY_NOTIFICATIONS, false)
             .apply()
+        signedInState.value = false
+    }
+
+    /** Clears the session only if [token] is still the stored one, so a late 401 cannot end a newer session. */
+    fun clearIfCurrent(token: String) {
+        if (accessToken() == token) {
+            clearSession()
+        }
     }
 
     fun storePhoto(context: Context, uri: Uri): String? {

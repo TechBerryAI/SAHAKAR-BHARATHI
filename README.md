@@ -1,70 +1,93 @@
 # Sahakar Bharati
 
-Native Android, React web, and FastAPI for the Sahakar Bharati Rath Yatra platform.
+Participant platform for the Sahakar Bharati Rath Yatra: a native Android app, a
+React web app / PWA, and a FastAPI backend on PostgreSQL (Supabase).
 
-Clients never talk to the database. Registration, sign-in, and profile go through the API. Local success is not production readiness. Tracking, QR attendance, benefits, and notifications are not operational.
+Status and evidence: [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
+Registration, sign-in, profile and sessions work end to end. Tracking, QR
+attendance, benefits and notifications have no backend and are shown as unavailable.
 
-## Workspace
+## Architecture
 
-| Section | Path | Role |
-|---|---|---|
-| Android | [`android/`](android/) | Jetpack Compose + Material 3. Gradle module `:app`. |
-| API | [`backend/`](backend/) | FastAPI + PostgreSQL. Render service root. |
-| Web | [`web/`](web/) | Vite + React. Firebase Hosting. |
-| Infra | [`infra/`](infra/) | Supabase schema snapshot and optional local helpers. |
-| Deploy | [`render.yaml`](render.yaml) | Render Blueprint. Service name stays `sahakar-bharati-api`. |
-| CI | [`.github/workflows/`](.github/workflows/) | Backend tests and Firebase Hosting deploy. |
+```
+Android (Compose, Retrofit) ─┐
+                             ├─ HTTPS, Authorization: Bearer <opaque token> ─▶ FastAPI (Render) ─▶ PostgreSQL (Supabase)
+Web / PWA (React, Vite) ─────┘                                                     │
+                                                                                    └─▶ Textbee (OTP SMS)
+```
 
-Generated caches (`.gradle`, `node_modules`, `.venv`, `dist`) stay out of the explorer via [`.vscode/settings.json`](.vscode/settings.json). Secrets stay in gitignored `.env` and `local.properties`.
+- Clients never talk to the database. Supabase is used only as managed PostgreSQL;
+  Supabase Auth, PostgREST and Firebase Auth/Firestore are not used.
+- Sessions are opaque bearer tokens (SHA-256 stored server-side), PINs are Argon2id.
+- Web is static on Firebase Hosting; the backend is a single Render web service.
 
-## API
+## Repository
 
-See [`backend/README.md`](backend/README.md) for environment variables, migrations, Render commands, and session design.
+| Path | Contents |
+|---|---|
+| [`android/`](android/) | Gradle root with wrapper, module `:app` (Kotlin, Jetpack Compose) |
+| [`backend/`](backend/) | FastAPI app, Alembic migrations, pytest suite (Render root dir) |
+| [`web/`](web/) | Vite + React + TypeScript app, PWA, Firebase Hosting config |
+| [`infra/supabase/`](infra/supabase/) | `schema.sql` snapshot, optional `runtime_role.sql` |
+| [`docs/`](docs/) | Database, deployment, readiness report |
+| [`scripts/check-secrets.sh`](scripts/check-secrets.sh) | Secret scanner used by CI and the optional pre-commit hook |
+| [`render.yaml`](render.yaml) | Render Blueprint (service `sahakar-bharati-api`) |
+| [`.github/workflows/`](.github/workflows/) | Backend, web, Android CI; Firebase Hosting deploy |
+
+## Quick start
+
+**Backend** (Python 3.12, local PostgreSQL with databases `sahakar` and `sahakar_test`):
 
 ```bash
-# PostgreSQL must already be running locally. Create databases sahakar and sahakar_test.
 cd backend
-cp .env.example .env
-python3.12 -m venv .venv
-source .venv/bin/activate
+cp .env.example .env          # local values only; never point this at production by accident
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+pytest && ruff check
 ```
 
-**Render:** public URL confirmed from the dashboard as `https://sahakar-bharathi-api.onrender.com`. Root directory `backend`, build `pip install .`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'`. Required env: `ENVIRONMENT=production`, `DATABASE_URL`. Live `/health` is not claimed from this repository. Do not rename the existing Render service.
+**Web** (Node 22+):
 
-## Android
+```bash
+cd web
+cp .env.example .env.local    # VITE_API_BASE_URL=http://127.0.0.1:8000
+npm ci && npm run dev
+npm run lint && npm run typecheck && npm test
+```
 
-Open the `android/` folder in Android Studio. The project root for Gradle is `android/`, not the repository root. `local.properties` can live in `android/` or the repository root; it is not committed.
+**Android** (JDK 17+, Android SDK 37):
 
 ```bash
 cd android
-./gradlew :app:assembleDebug
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest :app:assembleDebug        # gradlew.bat on Windows
+./gradlew :app:assembleRelease -Psahakar.apiBaseUrl=https://sahakar-bharathi-api.onrender.com/
 ```
 
-On Windows:
+Optional: block accidental secret commits locally with `git config core.hooksPath .githooks`.
 
-```bat
-cd android
-gradlew.bat :app:assembleDebug
-gradlew.bat :app:testDebugUnitTest
-```
+## Configuration
 
-Emulator debug builds use `http://10.0.2.2:8000/`. Release builds require `api.base.url=https://sahakar-bharathi-api.onrender.com/` in gitignored `local.properties`.
+Every variable, with placeholders only:
 
-### WSL note
+- Backend: [`backend/.env.example`](backend/.env.example) and [`backend/README.md`](backend/README.md#environment-variables)
+- Web: [`web/.env.example`](web/.env.example) (`VITE_API_BASE_URL`)
+- Android: [`android/README.md`](android/README.md) (`SAHAKAR_API_BASE_URL`, signing variables) and [`android/keystore.properties.example`](android/keystore.properties.example)
+- Deploy secrets (Render, GitHub): [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 
-This checkout often lives on a Windows drive (`D:\`) while the Android SDK is a Windows install (`C:\Users\...\Android\Sdk`). Linux Gradle cannot use the Windows `aapt.exe` build-tools. Prefer Android Studio or `gradlew.bat` on Windows. If you must build from WSL, point `ANDROID_HOME` at a Linux SDK; do not overwrite a teammate’s `local.properties`.
+Secrets live only in gitignored files (`backend/.env`, `web/.env.local`,
+`local.properties`, `keystore.properties`) or in the Render / GitHub dashboards.
 
-## Web
+## Further reading
 
-See [`web/README.md`](web/README.md). Local development uses `VITE_API_BASE_URL=http://127.0.0.1:8000`. Production Hosting builds set `https://sahakar-bharathi-api.onrender.com` in GitHub Actions. Firebase Auth and Firestore are not the application data plane.
+- [`docs/DATABASE.md`](docs/DATABASE.md): init, migrations, roles, Supabase settings, backups
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): CI/CD, branch flow, Render, Firebase, Android release, rollback
+- [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md): findings, changes, test evidence, launch checklist
 
 ## Identity
 
-Do not change these without an explicit decision:
-
-- Application ID / namespace: `com.example.sahakarbharati`
-- Android package layout: `ui/theme`, `ui/navigation`, `core/ui`, `core/copy`, `data`, and `features/*`
+Do not change without an explicit decision: application ID / namespace
+`com.example.sahakarbharati`; Render service `sahakar-bharati-api`; Firebase project
+`sahakarbharati-e3b04`; Android package layout `ui/theme`, `ui/navigation`,
+`core/ui`, `core/copy`, `data`, `features/*`.

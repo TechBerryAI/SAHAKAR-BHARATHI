@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AppShell } from './components/AppShell.tsx'
+import { Button, Card, Screen } from './components/ui.tsx'
+import { logout, restoreSession } from './lib/api.ts'
 import { useLanguage } from './lib/language.tsx'
 import { useSession } from './lib/session.ts'
 import { HomeScreen } from './screens/HomeScreen.tsx'
@@ -28,9 +30,27 @@ function HomeOrStart() {
   return <HomeScreen />
 }
 
+function RestoreFailed() {
+  const { copy } = useLanguage()
+  return (
+    <Screen>
+      <Card title={copy.networkError}>
+        <div className="stack">
+          <Button type="button" onClick={() => void restoreSession()}>
+            {copy.goHome}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => void logout()}>
+            {copy.logOut}
+          </Button>
+        </div>
+      </Card>
+    </Screen>
+  )
+}
+
 function AppRoutes() {
   const location = useLocation()
-  const { ready } = useSession()
+  const { ready, restoreFailed } = useSession()
   const { copy } = useLanguage()
 
   if (!ready) {
@@ -39,6 +59,12 @@ function AppRoutes() {
         <div className="spinner" aria-label={copy.pleaseWait} />
       </div>
     )
+  }
+
+  // A saved session could not be checked (offline or server down). Showing the
+  // signed-out start screen here would look like an unexplained logout.
+  if (restoreFailed) {
+    return <RestoreFailed />
   }
 
   return (

@@ -1,12 +1,15 @@
 -- Sahakar Bharati participant schema for Supabase (PostgreSQL).
--- Matches Alembic head 20261022_0004 (verification_challenges is not created).
+-- Matches Alembic head 20261023_0006 (verification_challenges is not created).
+-- backend/tests/test_database_schema.py fails if this file drifts from the models.
 --
--- Apply in the Supabase SQL Editor, or with:
---   supabase db query --file supabase/schema.sql
+-- USE ONLY ON AN EMPTY DATABASE. The preferred path is `alembic upgrade head`
+-- (see docs/DATABASE.md). This file is an alternative for the Supabase SQL
+-- Editor when Alembic cannot reach the database. Apply it with:
+--   psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/supabase/schema.sql
 --
--- After this script, point the FastAPI DATABASE_URL at the Supabase
--- connection string (use postgresql+psycopg:// and sslmode=require).
--- Do not run alembic upgrade head on a database that already has these tables.
+-- It records Alembic revision 20261023_0006, so `alembic upgrade head` works
+-- afterwards. If alembic_version already has a row the script stops with an
+-- error instead of creating a second version row.
 --
 -- These tables are for the FastAPI service, not Supabase Auth / PostgREST.
 -- RLS is enabled with no anon/authenticated policies so pin_hash and
@@ -105,6 +108,15 @@ CREATE TABLE IF NOT EXISTS public.phone_verifications (
 CREATE INDEX IF NOT EXISTS ix_phone_verifications_mobile
     ON public.phone_verifications (mobile);
 
+CREATE TABLE IF NOT EXISTS public.rate_limit_buckets (
+    key_hash varchar(64) PRIMARY KEY,
+    window_start timestamptz NOT NULL,
+    hits integer NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_rate_limit_buckets_window_start
+    ON public.rate_limit_buckets (window_start);
+
 COMMENT ON TABLE public.users IS 'Participant accounts. PIN hashes are Argon2id; FastAPI owns writes.';
 COMMENT ON TABLE public.registrations IS 'One registration row per user. registration_id matches users.login_id.';
 COMMENT ON TABLE public.sessions IS 'Opaque FastAPI bearer sessions. Not Supabase auth.sessions.';
@@ -112,24 +124,34 @@ COMMENT ON TABLE public.audit_events IS 'Login, logout, registration, and profil
 COMMENT ON TABLE public.phone_verifications IS 'Hashed mobile OTP challenges and single-use registration tokens.';
 COMMENT ON COLUMN public.users.pin_hash IS 'Argon2id hash. Never store a raw PIN.';
 COMMENT ON COLUMN public.sessions.token_hash IS 'SHA-256 of the bearer token. The raw token is returned once.';
-
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.phone_verifications ENABLE ROW LEVEL SECURITY;
-
-REVOKE ALL ON TABLE public.users FROM anon, authenticated;
-REVOKE ALL ON TABLE public.registrations FROM anon, authenticated;
-REVOKE ALL ON TABLE public.sessions FROM anon, authenticated;
-REVOKE ALL ON TABLE public.audit_events FROM anon, authenticated;
-REVOKE ALL ON TABLE public.phone_verifications FROM anon, authenticated;
+COMMENT ON TABLE public.rate_limit_buckets IS 'Shared fixed-window throttle counters (RATE_LIMIT_BACKEND=postgres). Keys are SHA-256 hashed.';
 
 CREATE TABLE IF NOT EXISTS public.alembic_version (
     version_num varchar(32) NOT NULL,
     CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
 );
 
-INSERT INTO public.alembic_version (version_num)
-VALUES ('20261022_0004')
-ON CONFLICT (version_num) DO NOTHING;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.phone_verifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_limit_buckets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alembic_version ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.users FROM anon, authenticated;
+REVOKE ALL ON TABLE public.registrations FROM anon, authenticated;
+REVOKE ALL ON TABLE public.sessions FROM anon, authenticated;
+REVOKE ALL ON TABLE public.audit_events FROM anon, authenticated;
+REVOKE ALL ON TABLE public.phone_verifications FROM anon, authenticated;
+REVOKE ALL ON TABLE public.rate_limit_buckets FROM anon, authenticated;
+REVOKE ALL ON TABLE public.alembic_version FROM anon, authenticated;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM public.alembic_version) THEN
+        RAISE EXCEPTION 'alembic_version is not empty: run alembic upgrade head instead of schema.sql';
+    END IF;
+    INSERT INTO public.alembic_version (version_num) VALUES ('20261023_0006');
+END
+$$;
