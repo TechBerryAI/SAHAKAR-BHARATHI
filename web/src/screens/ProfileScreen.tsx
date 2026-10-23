@@ -32,6 +32,8 @@ export function ProfileScreen() {
   const [stateName, setStateName] = useState(profile?.state ?? '')
   const [pincode, setPincode] = useState(profile?.pincode ?? '')
   const [error, setError] = useState('')
+  // Kept raw so the message follows the chosen language.
+  const [refreshError, setRefreshError] = useState<unknown>(null)
   const [saved, setSaved] = useState('')
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -54,7 +56,8 @@ export function ProfileScreen() {
       .catch((err: unknown) => {
         if (cancelled) return
         if (err instanceof ApiError && err.status === 401) return
-        // Keep the cached session profile if refresh fails.
+        // Keep the cached profile on screen, but say it could not be refreshed.
+        setRefreshError(err)
       })
     return () => {
       cancelled = true
@@ -140,7 +143,9 @@ export function ProfileScreen() {
         <form className="stack" onSubmit={onSave}>
           <Card kicker={copy.editDetails} title={copy.updateProfile}>
             <div className="stack">
-              <ErrorBanner message={error} />
+              <ErrorBanner
+                message={error || (refreshError ? apiErrorText(refreshError, copy, copy.loadFailed) : '')}
+              />
               {saved ? <div className="banner banner--ok">{saved}</div> : null}
               <Field
                 label={copy.fullName}

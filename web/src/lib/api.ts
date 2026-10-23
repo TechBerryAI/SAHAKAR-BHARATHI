@@ -4,6 +4,8 @@ import {
   getAccessToken,
   getSnapshot,
   markReady,
+  markRestoreFailed,
+  markRestoring,
   setAccessToken,
 } from './session.ts'
 import type { AppCopy } from './copy.ts'
@@ -23,6 +25,18 @@ export class ApiError extends Error {
     super(message)
     this.status = status
     this.name = 'ApiError'
+  }
+}
+
+// The account was created but the follow-up sign-in failed. Retrying registration
+// would only hit "account already exists", so the participant must sign in instead.
+export class RegisteredButSignInFailedError extends ApiError {
+  loginId: string
+
+  constructor(loginId: string, cause: ApiError) {
+    super(cause.status, cause.message)
+    this.loginId = loginId
+    this.name = 'RegisteredButSignInFailedError'
   }
 }
 
@@ -59,7 +73,8 @@ if (!rawBase?.trim()) {
   )
 }
 
-const API_BASE_URL = rawBase.replace(/\/+$/, '')
+// Production builds are validated in vite.config.ts; this is the runtime value.
+export const API_BASE_URL = rawBase.trim().replace(/\/+$/, '')
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length ? value : null
@@ -236,13 +251,18 @@ export async function signIn(identifier: string, pin: string): Promise<Profile> 
 }
 
 export async function registerAndSignIn(body: RegistrationCreate): Promise<Profile> {
-  await request('/api/v1/registrations', {
+  const created = await request<{ login_id: string }>('/api/v1/registrations', {
     method: 'POST',
     body,
     auth: false,
     fallback: 'Registration failed.',
   })
-  return signIn(body.mobile, body.pin)
+  try {
+    return await signIn(body.mobile, body.pin)
+  } catch (err) {
+    const cause = err instanceof ApiError ? err : new ApiError(0, 'Sign in failed.')
+    throw new RegisteredButSignInFailedError(created.login_id, cause)
+  }
 }
 
 export async function logout(): Promise<void> {
@@ -253,6 +273,8 @@ export async function logout(): Promise<void> {
     await fetch(`${API_BASE_URL}/api/v1/sessions/current`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
+      // Let the revoke finish even if the page navigates or closes right away.
+      keepalive: true,
     })
   } catch {
     // Local session is already cleared.
@@ -264,11 +286,16 @@ export async function restoreSession(): Promise<void> {
     markReady()
     return
   }
+  markRestoring()
   try {
-    await getMe()
-  } catch {
-    if (!getSnapshot().ready) {
-      markReady()
+    await getMe({ fresh: true })
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      // request() already cleared the rejected session.
+      return
     }
+    // Offline or server error: keep the token and let the participant retry
+    // instead of silently presenting the signed-out start screen.
+    markRestoreFailed()
   }
 }

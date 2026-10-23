@@ -43,7 +43,9 @@ pytest
 ruff check
 ```
 
-Tests use `TEST_DATABASE_URL` or `POSTGRES_TEST_DB` only. They never fall back to `DATABASE_URL`.
+Tests use `TEST_DATABASE_URL` or `POSTGRES_TEST_DB` only. They never fall back to `DATABASE_URL`, and they pin `MIGRATION_DATABASE_URL` to the test database. The database name must contain `test`.
+
+`tests/test_database_schema.py` creates throwaway databases on the same server to check migrations from scratch, upgrades from the previous release, `infra/supabase/schema.sql` parity, the Supabase `anon`/`authenticated` lockout and the optional runtime role. It needs a role that can create databases and roles (CI's Postgres user can); otherwise those tests skip.
 
 Measure per-endpoint latency and database round-trips against the local test database. The script injects network delay through a local proxy; it sends no traffic to Render or Supabase and no SMS:
 
@@ -55,24 +57,28 @@ python scripts/latency_bench.py --rtt-ms 270
 
 `tests/test_query_budget.py` fails when an endpoint exceeds its SQL statement budget or runs SQL after its commit.
 
-Android emulator debug builds should use `http://10.0.2.2:8000/`. A physical device needs the development machine LAN address. Production builds must use HTTPS via `api.base.url=https://sahakar-bharathi-api.onrender.com/` in `local.properties`.
+Android emulator debug builds use `http://10.0.2.2:8000/` by default. Release builds take the HTTPS URL from `SAHAKAR_API_BASE_URL` / `-Psahakar.apiBaseUrl` / `api.base.url` and fail without it (see `android/README.md`).
 
 ## Environment variables
 
 | Variable | Purpose |
 |---|---|
-| `ENVIRONMENT` | `development` or `production`. Production fails fast without a remote `DATABASE_URL`. |
+| `ENVIRONMENT` | `development`, `test` or `production`. Anything else fails at startup. Production fails fast without a remote TLS `DATABASE_URL` and rejects non-https CORS origins. |
 | `POSTGRES_HOST` / `POSTGRES_PORT` | Local PostgreSQL listener |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` | Database role. Password may be empty for local trust or peer auth. |
 | `POSTGRES_DB` / `POSTGRES_TEST_DB` | Application and pytest databases |
 | `DATABASE_URL` | Required in production. Full SQLAlchemy or libpq URL. `postgres://` and `postgresql://` are rewritten to `postgresql+psycopg://`. |
 | `TEST_DATABASE_URL` | Pytest URL. Leave blank to use `POSTGRES_TEST_DB`. Must name a database containing `test`. |
+| `MIGRATION_DATABASE_URL` | Optional owner credential used only by Alembic, so the API can run as a least-privilege role. |
 | `SESSION_TTL_SECONDS` | Opaque session lifetime (default 7 days) |
-| `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | In-process login throttle |
-| `REGISTER_RATE_LIMIT` / `REGISTER_RATE_WINDOW_SECONDS` | In-process registration throttle |
+| `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | Login throttle per client IP + identifier |
+| `REGISTER_RATE_LIMIT` / `REGISTER_RATE_WINDOW_SECONDS` | Registration throttle per client IP |
+| `RATE_LIMIT_BACKEND` | `memory` (default, single instance only) or `postgres` (shared atomic counters, needs migration 0006) |
 | `LOGIN_LOCKOUT_FAILURES` / `LOGIN_LOCKOUT_SECONDS` | Database-backed lockout after failed PINs |
 | `MAX_REQUEST_BYTES` | JSON body size limit |
-| `CORS_ORIGINS` | Comma-separated browser origins. Production must include `https://sahakarbharati-e3b04.web.app`. `*` is rejected in production. |
+| `CORS_ORIGINS` | Comma-separated browser origins. Production must include `https://sahakarbharati-e3b04.web.app`; `*`, `http://` and local origins are rejected in production. Credentials are not allowed (bearer tokens only). |
+| `TEXTBEE_API_KEY` / `TEXTBEE_DEVICE_ID` / `TEXTBEE_BASE_URL` | OTP SMS gateway. Registration cannot complete without a key. |
+| `OTP_*` | OTP lifetimes, attempts and throttles (unchanged; see `.env.example`). |
 | `APP_HOST` / `APP_PORT` | Local documentation only. They do not bind the production server. |
 
 Do not commit real secrets, production credentials, or personal data. The backend does not need the Supabase service-role key to connect to PostgreSQL.
@@ -104,6 +110,8 @@ PINs are 4–6 digits and are never stored or logged. Login identifiers are cano
 | `GET` | `/health/ready` | Database readiness. 503 if `SELECT 1` fails. |
 | `GET` | `/health` | Same as `/health/ready`. Use this as the Render health check. |
 
+All `/api/*` responses carry `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Bodies over `MAX_REQUEST_BYTES` are rejected with 413, including chunked bodies without `Content-Length`.
+
 OpenAPI (`/docs`, `/redoc`, `/openapi.json`) is disabled when `ENVIRONMENT=production`.
 
 ## Render
@@ -133,29 +141,30 @@ A Blueprint file lives at the repository root as [`render.yaml`](../render.yaml)
 
 ### Migrations
 
-Do not run Alembic from every web worker at startup.
+Full procedure: [`docs/DATABASE.md`](../docs/DATABASE.md). Do not run Alembic from every web worker at startup.
 
 1. If the Render plan has a pre-deploy command, set it to `alembic upgrade head`.
-2. Otherwise open a one-off Render shell against the same service and run `alembic upgrade head` before sending traffic to a new revision.
-3. If the database was created from [`infra/supabase/schema.sql`](../infra/supabase/schema.sql) instead of Alembic, stamp the matching revision first (`alembic stamp 20261022_0004` after applying that script, or `alembic stamp 20261021_0002` then `alembic upgrade head`), then use `upgrade head` going forward.
+2. Otherwise run `MIGRATION_DATABASE_URL=… alembic upgrade head` from a trusted machine or a one-off Render shell before sending traffic to a new revision.
+3. `infra/supabase/schema.sql` is only for an empty database; it stamps `20261023_0006` itself and refuses to run if `alembic_version` already has a row.
 4. Never run `alembic downgrade`, `alembic stamp` against the wrong revision, or a database reset on production.
 
-The FastAPI role must be able to read and write the application tables. Do not enable PostgREST access to `pin_hash` or `token_hash`. The backend does not use Supabase Auth.
+Migration `20261023_0005` enables RLS and revokes the Supabase `anon`/`authenticated` roles on every app table. Databases created with Alembic before it exposed `pin_hash` and `token_hash` to the public anon key; apply it promptly. The backend does not use Supabase Auth.
 
 ## Client compatibility
 
-- **Android** already uses these routes, snake_case fields, and `Authorization: Bearer`. Keep PIN 4–6 digits. Release builds set `api.base.url=https://sahakar-bharathi-api.onrender.com/` in gitignored `local.properties`. Debug stays `http://10.0.2.2:8000/`.
+- **Android** uses these routes, snake_case fields, and `Authorization: Bearer`. Keep PIN 4–6 digits. Release builds require `SAHAKAR_API_BASE_URL=https://sahakar-bharathi-api.onrender.com/` (or `api.base.url` in gitignored `local.properties`). Debug defaults to `http://10.0.2.2:8000/`.
 - **React (`web/`)** calls these same routes with `Authorization: Bearer`. Local development uses `VITE_API_BASE_URL=http://127.0.0.1:8000`. Production Hosting builds use `https://sahakar-bharathi-api.onrender.com`. Production `CORS_ORIGINS` must include `https://sahakarbharati-e3b04.web.app` (and the `firebaseapp.com` alias). Firebase Hosting stays; Firebase Auth/Firestore are not the data plane.
 
 ## Remaining risks
 
-- In-process rate limits are not shared across Uvicorn workers or Render instances. They do not protect a horizontally scaled deployment against distributed brute-force attacks.
-- A 4–6 digit PIN is a weak authenticator. There is no OTP, PIN change, or password-reset flow.
-- Chunked request bodies without `Content-Length` are not capped in-process. Enforce a body size limit at the proxy as well.
+- With `RATE_LIMIT_BACKEND=memory` (default) throttles are per process: run one instance with one worker, or switch to `postgres` before scaling out.
+- `--forwarded-allow-ips='*'` lets a client spoof `X-Forwarded-For`, which weakens per-IP throttles. The per-identifier database lockout still applies.
+- A 4–6 digit PIN is a weak authenticator. There is no PIN change or PIN-reset flow.
+- Expired sessions, OTP challenges and audit rows are not pruned automatically.
 - Live Supabase connectivity, Render dashboard autodeploy, and a production smoke test are owner actions after secrets are set.
 
 ## Outstanding product work
 
 - No tracking, QR attendance, benefits, or notification APIs
 - No photo upload
-- React Hosting deploy still needs the GitHub secret `FIREBASE_SERVICE_ACCOUNT_SAHAKARBHARATI_E3B04`
+- React Hosting deploy needs the GitHub secret `FIREBASE_SERVICE_ACCOUNT_SAHAKARBHARATI_E3B04` (owner to confirm it exists)

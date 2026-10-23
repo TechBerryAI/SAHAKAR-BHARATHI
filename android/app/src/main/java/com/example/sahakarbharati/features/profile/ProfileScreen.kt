@@ -93,7 +93,6 @@ fun ProfileScreen(
             photoTick += 1
         }
     }
-    var notifyOn by rememberSaveable { mutableStateOf(session.notificationsEnabled) }
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
     val name = profile?.fullName?.ifBlank { session.name } ?: session.name.ifBlank { if (hindi) "प्रतिभागी" else "Participant" }
@@ -158,13 +157,23 @@ fun ProfileScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            if (hindi) "गैलरी से फ़ोटो चुनें" else "Pick a photo from the gallery",
+                            if (hindi) "फ़ोटो केवल इस फ़ोन पर रहती है, सर्वर पर नहीं" else "Photo is kept on this phone only, not uploaded",
                             style = MaterialTheme.typography.bodySmall,
                             color = RathYatraColors.OnSurfaceVariant,
                         )
                     }
                 }
                 }
+            }
+
+            (profileViewModel.state as? UiState.Error)?.let { error ->
+                // Shown cached details may be out of date; say so rather than implying a fresh load.
+                Text(
+                    text = error.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RathYatraColors.Emergency,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
             }
 
             SectionLabel(if (hindi) "खाता" else "Account")
@@ -186,7 +195,7 @@ fun ProfileScreen(
             ProfileRow(
                 icon = Icons.Outlined.QrCode2,
                 title = if (hindi) "उत्सव पास" else "Celebration pass",
-                subtitle = if (hindi) "पास देखें और चेक-इन करें" else "View pass and check in",
+                subtitle = if (hindi) "पास और चेक-इन अभी उपलब्ध नहीं हैं" else "Pass and check-in are not available yet",
                 onClick = onOpenPass,
             )
 
@@ -219,17 +228,17 @@ fun ProfileScreen(
                     Column(Modifier.weight(1f)) {
                         Text(if (hindi) "सूचनाएँ" else "Notifications", style = MaterialTheme.typography.titleSmall)
                         Text(
-                            if (hindi) "रथ अपडेट और कार्यक्रम सूचनाएँ" else "Rath updates and programme notices",
+                            if (hindi) "सूचनाएँ अभी उपलब्ध नहीं हैं" else "Notifications are not available yet",
                             style = MaterialTheme.typography.bodySmall,
                             color = RathYatraColors.OnSurfaceVariant,
                         )
                     }
+                    // No notification service exists yet, so the switch stays off and disabled
+                    // rather than pretending to subscribe the participant.
                     Switch(
-                        checked = notifyOn,
-                        onCheckedChange = {
-                            notifyOn = it
-                            session.notificationsEnabled = it
-                        },
+                        checked = false,
+                        onCheckedChange = null,
+                        enabled = false,
                         colors = SwitchDefaults.colors(
                             checkedTrackColor = RathYatraColors.Saffron,
                             checkedThumbColor = RathYatraColors.NavyDeep,

@@ -2,14 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "api-relay",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "C:/Users/DELL/AppData/Local/Temp/claude/C--Users-DELL--claude-spares-spare-WrpmC2/7df5386d-77e2-4c67-a1a9-5b66034eba5a/scratchpad/api-relay.mjs"
-      ],
-      "port": 8000
-    },
-    {
       "name": "api",
       "runtimeExecutable": "backend/.venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "backend", "--host", "127.0.0.1", "--port", "8000"],
@@ -26,6 +18,24 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "--port", "5174", "--strictPort"],
       "port": 5174
+    },
+    {
+      "name": "api-e2e-wsl",
+      "runtimeExecutable": "wsl.exe",
+      "runtimeArgs": [
+        "-e", "bash", "-lc",
+        "cd /mnt/d/Projects/SAHAKAR-BHARATHI/backend && ENVIRONMENT=development DATABASE_URL=postgresql+psycopg://sahakar:sahakar@127.0.0.1:55432/sahakar_e2e_test CORS_ORIGINS=http://127.0.0.1:5180,http://localhost:5180 TEXTBEE_API_KEY= exec .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010"
+      ],
+      "port": 8010
+    },
+    {
+      "name": "web-e2e-wsl",
+      "runtimeExecutable": "wsl.exe",
+      "runtimeArgs": [
+        "-e", "bash", "-lc",
+        "export PATH=$HOME/.nvm/versions/node/v24.20.0/bin:$PATH && cd /mnt/d/Projects/SAHAKAR-BHARATHI/web && VITE_API_BASE_URL=http://127.0.0.1:8010 npx vite build --mode development --outDir /tmp/sb-e2e --emptyOutDir && exec npx vite preview --outDir /tmp/sb-e2e --host 127.0.0.1 --port 5180 --strictPort"
+      ],
+      "port": 5180
     }
   ]
 }

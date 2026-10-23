@@ -42,14 +42,20 @@ class RemoteAuthRepository(
     }
 
     override suspend fun register(request: RegistrationRequest): Result<RegistrationResult> {
+        val created = runCatching { api.register(request) }.getOrElse { error ->
+            return Result.failure(Exception(mapApiError(error, "Registration failed.")))
+        }
+        // The account now exists. If signing in fails, say so instead of "Registration failed",
+        // which would send the participant into a duplicate-account retry.
         return runCatching {
-            val created = api.register(request)
-            val session = api.createSession(SessionRequest(request.mobile, request.pin))
-            val result = session.toResult()
+            val result = api.createSession(SessionRequest(request.mobile, request.pin)).toResult()
             sessionStore.saveSession(result.accessToken, result.profile)
             RegistrationResult(created.registrationId, result.profile.withRegistration(created))
         }.recoverCatching { error ->
-            throw Exception(mapApiError(error, "Registration failed."))
+            throw Exception(
+                "Your account was created (Login ID ${created.loginId}), but signing in failed: " +
+                    mapApiError(error, "please try again.") + " Sign in with your Login ID and PIN.",
+            )
         }
     }
 

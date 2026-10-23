@@ -28,7 +28,9 @@ class HomeViewModel(
             state = profileRepository.me().fold(
                 onSuccess = { UiState.Success(it) },
                 onFailure = { error ->
-                    val cached = sessionStore.cachedProfile()
+                    // Offline or server trouble: keep showing the cached profile. A rejected
+                    // session has already been cleared, so there is nothing cached to show.
+                    val cached = sessionStore.cachedProfile()?.takeIf { sessionStore.isLoggedIn() }
                     if (cached != null) {
                         UiState.Success(cached)
                     } else {

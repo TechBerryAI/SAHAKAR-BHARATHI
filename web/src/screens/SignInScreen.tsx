@@ -9,12 +9,13 @@ const PIN_PATTERN = /^\d{4,6}$/
 
 export function SignInScreen() {
   const navigate = useNavigate()
-  const { copy } = useLanguage()
   const location = useLocation()
-  // Registration sends people here with their number when it already has an account.
-  const [identifier, setIdentifier] = useState(
-    () => (location.state as { identifier?: string } | null)?.identifier ?? '',
-  )
+  const { copy } = useLanguage()
+  const routeState = location.state as { createdLoginId?: string; identifier?: string } | null
+  // Set by registration when the account was created but the automatic sign-in failed.
+  const createdLoginId = routeState?.createdLoginId ?? ''
+  // Registration also sends people here with their number when it already has an account.
+  const [identifier, setIdentifier] = useState(() => createdLoginId || routeState?.identifier || '')
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -54,6 +55,11 @@ export function SignInScreen() {
           <Seal className="signin__emblem" />
           <h2 className="signin__title">{copy.accessTitle}</h2>
           <p className="signin__lead">{copy.accessBody}</p>
+          {createdLoginId && !error ? (
+            <div className="banner banner--ok" role="status">
+              {copy.accountReady} — {copy.loginId}: <strong>{createdLoginId}</strong>
+            </div>
+          ) : null}
           <ErrorBanner message={error} />
           <Field
             label={copy.loginIdLabel}
