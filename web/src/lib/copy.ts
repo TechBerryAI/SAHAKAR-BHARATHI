@@ -15,19 +15,17 @@ export type AppCopy = {
   mobileHint: string
   sendOtp: string
   verifyOtp: string
-  yourOtp: string
   otpLabel: string
-  otpHint: string
   resendOtp: string
   mobileRequired: string
   otpRequired: string
-  otpWrong: string
   otpSmsHint: string
   otpSent: string
   otpSendFailed: string
   otpSendFirst: string
   otpVerified: string
   otpVerifyFailed: string
+  otpInvalid: string
   otpVerifyRequired: string
   pleaseWait: string
   signIn: string
@@ -35,45 +33,30 @@ export type AppCopy = {
   accessBody: string
   email: string
   emailOptional: string
-  emailHint: string
-  password: string
   createAccount: string
-  enterEmailPassword: string
   loginIdLabel: string
   loginIdHint: string
   pinLabel: string
   enterLoginPin: string
   signingIn: string
-  register: string
-  continue: string
   createAccountBtn: string
   registering: string
-  stepPersonal: string
-  stepContact: string
-  stepAddress: string
-  stepPassword: string
   fullName: string
   gender: string
   male: string
   female: string
   other: string
-  dob: string
-  dobHint: string
   occupation: string
   farmer: string
   fisherman: string
   both: string
   allied: string
   mobile: string
-  verifiedOtp: string
   address: string
   locality: string
   district: string
   state: string
   pincode: string
-  createPassword: string
-  confirmPassword: string
-  passwordHint: string
   showPin: string
   hidePin: string
   fullNameRequired: string
@@ -82,16 +65,19 @@ export type AppCopy = {
   pinDigits: string
   passwordLength: string
   passwordMatch: string
-  emailSignInHint: string
   registrationFailed: string
   signInFailed: string
-  stepOf: string
+  invalidCredentials: string
+  duplicateAccount: string
+  tooManyAttempts: string
+  networkError: string
   chooseLanguage: string
   searchLanguages: string
   noLanguages: string
   back: string
   home: string
   profile: string
+  mainNav: string
   registered: string
   accountReady: string
   keepLoginId: string
@@ -103,6 +89,8 @@ export type AppCopy = {
   account: string
   yourProfile: string
   profileStatus: string
+  statusActive: string
+  statusDisabled: string
   mobileOnFile: string
   mobileOnFileBody: string
   loadFailed: string
@@ -130,7 +118,6 @@ export type AppCopy = {
   govtPortal: string
   legalName: string
   nameAadhaarHint: string
-  mandatory: string
   dobFull: string
   dobDay: string
   dobMonth: string
@@ -150,7 +137,6 @@ export type AppCopy = {
   contactCardBody: string
   contactVerifiedHint: string
   contactEmailHint: string
-  addressCardTitle: string
   addressCardBody: string
   houseLabel: string
   houseHint: string
@@ -164,7 +150,8 @@ export type AppCopy = {
   locationFilled: string
   locationDenied: string
   locationUnavailable: string
-  addressRequired: string
+  districtRequired: string
+  stateRequired: string
   securityCardTitle: string
   securityCardBody: string
   securityPinLabel: string
@@ -172,7 +159,7 @@ export type AppCopy = {
   securityConfirmPin: string
 }
 
-const HI: Partial<AppCopy> = {
+const HI: AppCopy = {
   govChip: 'भारत सरकार',
   honour: 'भारत के अन्न नायकों का सम्मान',
   subtitle: 'किसान और मछुआरा उत्सव',
@@ -181,24 +168,23 @@ const HI: Partial<AppCopy> = {
   alreadyRegistered: 'पहले से पंजीकृत हैं? साइन इन',
   verifyMobile: 'मोबाइल सत्यापित करें',
   mobileTitle: 'मोबाइल नंबर',
-  mobileBody: 'पंजीकरण से पहले अपना मोबाइल नंबर लिखें। ओटीपी भेजें, सत्यापित करें, फिर व्यक्तिगत विवरण खुलेगा।',
+  mobileBody:
+    'पंजीकरण से पहले अपना मोबाइल नंबर लिखें। ओटीपी भेजें, सत्यापित करें, फिर व्यक्तिगत विवरण खुलेगा।',
   mobileLabel: 'मोबाइल नंबर',
   mobileHint: '10 अंकों का भारतीय मोबाइल नंबर।',
   sendOtp: 'ओटीपी भेजें',
   verifyOtp: 'ओटीपी सत्यापित करें',
-  yourOtp: 'आपका ओटीपी है',
   otpLabel: 'ओटीपी',
-  otpHint: 'इस पृष्ठ पर दिखाया गया 6 अंकों का कोड लिखें।',
   resendOtp: 'ओटीपी फिर भेजें',
   mobileRequired: 'मान्य 10 अंकों का भारतीय मोबाइल नंबर लिखें।',
   otpRequired: '6 अंकों का ओटीपी लिखें।',
-  otpWrong: 'यह ओटीपी गलत है।',
   otpSmsHint: 'एसएमएस से मिला 6 अंकों का कोड।',
   otpSent: 'ओटीपी भेजा गया। यह 5 मिनट में समाप्त होगा।',
   otpSendFailed: 'ओटीपी नहीं भेजा जा सका।',
   otpSendFirst: 'पहले ओटीपी भेजें।',
   otpVerified: 'मोबाइल नंबर सत्यापित हो गया।',
   otpVerifyFailed: 'ओटीपी सत्यापित नहीं हो सका।',
+  otpInvalid: 'ओटीपी गलत है या उसकी समय-सीमा समाप्त हो गई है।',
   otpVerifyRequired: 'इस मोबाइल नंबर पर भेजा गया ओटीपी सत्यापित करें।',
   pleaseWait: 'कृपया प्रतीक्षा करें…',
   signIn: 'साइन इन',
@@ -206,45 +192,30 @@ const HI: Partial<AppCopy> = {
   accessBody: 'ऐप का उपयोग करने से पहले पंजीकरण और साइन इन आवश्यक है।',
   email: 'ईमेल',
   emailOptional: 'ईमेल (वैकल्पिक)',
-  emailHint: 'पंजीकरण वाला ईमेल उपयोग करें।',
-  password: 'पासवर्ड',
   createAccount: 'खाता बनाएँ',
-  enterEmailPassword: 'अपना ईमेल और पासवर्ड लिखें।',
   loginIdLabel: 'लॉगिन आईडी / मोबाइल',
-  loginIdHint: 'पंजीकरण के बाद मिला लॉगिन आईडी या 10 अंकों का मोबाइल।',
+  loginIdHint: 'पंजीकरण के बाद मिली लॉगिन आईडी या अपना 10 अंकों का मोबाइल नंबर उपयोग करें।',
   pinLabel: 'पिन',
   enterLoginPin: 'लॉगिन आईडी और पिन लिखें।',
   signingIn: 'साइन इन हो रहा है…',
-  register: 'पंजीकरण',
-  continue: 'आगे बढ़ें',
   createAccountBtn: 'खाता बनाएँ',
   registering: 'पंजीकरण हो रहा है…',
-  stepPersonal: 'व्यक्तिगत',
-  stepContact: 'संपर्क',
-  stepAddress: 'पता',
-  stepPassword: 'पिन',
   fullName: 'पूरा नाम',
   gender: 'लिंग',
   male: 'पुरुष',
   female: 'महिला',
   other: 'अन्य',
-  dob: 'जन्म तिथि',
-  dobHint: 'वैकल्पिक। आयु 18 वर्ष या अधिक होनी चाहिए।',
   occupation: 'व्यवसाय',
   farmer: 'किसान',
   fisherman: 'मछुआरा',
   both: 'दोनों',
   allied: 'संबद्ध',
   mobile: 'मोबाइल',
-  verifiedOtp: 'ओटीपी से सत्यापित।',
   address: 'पता',
   locality: 'इलाका',
   district: 'ज़िला',
   state: 'राज्य',
   pincode: 'पिन कोड',
-  createPassword: 'पिन सेट करें',
-  confirmPassword: 'पिन की पुष्टि',
-  passwordHint: '4 से 6 अंक। हर साइन इन पर यही पिन लगेगा।',
   showPin: 'पिन दिखाएँ',
   hidePin: 'पिन छिपाएँ',
   fullNameRequired: 'पूरा नाम आवश्यक है।',
@@ -253,16 +224,19 @@ const HI: Partial<AppCopy> = {
   pinDigits: 'पिन कोड 6 अंकों का होना चाहिए।',
   passwordLength: 'कम से कम 4 अंकों का पिन बनाएँ।',
   passwordMatch: 'पिन मेल नहीं खाते।',
-  emailSignInHint: 'वैकल्पिक। साइन इन मोबाइल नंबर से होगा।',
   registrationFailed: 'पंजीकरण नहीं हो सका।',
   signInFailed: 'साइन इन नहीं हो सका।',
-  stepOf: 'चरण {current} / {total}',
+  invalidCredentials: 'लॉगिन आईडी या पिन गलत है।',
+  duplicateAccount: 'इन विवरणों से एक खाता पहले से मौजूद है।',
+  tooManyAttempts: 'बहुत अधिक प्रयास हो गए। कुछ देर बाद फिर कोशिश करें।',
+  networkError: 'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें।',
   chooseLanguage: 'भाषा चुनें',
   searchLanguages: 'भाषा खोजें',
   noLanguages: 'कोई भाषा नहीं मिली।',
   back: 'वापस',
   home: 'होम',
   profile: 'प्रोफ़ाइल',
+  mainNav: 'मुख्य नेविगेशन',
   registered: 'पंजीकृत',
   accountReady: 'खाता तैयार',
   keepLoginId: 'यह लॉगिन आईडी रखें',
@@ -273,8 +247,11 @@ const HI: Partial<AppCopy> = {
   registeredParticipant: 'पंजीकृत प्रतिभागी',
   account: 'खाता',
   yourProfile: 'आपकी रथ यात्रा प्रोफ़ाइल',
-  profileStatus: 'स्थिति: {status}। साइन इन लॉगिन आईडी या मोबाइल और पिन से करें। विवरण प्रोफ़ाइल से बदलें।',
-  mobileOnFile: 'फ़ाइल में मोबाइल',
+  profileStatus:
+    'स्थिति: {status}। साइन इन लॉगिन आईडी या मोबाइल और पिन से करें। विवरण प्रोफ़ाइल से बदलें।',
+  statusActive: 'सक्रिय',
+  statusDisabled: 'निष्क्रिय',
+  mobileOnFile: 'दर्ज मोबाइल नंबर',
   mobileOnFileBody: 'यह नंबर आपकी रथ यात्रा प्रोफ़ाइल पर दर्ज है।',
   loadFailed: 'प्रोफ़ाइल नहीं खुल सकी।',
   participant: 'प्रतिभागी',
@@ -301,13 +278,12 @@ const HI: Partial<AppCopy> = {
   govtPortal: 'राष्ट्रीय पोर्टल',
   legalName: 'पूरा कानूनी नाम',
   nameAadhaarHint: 'आधार कार्ड के अनुसार नाम',
-  mandatory: 'आवश्यक',
   dobFull: 'जन्म तिथि (दिन/माह/वर्ष)',
   dobDay: 'दिन',
   dobMonth: 'माह',
   dobYear: 'वर्ष',
   ageMin: 'स्वतंत्र पास के लिए न्यूनतम आयु 18 वर्ष।',
-  occupationHint: 'उत्सव में किसानों और मत्स्यजीवियों की पहचान के लिए।',
+  occupationHint: 'कार्यक्रमों में किसानों और मछुआरों की पहचान के लिए।',
   occupationSelect: 'चुनें',
   privacyTitle: 'गोपनीयता',
   privacyBody: 'पंजीकरण सहकार भारती सर्वर पर संग्रहीत होता है।',
@@ -321,10 +297,9 @@ const HI: Partial<AppCopy> = {
   contactCardBody: 'उत्सव अपडेट और सहायता के लिए पंजीकृत मोबाइल नंबर लिखें।',
   contactVerifiedHint: 'यह नंबर ओटीपी से सत्यापित है।',
   contactEmailHint: 'केवल पास और सूचनाएँ भेजने के लिए।',
-  addressCardTitle: 'पता',
-  addressCardBody: 'उत्सव पास के लिए अपना पता लिखें।',
+  addressCardBody: 'अपने प्रतिभागी पास के लिए पता लिखें।',
   houseLabel: 'मकान / गली / पता पंक्ति',
-  houseHint: 'लोकेशन से भरा जा सकता है, फिर ठीक करें।',
+  houseHint: 'संभव होने पर लोकेशन से भरा जाता है। ज़रूरत हो तो बदलें।',
   localityLabel: 'गाँव / वार्ड / इलाका',
   districtLabel: 'ज़िला',
   stateLabel: 'राज्य',
@@ -335,9 +310,10 @@ const HI: Partial<AppCopy> = {
   locationFilled: 'पता लोकेशन से भरा गया। जाँच कर ठीक करें।',
   locationDenied: 'लोकेशन अनुमति नहीं मिली। पता स्वयं लिखें।',
   locationUnavailable: 'लोकेशन नहीं मिली। पता स्वयं लिखें।',
-  addressRequired: 'पता लिखें या लोकेशन से भरें।',
+  districtRequired: 'ज़िला लिखें।',
+  stateRequired: 'राज्य लिखें।',
   securityCardTitle: 'ऐप पिन',
-  securityCardBody: '4 से 6 अंकों का पिन बनाएँ। खाता बनाने से पहले यह चरण पूरा करें।',
+  securityCardBody: '4 से 6 अंकों का पिन बनाएँ। खाता इस चरण के बाद ही बनेगा।',
   securityPinLabel: 'पिन',
   securityPinHint: 'कम से कम 4 अंक।',
   securityConfirmPin: 'पिन की पुष्टि',
@@ -358,19 +334,17 @@ const EN: AppCopy = {
   mobileHint: '10-digit Indian mobile number.',
   sendOtp: 'Send OTP',
   verifyOtp: 'Verify OTP',
-  yourOtp: 'Your OTP is',
   otpLabel: 'OTP',
-  otpHint: 'Enter the 6-digit code on this page.',
   resendOtp: 'Resend OTP',
   mobileRequired: 'Enter a valid 10-digit Indian mobile number.',
   otpRequired: 'Enter the 6-digit OTP.',
-  otpWrong: 'That OTP is incorrect.',
   otpSmsHint: '6-digit code from the SMS.',
   otpSent: 'OTP sent. It expires in 5 minutes.',
   otpSendFailed: 'Could not send the OTP.',
   otpSendFirst: 'Send an OTP first.',
   otpVerified: 'Mobile number verified.',
   otpVerifyFailed: 'Could not verify the OTP.',
+  otpInvalid: 'The OTP is incorrect or has expired.',
   otpVerifyRequired: 'Verify the OTP sent to this mobile number.',
   pleaseWait: 'Please wait…',
   signIn: 'Sign In',
@@ -378,45 +352,30 @@ const EN: AppCopy = {
   accessBody: 'Registration and sign in are required before anyone can use the app.',
   email: 'Email',
   emailOptional: 'Email (optional)',
-  emailHint: 'Use the email from registration.',
-  password: 'Password',
   createAccount: 'Create account',
-  enterEmailPassword: 'Enter your email and password.',
   loginIdLabel: 'Login ID / mobile',
   loginIdHint: 'Use the login ID from registration or your 10-digit mobile number.',
   pinLabel: 'PIN',
   enterLoginPin: 'Enter your login ID and PIN.',
   signingIn: 'Signing in…',
-  register: 'Register',
-  continue: 'Continue',
   createAccountBtn: 'Create Account',
   registering: 'Registering…',
-  stepPersonal: 'Personal',
-  stepContact: 'Contact',
-  stepAddress: 'Address',
-  stepPassword: 'PIN',
   fullName: 'Full name',
   gender: 'Gender',
   male: 'Male',
   female: 'Female',
   other: 'Other',
-  dob: 'Date of birth',
-  dobHint: 'Optional. Participants must be 18 or older.',
   occupation: 'Occupation',
   farmer: 'Farmer',
   fisherman: 'Fisherman',
   both: 'Both',
   allied: 'Allied',
   mobile: 'Mobile',
-  verifiedOtp: 'Verified with OTP.',
   address: 'Address',
   locality: 'Locality',
   district: 'District',
   state: 'State',
   pincode: 'PIN code',
-  createPassword: 'Set a PIN',
-  confirmPassword: 'Confirm PIN',
-  passwordHint: '4 to 6 digits. Needed every time you sign in.',
   showPin: 'Show PIN',
   hidePin: 'Hide PIN',
   fullNameRequired: 'Full name is required.',
@@ -425,16 +384,19 @@ const EN: AppCopy = {
   pinDigits: 'PIN code must be 6 digits.',
   passwordLength: 'Create a PIN of at least 4 digits.',
   passwordMatch: 'PIN values do not match.',
-  emailSignInHint: 'Optional. You sign in with your mobile number.',
   registrationFailed: 'Registration failed.',
   signInFailed: 'Sign in failed.',
-  stepOf: 'Step {current} of {total}',
+  invalidCredentials: 'Login ID or PIN is incorrect.',
+  duplicateAccount: 'An account with these details already exists.',
+  tooManyAttempts: 'Too many attempts. Try again later.',
+  networkError: 'The server could not be reached. Check your connection.',
   chooseLanguage: 'Choose language',
   searchLanguages: 'Search languages',
   noLanguages: 'No languages found.',
   back: 'Back',
   home: 'Home',
   profile: 'Profile',
+  mainNav: 'Main navigation',
   registered: 'Registered',
   accountReady: 'Account ready',
   keepLoginId: 'Keep this login ID',
@@ -445,7 +407,10 @@ const EN: AppCopy = {
   registeredParticipant: 'Registered participant',
   account: 'Account',
   yourProfile: 'Your Rath Yatra profile',
-  profileStatus: 'Status: {status}. Sign in with your login ID or mobile and PIN, and update your details from Profile.',
+  profileStatus:
+    'Status: {status}. Sign in with your login ID or mobile and PIN, and update your details from Profile.',
+  statusActive: 'Active',
+  statusDisabled: 'Disabled',
   mobileOnFile: 'Mobile on file',
   mobileOnFileBody: 'This number is on file for your Rath Yatra profile.',
   loadFailed: 'Could not load profile.',
@@ -472,10 +437,9 @@ const EN: AppCopy = {
   formProgress: '{done} OF 4 SECTIONS COMPLETE ({percent}%)',
   govtPortal: 'National Portal',
   legalName: 'FULL LEGAL NAME',
-  nameAadhaarHint: 'Name as per aadhaar card',
-  mandatory: 'Required',
+  nameAadhaarHint: 'Name as per Aadhaar card',
   dobFull: 'DATE OF BIRTH (DD/MM/YYYY)',
-  dobDay: 'Date',
+  dobDay: 'Day',
   dobMonth: 'Month',
   dobYear: 'Year',
   ageMin: 'Minimum age 18 for an independent pass.',
@@ -493,7 +457,6 @@ const EN: AppCopy = {
   contactCardBody: 'Add a registered mobile number so celebration updates and help can reach you.',
   contactVerifiedHint: 'This number is verified with OTP.',
   contactEmailHint: 'Used only to send the pass and notices.',
-  addressCardTitle: 'Address',
   addressCardBody: 'Add the address for your participant pass.',
   houseLabel: 'HOUSE / STREET / ADDRESS LINE',
   houseHint: 'Filled from location when possible. Edit if needed.',
@@ -507,15 +470,14 @@ const EN: AppCopy = {
   locationFilled: 'Address filled from location. Check and correct it.',
   locationDenied: 'Location permission denied. Enter the address yourself.',
   locationUnavailable: 'Location unavailable. Enter the address yourself.',
-  addressRequired: 'Enter an address or fill it from location.',
+  districtRequired: 'Enter your district.',
+  stateRequired: 'Enter your state.',
   securityCardTitle: 'App PIN',
   securityCardBody: 'Create a 4 to 6 digit PIN. The account is created only after this step.',
   securityPinLabel: 'PIN',
   securityPinHint: 'At least 4 digits.',
   securityConfirmPin: 'CONFIRM PIN',
 }
-
-const INDIC_HINDI_FALLBACK: LangCode[] = ['mai', 'bho', 'raj', 'doi', 'ne', 'kok', 'sa']
 
 export function occupationLabel(copy: AppCopy, occupation: string): string {
   if (occupation === 'Farmer') return copy.farmer
@@ -525,10 +487,14 @@ export function occupationLabel(copy: AppCopy, occupation: string): string {
   return occupation
 }
 
+export function statusLabel(copy: AppCopy, status: string): string {
+  if (status === 'active') return copy.statusActive
+  if (status === 'disabled') return copy.statusDisabled
+  return status
+}
+
 export function copyFor(code: LangCode): AppCopy {
   if (code === 'en') return EN
-  if (code === 'hi') return { ...EN, ...HI }
-  const overlay = TRANSLATIONS[code] ?? {}
-  const base = INDIC_HINDI_FALLBACK.includes(code) ? { ...EN, ...HI } : EN
-  return { ...base, ...overlay }
+  if (code === 'hi') return HI
+  return TRANSLATIONS[code]
 }

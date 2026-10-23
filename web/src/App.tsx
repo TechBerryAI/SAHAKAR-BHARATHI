@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AppShell } from './components/AppShell.tsx'
+import { useLanguage } from './lib/language.tsx'
 import { useSession } from './lib/session.ts'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { ProfileScreen } from './screens/ProfileScreen.tsx'
@@ -30,11 +31,12 @@ function HomeOrStart() {
 function AppRoutes() {
   const location = useLocation()
   const { ready } = useSession()
+  const { copy } = useLanguage()
 
   if (!ready) {
     return (
       <div className="center-state">
-        <div className="spinner" aria-label="Loading" />
+        <div className="spinner" aria-label={copy.pleaseWait} />
       </div>
     )
   }

@@ -20,7 +20,8 @@
   --shadow: 0 18px 40px rgba(8, 24, 18, 0.32);
   --font: 'Noto Sans', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil',
     'Noto Sans Telugu', 'Noto Sans Gujarati', 'Noto Sans Kannada', 'Noto Sans Malayalam',
-    'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Naskh Arabic', 'Roboto', system-ui, sans-serif;
+    'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Sans Ol Chiki', 'Noto Naskh Arabic', 'Roboto',
+    system-ui, sans-serif;
 }
 
 *,
@@ -363,6 +364,12 @@ a {
   border-color: var(--saffron);
   box-shadow: 0 0 0 3px rgba(233, 135, 42, 0.18);
   outline: none;
+}
+
+.field__required {
+  margin-inline-start: 3px;
+  color: var(--error);
+  font-weight: 700;
 }
 
 .field__hint {
@@ -1169,9 +1176,10 @@ html[dir='rtl'] .lang-sheet__option {
 
 .reg-card__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px 8px;
 }
 
 .reg-chip {
@@ -1181,17 +1189,17 @@ html[dir='rtl'] .lang-sheet__option {
   min-height: 26px;
   max-width: 100%;
   padding: 4px 8px 4px 6px;
-  border-radius: 999px;
+  border-radius: 13px;
   background: #fff1df;
   color: #b85d12;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.15px;
   line-height: 1.2;
-  white-space: nowrap;
 }
 
 .reg-chip__dot {
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -1208,23 +1216,9 @@ html[dir='rtl'] .lang-sheet__option {
   white-space: nowrap;
 }
 
-.reg-track {
-  height: 6px;
-  border-radius: 999px;
-  background: #efe6d8;
-  overflow: hidden;
-}
-
-.reg-track__fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #e9872a;
-}
-
 .reg-steps {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   margin: 0;
   padding: 0;
@@ -1234,7 +1228,11 @@ html[dir='rtl'] .lang-sheet__option {
 }
 
 .reg-steps button {
-  padding: 4px 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 0 2px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1242,7 +1240,39 @@ html[dir='rtl'] .lang-sheet__option {
   cursor: pointer;
 }
 
+.reg-steps__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #efe6d8;
+  overflow: hidden;
+}
+
+.reg-steps__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #e9872a;
+  transition: width 0.2s ease;
+}
+
+.reg-steps__label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  text-align: center;
+}
+
+.reg-steps__check {
+  flex-shrink: 0;
+  color: #e9872a;
+}
+
 .reg-steps .is-done {
+  color: #17263f;
+}
+
+.reg-steps .is-active {
   color: #e9872a;
   font-weight: 600;
 }
@@ -1280,12 +1310,6 @@ html[dir='rtl'] .lang-sheet__option {
 .reg-section__num.is-done {
   background: #e9872a;
   color: #fff;
-}
-
-.reg-required {
-  font-size: 12px;
-  font-weight: 600;
-  color: #b85d12;
 }
 
 .reg-genders {
@@ -1449,6 +1473,48 @@ html[dir='rtl'] .lang-sheet__option {
 .reg__submit {
   border-radius: 999px;
   min-height: 52px;
+}
+
+/* Narrow phones: leave room for the widest scripts (e.g. Malayalam). */
+@media (max-width: 380px) {
+  .reg-steps {
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .reg-genders {
+    gap: 6px;
+  }
+
+  .reg-gender {
+    padding: 0 6px;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 340px) {
+  .reg-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 10px;
+  }
+
+  .reg-gender svg {
+    display: none;
+  }
+}
+
+/* Right-to-left languages: point back and forward arrows along the reading direction. */
+[dir='rtl'] .icon-button svg,
+[dir='rtl'] .reg__back svg,
+[dir='rtl'] .verify__back svg,
+[dir='rtl'] .signin__back svg {
+  transform: scaleX(-1);
+}
+
+[dir='rtl'] .btn > span[aria-hidden='true'],
+[dir='rtl'] .start__signin > span[aria-hidden='true'] {
+  display: inline-block;
+  transform: scaleX(-1);
 }
 
 @media (max-width: 600px) {

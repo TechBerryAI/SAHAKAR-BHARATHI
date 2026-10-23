@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LanguageSelect } from '../components/LanguageSelect.tsx'
-import { Button, Card, ErrorBanner, Field } from '../components/ui.tsx'
+import { Button, Card, ErrorBanner, Field, RequiredMark } from '../components/ui.tsx'
 import {
-  ApiError,
+  apiErrorText,
   confirmPhoneVerification,
   registerAndSignIn,
   sendPhoneVerification,
@@ -17,6 +16,7 @@ import { GENDERS, OCCUPATIONS } from '../lib/types.ts'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PIN_PATTERN = /^\d{4,6}$/
+const PINCODE_PATTERN = /^\d{6}$/
 const INDIAN_MOBILE = /^[6-9]\d{9}$/
 
 type Gate = 'mobile' | 'details'
@@ -120,13 +120,32 @@ function validateSection(section: number, form: FormState, copy: AppCopy): strin
     return ''
   }
   if (section === 2) {
-    if (!form.address_line.trim() && !form.locality.trim()) return copy.addressRequired
-    if (form.pincode && !/^\d{6}$/.test(form.pincode)) return copy.pinDigits
+    if (!form.district.trim()) return copy.districtRequired
+    if (!form.state.trim()) return copy.stateRequired
+    if (!PINCODE_PATTERN.test(form.pincode)) return copy.pinDigits
     return ''
   }
   if (!PIN_PATTERN.test(form.pin)) return copy.passwordLength
   if (form.pin !== form.confirmPin) return copy.passwordMatch
   return ''
+}
+
+// Required items per section, mirroring validateSection: a section is complete
+// exactly when all of its items pass. Optional fields only count when they are invalid.
+function sectionChecks(section: number, form: FormState): boolean[] {
+  if (section === 0) {
+    const dobOk =
+      isValidIsoDate(form.date_of_birth) && ageYears(form.date_of_birth) >= 18
+    return [form.full_name.trim().length >= 2, Boolean(form.gender), dobOk, Boolean(form.occupation)]
+  }
+  if (section === 1) {
+    const emailOk = !form.email.trim() || EMAIL_PATTERN.test(form.email.trim())
+    return [INDIAN_MOBILE.test(form.mobile), emailOk]
+  }
+  if (section === 2) {
+    return [Boolean(form.district.trim()), Boolean(form.state.trim()), PINCODE_PATTERN.test(form.pincode)]
+  }
+  return [PIN_PATTERN.test(form.pin), form.confirmPin !== '' && form.confirmPin === form.pin]
 }
 
 export function RegisterScreen() {
@@ -144,6 +163,7 @@ export function RegisterScreen() {
   const [error, setError] = useState('')
   // Section whose validation failed; null shows the error at the top of the form.
   const [errorSection, setErrorSection] = useState<number | null>(null)
+  const [activeSection, setActiveSection] = useState(0)
   const [busy, setBusy] = useState(false)
   const [otpBusy, setOtpBusy] = useState(false)
   const [showSos, setShowSos] = useState(false)
@@ -154,9 +174,15 @@ export function RegisterScreen() {
   const [locationNote, setLocationNote] = useState('')
   const titles = titlesFor(copy)
   const tracks = tracksFor(copy)
-  const completed = titles.map((_, index) => !validateSection(index, form, copy))
+  const fractions = titles.map((_, index) => {
+    const checks = sectionChecks(index, form)
+    return checks.filter(Boolean).length / checks.length
+  })
+  const completed = fractions.map((fraction) => fraction === 1)
   const doneCount = completed.filter(Boolean).length
-  const progressPercent = doneCount * 25
+  const progressPercent = Math.round(
+    (fractions.reduce((sum, fraction) => sum + fraction, 0) / fractions.length) * 100,
+  )
   const progressBadge = copy.formProgress
     .replace('{done}', String(doneCount))
     .replace('{percent}', String(progressPercent))
@@ -254,6 +280,24 @@ export function RegisterScreen() {
     document.getElementById(sectionId(section))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // The section in view is the last one whose heading has passed 30% of the scroll area;
+  // once scrolled to the very bottom it is the last section.
+  function trackActiveSection() {
+    const body = bodyRef.current
+    if (!body) return
+    if (body.scrollTop > 0 && body.scrollTop + body.clientHeight >= body.scrollHeight - 4) {
+      setActiveSection(titles.length - 1)
+      return
+    }
+    const marker = body.getBoundingClientRect().top + body.clientHeight * 0.3
+    let current = 0
+    titles.forEach((_, index) => {
+      const top = document.getElementById(sectionId(index))?.getBoundingClientRect().top
+      if (top !== undefined && top <= marker) current = index
+    })
+    setActiveSection(current)
+  }
+
   function showError(message: string, section: number | null) {
     setError(message)
     setErrorSection(section)
@@ -285,7 +329,7 @@ export function RegisterScreen() {
       setOtp('')
       setOtpNote(copy.otpSent)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : copy.otpSendFailed)
+      setError(apiErrorText(err, copy, copy.otpSendFailed))
     } finally {
       setOtpBusy(false)
     }
@@ -309,7 +353,7 @@ export function RegisterScreen() {
       setOtpNote(copy.otpVerified)
       setGate('details')
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : copy.otpVerifyFailed)
+      setError(apiErrorText(err, copy, copy.otpVerifyFailed))
     } finally {
       setOtpBusy(false)
     }
@@ -353,7 +397,7 @@ export function RegisterScreen() {
       await registerAndSignIn(body)
       navigate('/register/success', { replace: true })
     } catch (err) {
-      showError(err instanceof ApiError ? err.message : copy.registrationFailed, null)
+      showError(apiErrorText(err, copy, copy.registrationFailed), null)
     } finally {
       setBusy(false)
     }
@@ -363,13 +407,12 @@ export function RegisterScreen() {
     return (
       <section className="verify">
         <header className="verify__bar">
-          <button type="button" className="verify__back" aria-label="Back" onClick={goBack}>
+          <button type="button" className="verify__back" aria-label={copy.back} onClick={goBack}>
             <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="currentColor" d="M19 11H7.83l4.58-4.59L11 5l-7 7 7 7 1.41-1.41L7.83 13H19z" />
             </svg>
           </button>
           <h1>{copy.verifyMobile}</h1>
-          <LanguageSelect variant="light" />
         </header>
         <form
           className="verify__form"
@@ -457,7 +500,7 @@ export function RegisterScreen() {
       </header>
       <div className="reg__accent" />
       <form className="reg__form" onSubmit={onSubmit} noValidate>
-        <div className="reg__body" ref={bodyRef}>
+        <div className="reg__body" ref={bodyRef} onScroll={trackActiveSection}>
           {errorSection === null ? <ErrorBanner message={error} /> : null}
           <section className="reg-card">
             <div className="reg-card__row">
@@ -475,18 +518,39 @@ export function RegisterScreen() {
                 {copy.govtPortal}
               </span>
             </div>
-            <div className="reg-track" aria-hidden="true">
-              <span className="reg-track__fill" style={{ width: `${progressPercent}%` }} />
-            </div>
             <ol className="reg-steps">
               {tracks.map((label, index) => (
                 <li key={label}>
                   <button
                     type="button"
-                    className={completed[index] ? 'is-done' : undefined}
+                    className={
+                      [completed[index] && 'is-done', index === activeSection && 'is-active']
+                        .filter(Boolean)
+                        .join(' ') || undefined
+                    }
+                    aria-current={index === activeSection ? 'step' : undefined}
                     onClick={() => scrollToSection(index)}
                   >
-                    {label}
+                    <span className="reg-steps__bar" aria-hidden="true">
+                      <span
+                        className="reg-steps__fill"
+                        style={{ width: `${Math.round(fractions[index] * 100)}%` }}
+                      />
+                    </span>
+                    <span className="reg-steps__label">
+                      {completed[index] ? (
+                        <svg
+                          className="reg-steps__check"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      ) : null}
+                      {label}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -496,12 +560,16 @@ export function RegisterScreen() {
           <RegSection {...sectionProps(0)}>
             <section className="reg-card">
               <label className="field" htmlFor="full_name">
-                <span className="field__label">{copy.legalName}</span>
+                <span className="field__label">
+                  {copy.legalName}
+                  <RequiredMark />
+                </span>
                 <input
                   id="full_name"
                   name="full_name"
                   className="field__control"
                   autoComplete="name"
+                  required
                   value={form.full_name}
                   onChange={(event) => update('full_name', event.target.value)}
                 />
@@ -509,11 +577,11 @@ export function RegisterScreen() {
               </label>
             </section>
             <section className="reg-card">
-              <div className="reg-card__row">
-                <span className="field__label">{copy.gender}</span>
-                <span className="reg-required">{copy.mandatory}</span>
-              </div>
-              <div className="reg-genders">
+              <span className="field__label" id="gender_label">
+                {copy.gender}
+                <RequiredMark />
+              </span>
+              <div className="reg-genders" role="group" aria-labelledby="gender_label">
                 {GENDERS.map((gender) => (
                   <button
                     key={gender}
@@ -529,11 +597,15 @@ export function RegisterScreen() {
               </div>
             </section>
             <section className="reg-card">
-              <span className="field__label">{copy.dobFull}</span>
+              <span className="field__label">
+                {copy.dobFull}
+                <RequiredMark />
+              </span>
               <div className="reg-dob">
                 <select
                   className="field__control"
                   aria-label={copy.dobDay}
+                  required
                   value={dobDay}
                   onChange={(event) => setDob({ day: event.target.value })}
                 >
@@ -547,6 +619,7 @@ export function RegisterScreen() {
                 <select
                   className="field__control"
                   aria-label={copy.dobMonth}
+                  required
                   value={dobMonth}
                   onChange={(event) => setDob({ month: event.target.value })}
                 >
@@ -560,6 +633,7 @@ export function RegisterScreen() {
                 <select
                   className="field__control"
                   aria-label={copy.dobYear}
+                  required
                   value={dobYear}
                   onChange={(event) => setDob({ year: event.target.value })}
                 >
@@ -574,11 +648,15 @@ export function RegisterScreen() {
               <p className="field__hint">{copy.ageMin}</p>
             </section>
             <section className="reg-card">
-              <span className="field__label">{copy.occupation}</span>
+              <span className="field__label">
+                {copy.occupation}
+                <RequiredMark />
+              </span>
               <p className="field__hint">{copy.occupationHint}</p>
               <select
                 className="field__control"
                 aria-label={copy.occupation}
+                required
                 value={form.occupation}
                 onChange={(event) => update('occupation', event.target.value as Occupation | '')}
               >
@@ -667,12 +745,14 @@ export function RegisterScreen() {
                 <Field
                   label={copy.districtLabel}
                   name="district"
+                  required
                   value={form.district}
                   onChange={(event) => update('district', event.target.value)}
                 />
                 <Field
                   label={copy.stateLabel}
                   name="state"
+                  required
                   value={form.state}
                   onChange={(event) => update('state', event.target.value)}
                 />
@@ -682,6 +762,7 @@ export function RegisterScreen() {
                 name="pincode"
                 inputMode="numeric"
                 maxLength={6}
+                required
                 value={form.pincode}
                 onChange={(event) => update('pincode', event.target.value.replace(/\D/g, '').slice(0, 6))}
               />
@@ -701,6 +782,7 @@ export function RegisterScreen() {
                 inputMode="numeric"
                 autoComplete="new-password"
                 maxLength={6}
+                required
                 value={form.pin}
                 onChange={(event) => update('pin', event.target.value.replace(/\D/g, '').slice(0, 6))}
                 hint={copy.securityPinHint}
@@ -717,6 +799,7 @@ export function RegisterScreen() {
                 inputMode="numeric"
                 autoComplete="new-password"
                 maxLength={6}
+                required
                 value={form.confirmPin}
                 onChange={(event) =>
                   update('confirmPin', event.target.value.replace(/\D/g, '').slice(0, 6))
