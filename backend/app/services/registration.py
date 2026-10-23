@@ -56,25 +56,27 @@ class RegistrationService:
             status="active",
         )
         self.users.add(user)
-        self.db.flush()
-        registration = Registration(user_id=user.id, registration_id=login_id)
-        self.registrations.add(registration)
-        self.audit.add(
-            "registration",
-            user_id=user.id,
-            identifier_hash=hash_identifier(payload.mobile),
-        )
-        # Every response field is set in Python, so build it before commit instead of reloading the row.
-        response = RegistrationResponse(
-            registration_id=login_id,
-            login_id=login_id,
-            full_name=user.full_name,
-            mobile=user.mobile,
-            occupation=user.occupation,
-            state=user.state,
-            district=user.district,
-        )
+        # A concurrent duplicate submission fails on the unique mobile/email index at
+        # flush time, not only at commit, so both must map to 409 instead of a 500.
         try:
+            self.db.flush()
+            registration = Registration(user_id=user.id, registration_id=login_id)
+            self.registrations.add(registration)
+            self.audit.add(
+                "registration",
+                user_id=user.id,
+                identifier_hash=hash_identifier(payload.mobile),
+            )
+            # Every response field is set in Python, so build it before commit instead of reloading the row.
+            response = RegistrationResponse(
+                registration_id=login_id,
+                login_id=login_id,
+                full_name=user.full_name,
+                mobile=user.mobile,
+                occupation=user.occupation,
+                state=user.state,
+                district=user.district,
+            )
             self.db.commit()
         except IntegrityError as exc:
             self.db.rollback()

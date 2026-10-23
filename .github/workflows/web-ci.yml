@@ -1,0 +1,49 @@
+name: Web CI
+
+on:
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
+  push:
+    branches-ignore:
+      # production pushes are checked by the deploy workflow before it deploys.
+      - production
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Public API origin, not a secret. The build fails for http://, localhost or placeholders.
+      VITE_API_BASE_URL: https://sahakar-bharathi-api.onrender.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Verify build output
+        run: |
+          test -f dist/index.html
+          test -f dist/sw.js
+          grep -q 'Content-Security-Policy' dist/index.html

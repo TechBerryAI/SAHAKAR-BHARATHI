@@ -7,8 +7,13 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
 _PRODUCTION_ENVIRONMENTS = {"production", "prod"}
+# Anything else is rejected so a typo such as "prodution" cannot silently fall
+# back to development defaults (localhost CORS, OpenAPI docs, optional TLS).
+_KNOWN_ENVIRONMENTS = _PRODUCTION_ENVIRONMENTS | {"development", "dev", "test"}
+_INSECURE_SSLMODES = {"disable", "allow", "prefer"}
+_RATE_LIMIT_BACKENDS = {"memory", "postgres"}
 _DEV_CORS_ORIGINS = (
     "http://127.0.0.1:5173",
     "http://localhost:5173",
@@ -61,6 +66,10 @@ class Settings(BaseSettings):
     login_lockout_seconds: int = 15 * 60
     max_request_bytes: int = 65_536
     cors_origins: str = ""
+    # "memory" is per-process and only correct for a single API instance.
+    # "postgres" shares counters through the database (one extra round-trip per
+    # throttled request); use it before running more than one instance/worker.
+    rate_limit_backend: str = "memory"
 
     textbee_api_key: str = ""
     textbee_device_id: str = ""
@@ -145,17 +154,40 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production(self) -> "Settings":
+        environment = self.environment.strip().lower()
+        if environment not in _KNOWN_ENVIRONMENTS:
+            raise ValueError(
+                f"ENVIRONMENT must be one of {sorted(_KNOWN_ENVIRONMENTS)}; got {self.environment!r}"
+            )
+        if self.rate_limit_backend.strip().lower() not in _RATE_LIMIT_BACKENDS:
+            raise ValueError(f"RATE_LIMIT_BACKEND must be one of {sorted(_RATE_LIMIT_BACKENDS)}")
+        if self.session_ttl_seconds <= 0 or self.max_request_bytes <= 0:
+            raise ValueError("SESSION_TTL_SECONDS and MAX_REQUEST_BYTES must be positive")
         if not self.is_production:
             return self
         if not self.database_url.strip():
             raise ValueError("DATABASE_URL is required when ENVIRONMENT=production")
         parsed = urlparse(normalize_database_url(self.database_url))
         host = (parsed.hostname or "").lower()
+        if not host:
+            raise ValueError("DATABASE_URL must include a database host in production")
         if host in _LOCAL_HOSTS:
             raise ValueError("DATABASE_URL must not target localhost in production")
-        if "*" in self.cors_origin_list:
+        sslmode = (parse_qs(parsed.query).get("sslmode", [""])[0] or "").lower()
+        if sslmode in _INSECURE_SSLMODES:
+            raise ValueError("DATABASE_URL must not disable or downgrade TLS (sslmode) in production")
+        origins = self.cors_origin_list
+        if "*" in origins:
             raise ValueError("CORS_ORIGINS=* is not allowed in production")
+        for origin in origins:
+            origin_url = urlparse(origin)
+            if origin_url.scheme != "https" or (origin_url.hostname or "").lower() in _LOCAL_HOSTS:
+                raise ValueError("CORS_ORIGINS must list only https:// non-local origins in production")
         return self
+
+    @property
+    def uses_shared_rate_limits(self) -> bool:
+        return self.rate_limit_backend.strip().lower() == "postgres"
 
 
 @lru_cache

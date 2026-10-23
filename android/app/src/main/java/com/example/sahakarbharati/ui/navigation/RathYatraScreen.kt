@@ -75,6 +75,18 @@ fun RathYatraScreen(
         }
     }
 
+    // The server rejected the stored token (expired, revoked, or account disabled):
+    // leave protected screens instead of continuing with cached data.
+    val signedIn by session.signedIn
+    LaunchedEffect(signedIn) {
+        if (!signedIn && loggedIn && !openedOnProtectedScreen) {
+            loggedIn = false
+            if (current !in RathYatraDestinations.publicAccess) {
+                stack = listOf(RathYatraDestinations.SPLASH, RathYatraDestinations.SIGN_IN)
+            }
+        }
+    }
+
     if (stack.size > 1) {
         BackHandler(onBack = { back() })
     }

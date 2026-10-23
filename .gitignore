@@ -24,9 +24,19 @@ Desktop.ini
 !.env.example
 *.local
 secrets.properties
+keystore.properties
+signing.properties
 google-services.json
 local.properties
 /local.properties
+# Service-account JSON, private keys, and signing material
+*service-account*.json
+*-firebase-adminsdk-*.json
+*.pem
+*.p12
+*.p8
+*.pfx
+.claude/settings.local.json
 
 # Logs and dumps
 *.log

@@ -1093,7 +1093,14 @@ private suspend fun awaitLocation(context: Context): Location? {
         LocationManager.NETWORK_PROVIDER,
         LocationManager.PASSIVE_PROVIDER,
     ).mapNotNull { provider ->
-        runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
+        // Permission was checked above, but it can be revoked at any moment.
+        try {
+            manager.getLastKnownLocation(provider)
+        } catch (_: SecurityException) {
+            null
+        } catch (_: IllegalArgumentException) {
+            null // provider not present on this device
+        }
     }.maxByOrNull { it.time }
     val freshEnough = last != null && System.currentTimeMillis() - last.time < 10 * 60 * 1000
     if (freshEnough) return last

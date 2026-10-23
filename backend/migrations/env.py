@@ -1,18 +1,32 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.core.config import get_settings
+from app.core.config import get_settings, normalize_database_url
 from app.db.base import Base
-from app.models import AuditEvent, AuthSession, PhoneVerification, Registration, User  # noqa: F401
+from app.models import (  # noqa: F401
+    AuditEvent,
+    AuthSession,
+    PhoneVerification,
+    RateLimitBucket,
+    Registration,
+    User,
+)
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# MIGRATION_DATABASE_URL lets migrations use the table-owner credential while the
+# running API uses a least-privilege DATABASE_URL (infra/supabase/runtime_role.sql).
 # ConfigParser treats % as interpolation. URL-encoded passwords contain %XX.
-config.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url().replace("%", "%%"))
+_migration_url = normalize_database_url(os.environ.get("MIGRATION_DATABASE_URL", ""))
+config.set_main_option(
+    "sqlalchemy.url",
+    (_migration_url or get_settings().sqlalchemy_url()).replace("%", "%%"),
+)
 target_metadata = Base.metadata
 
 

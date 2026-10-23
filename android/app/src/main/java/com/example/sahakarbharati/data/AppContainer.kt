@@ -3,6 +3,7 @@ package com.example.sahakarbharati.data
 import android.content.Context
 import com.example.sahakarbharati.BuildConfig
 import com.example.sahakarbharati.data.remote.SahakarApi
+import com.example.sahakarbharati.data.remote.SessionExpiryInterceptor
 import com.example.sahakarbharati.data.repository.AuthRepository
 import com.example.sahakarbharati.data.repository.ProfileRepository
 import com.example.sahakarbharati.data.repository.RemoteAuthRepository
@@ -17,7 +18,10 @@ class AppContainer(context: Context) {
 
     private val okHttp: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        // Upper bound for one request, including a slow cold start on the API host.
+        .callTimeout(60, TimeUnit.SECONDS)
+        .addInterceptor(SessionExpiryInterceptor(session))
         .build()
 
     private val retrofit: Retrofit = Retrofit.Builder()

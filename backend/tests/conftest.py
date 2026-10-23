@@ -58,6 +58,9 @@ def database_url() -> str:
 @pytest.fixture(scope="session")
 def engine(database_url: str) -> Iterator[Engine]:
     os.environ["DATABASE_URL"] = database_url
+    # migrations/env.py prefers MIGRATION_DATABASE_URL; never let a developer's
+    # exported owner credential point test migrations at a real database.
+    os.environ["MIGRATION_DATABASE_URL"] = database_url
     from app.core.config import get_settings
 
     get_settings.cache_clear()
@@ -86,7 +89,7 @@ def clean_tables(request: pytest.FixtureRequest) -> Iterator[None]:
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE audit_events, sessions, registrations, users, phone_verifications "
+                "TRUNCATE audit_events, sessions, registrations, users, phone_verifications, rate_limit_buckets "
                 "RESTART IDENTITY CASCADE"
             )
         )

@@ -24,12 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Cameraswitch
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DirectionsBus
-import androidx.compose.material.icons.outlined.FlashOff
-import androidx.compose.material.icons.outlined.FlashOn
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.automirrored.outlined.Help
 import androidx.compose.material.icons.outlined.Pin
 import androidx.compose.material.icons.outlined.QrCode2
@@ -86,7 +83,6 @@ fun QrAttendanceScreen(
     val copy = LocalCopy.current
     val session = rememberAppSession()
     var showPass by rememberSaveable { mutableStateOf(showPassInitially) }
-    var torchOn by rememberSaveable { mutableStateOf(false) }
     var showPin by rememberSaveable { mutableStateOf(false) }
     var pin by rememberSaveable { mutableStateOf("") }
     var dialog by remember { mutableStateOf<String?>(null) }
@@ -120,19 +116,8 @@ fun QrAttendanceScreen(
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PulseDot(RathYatraColors.Saffron)
-                    Text(copy.scannerActive, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.Saffron, fontWeight = FontWeight.Bold)
-                }
-                Row {
-                    IconButton(onClick = { torchOn = !torchOn }) {
-                        Icon(
-                            if (torchOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
-                            contentDescription = if (torchOn) "Torch on" else "Torch off",
-                        )
-                    }
-                    IconButton(onClick = { /* visual only */ }) {
-                        Icon(Icons.Outlined.Cameraswitch, contentDescription = "Flip camera, visual only")
-                    }
+                    PulseDot(RathYatraColors.Outline)
+                    Text(copy.scannerActive, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -240,10 +225,10 @@ fun QrAttendanceScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = RathYatraColors.Success)
+                            Icon(Icons.Outlined.Info, contentDescription = null, tint = RathYatraColors.OnSurfaceVariant)
                             Text(copy.lastRegistered, style = MaterialTheme.typography.titleSmall)
                         }
-                        StatusChip(copy.recorded, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success)
+                        StatusChip(copy.recorded, container = RathYatraColors.SurfaceContainerLow, content = RathYatraColors.OnSurfaceVariant)
                     }
                     Text(copy.lastPlace, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
                     StatusChip(copy.lastChip, container = RathYatraColors.GoldPale.copy(alpha = 0.5f), content = RathYatraColors.GoldDark)
@@ -309,6 +294,8 @@ fun QrAttendanceScreen(
                     label = { Text(copy.pinLabel) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     leadingIcon = { Icon(Icons.Outlined.Pin, contentDescription = null) },
+                    // Counter check-in is not connected; do not collect a PIN that goes nowhere.
+                    enabled = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SaffronButton(text = copy.submitPin, onClick = { dialog = "report"; showPin = false; pin = "" })
@@ -348,6 +335,7 @@ private fun SegmentTab(
 
 @Composable
 private fun HistoryRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
+    val copy = LocalCopy.current
     WhiteCard {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(36.dp).clip(CircleShape).background(RathYatraColors.SurfaceContainerLow), contentAlignment = Alignment.Center) {
@@ -357,7 +345,7 @@ private fun HistoryRow(icon: androidx.compose.ui.graphics.vector.ImageVector, ti
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
             }
-            StatusChip("Verified", container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success)
+            StatusChip(copy.lastChip, container = RathYatraColors.SurfaceContainerLow, content = RathYatraColors.OnSurfaceVariant)
         }
     }
 }

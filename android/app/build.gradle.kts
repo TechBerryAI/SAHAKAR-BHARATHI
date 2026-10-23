@@ -1,3 +1,4 @@
+import java.net.URI
 import java.util.Properties
 
 plugins {
@@ -5,15 +6,42 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val localProperties = Properties()
-val localPropertiesFile = listOf(
-    rootProject.file("local.properties"),
-    rootProject.file("../local.properties"),
-).firstOrNull { it.exists() } ?: rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.inputStream().use { localProperties.load(it) }
+fun loadProperties(vararg candidates: File): Properties {
+    val properties = Properties()
+    candidates.firstOrNull { it.exists() }?.inputStream()?.use { properties.load(it) }
+    return properties
 }
-val releaseApiBaseUrl = localProperties.getProperty("api.base.url", "https://api.invalid/")
+
+// Gitignored. local.properties may live in android/ or the repository root.
+val localProperties = loadProperties(rootProject.file("local.properties"), rootProject.file("../local.properties"))
+val keystoreProperties = loadProperties(rootProject.file("keystore.properties"))
+
+// Resolution order: -P Gradle property, environment variable, local.properties.
+fun setting(gradleProperty: String, envVar: String, localKey: String? = null, source: Properties = localProperties): String? {
+    val fromGradle = providers.gradleProperty(gradleProperty).orNull
+    val fromEnv = providers.environmentVariable(envVar).orNull
+    val fromFile = localKey?.let { source.getProperty(it) }
+    return listOf(fromGradle, fromEnv, fromFile).firstOrNull { !it.isNullOrBlank() }?.trim()
+}
+
+val releaseApiBaseUrl = setting("sahakar.apiBaseUrl", "SAHAKAR_API_BASE_URL", "api.base.url")
+// Debug only: emulator default, or e.g. a LAN address for a physical phone.
+val debugApiBaseUrl = setting("sahakar.debugApiBaseUrl", "SAHAKAR_DEBUG_API_BASE_URL", "debug.api.base.url")
+    ?: "http://10.0.2.2:8000/"
+// Compiled into release BuildConfig only when it passes validation; the
+// validateReleaseConfig task below fails the build before anything is packaged otherwise.
+val releaseApiBaseUrlOrPlaceholder = releaseApiBaseUrl ?: "https://api.invalid/"
+
+val versionCodeSetting = setting("sahakar.versionCode", "SAHAKAR_VERSION_CODE")
+val versionNameSetting = setting("sahakar.versionName", "SAHAKAR_VERSION_NAME")
+
+val signingStoreFile = setting("sahakar.keystoreFile", "SAHAKAR_KEYSTORE_FILE", "storeFile", keystoreProperties)
+val signingStorePassword = setting("sahakar.keystorePassword", "SAHAKAR_KEYSTORE_PASSWORD", "storePassword", keystoreProperties)
+val signingKeyAlias = setting("sahakar.keyAlias", "SAHAKAR_KEY_ALIAS", "keyAlias", keystoreProperties)
+val signingKeyPassword = setting("sahakar.keyPassword", "SAHAKAR_KEY_PASSWORD", "keyPassword", keystoreProperties)
+val signingValues = listOf(signingStoreFile, signingStorePassword, signingKeyAlias, signingKeyPassword)
+val releaseSigningConfigured = signingValues.all { it != null }
+val releaseSigningPartial = !releaseSigningConfigured && signingValues.any { it != null }
 
 android {
     namespace = "com.example.sahakarbharati"
@@ -25,18 +53,32 @@ android {
         applicationId = "com.example.sahakarbharati"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionCodeSetting?.toIntOrNull() ?: 1
+        versionName = versionNameSetting ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = rootProject.file(signingStoreFile!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000/\"")
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
         }
         release {
-            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
+            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrlOrPlaceholder\"")
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
@@ -51,6 +93,56 @@ android {
         compose = true
         buildConfig = true
     }
+}
+
+// Returns a problem description, or null when the URL is safe to ship.
+fun releaseApiUrlProblem(value: String?): String? {
+    if (value.isNullOrBlank()) {
+        return "is not set"
+    }
+    val uri = runCatching { URI(value) }.getOrNull() ?: return "is not a valid URL"
+    val host = uri.host?.lowercase() ?: return "has no host"
+    return when {
+        uri.scheme != "https" -> "must use https://"
+        host == "localhost" || host == "10.0.2.2" || host.startsWith("127.") || host == "0.0.0.0" ->
+            "points at a local development server"
+        host.endsWith(".invalid") || host.endsWith(".example") || host.endsWith(".test") ||
+            host == "example.com" || host.endsWith(".example.com") -> "is a placeholder host"
+        !value.endsWith("/") -> "must end with '/' (Retrofit base URLs require it)"
+        !uri.query.isNullOrEmpty() || !uri.fragment.isNullOrEmpty() -> "must not contain a query or fragment"
+        else -> null
+    }
+}
+
+val releaseApiProblem = releaseApiUrlProblem(releaseApiBaseUrl)
+val releaseApiShown = releaseApiBaseUrl.orEmpty()
+
+val validateReleaseConfig = tasks.register("validateReleaseConfig") {
+    group = "verification"
+    description = "Fails release builds that would ship an invalid API URL or partial signing config."
+    val apiProblem = releaseApiProblem
+    val apiShown = releaseApiShown
+    val partialSigning = releaseSigningPartial
+    doLast {
+        if (apiProblem != null) {
+            throw GradleException(
+                "Release API base URL $apiProblem (value: '$apiShown'). Set it with " +
+                    "-Psahakar.apiBaseUrl=https://<api-host>/, the SAHAKAR_API_BASE_URL environment variable, " +
+                    "or api.base.url in gitignored local.properties. See android/README.md.",
+            )
+        }
+        if (partialSigning) {
+            throw GradleException(
+                "Release signing is partially configured. Provide all of SAHAKAR_KEYSTORE_FILE, " +
+                    "SAHAKAR_KEYSTORE_PASSWORD, SAHAKAR_KEY_ALIAS and SAHAKAR_KEY_PASSWORD (or keystore.properties), " +
+                    "or none of them to build an unsigned release.",
+            )
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(validateReleaseConfig)
 }
 
 dependencies {
