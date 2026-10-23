@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import (
-    DuplicateAccountError,
     InvalidOtpError,
+    MobileAlreadyRegisteredError,
     RateLimitedError,
     VerificationRequiredError,
 )
@@ -38,7 +38,7 @@ class PhoneVerificationService:
         """Store a new challenge and hand the SMS to `defer` (e.g. BackgroundTasks.add_task),
         so the caller gets a response without waiting on the SMS gateway."""
         if self.users.get_by_mobile(mobile):
-            raise DuplicateAccountError()
+            raise MobileAlreadyRegisteredError()
         now = datetime.now(UTC)
         existing = self.challenges.for_mobile(mobile)
         latest = existing[0] if existing else None

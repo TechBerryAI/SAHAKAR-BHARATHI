@@ -3,7 +3,11 @@ from __future__ import annotations
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.errors import DuplicateAccountError
+from app.core.errors import (
+    DuplicateAccountError,
+    EmailAlreadyRegisteredError,
+    MobileAlreadyRegisteredError,
+)
 from app.core.security import generate_login_id, hash_identifier, hash_pin
 from app.db.session import is_unique_violation
 from app.models.registration import Registration
@@ -25,7 +29,10 @@ class RegistrationService:
 
     def register(self, payload: RegistrationCreate) -> RegistrationResponse:
         if self.users.exists_with_mobile_or_email(payload.mobile, payload.email):
-            raise DuplicateAccountError()
+            # One query on the normal path; only a duplicate pays for telling which field clashed.
+            if self.users.get_by_mobile(payload.mobile):
+                raise MobileAlreadyRegisteredError()
+            raise EmailAlreadyRegisteredError()
         self.phone_verifications.consume(payload.mobile, payload.verification_token)
 
         login_id = generate_login_id()
