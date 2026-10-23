@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Seal } from '../components/Seal.tsx'
 import { Button, ErrorBanner, Field } from '../components/ui.tsx'
 import { apiErrorText, signIn } from '../lib/api.ts'
@@ -10,7 +10,11 @@ const PIN_PATTERN = /^\d{4,6}$/
 export function SignInScreen() {
   const navigate = useNavigate()
   const { copy } = useLanguage()
-  const [identifier, setIdentifier] = useState('')
+  const location = useLocation()
+  // Registration sends people here with their number when it already has an account.
+  const [identifier, setIdentifier] = useState(
+    () => (location.state as { identifier?: string } | null)?.identifier ?? '',
+  )
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)

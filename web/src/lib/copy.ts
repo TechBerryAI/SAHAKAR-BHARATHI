@@ -5,6 +5,7 @@ export type AppCopy = {
   govChip: string
   brandName: string
   appTitle: string
+  welcomeTitle: string
   honour: string
   subtitle: string
   registerNow: string
@@ -68,6 +69,10 @@ export type AppCopy = {
   signInFailed: string
   invalidCredentials: string
   duplicateAccount: string
+  mobileRegistered: string
+  emailRegistered: string
+  verificationExpired: string
+  otpResendWait: string
   tooManyAttempts: string
   networkError: string
   chooseLanguage: string
@@ -121,6 +126,7 @@ export type AppCopy = {
   dobDay: string
   dobMonth: string
   dobYear: string
+  monthNames: string
   ageMin: string
   occupationHint: string
   occupationSelect: string
@@ -151,6 +157,7 @@ const HI: AppCopy = {
   govChip: 'भारत सरकार',
   brandName: 'सहकार भारती',
   appTitle: 'सहकार भारती रथ यात्रा',
+  welcomeTitle: 'सहकार भारती में आपका स्वागत है',
   honour: 'भारत के अन्न नायकों का सम्मान',
   subtitle: 'किसान और मछुआरा उत्सव',
   registerNow: 'अभी पंजीकरण करें',
@@ -214,6 +221,10 @@ const HI: AppCopy = {
   signInFailed: 'साइन इन नहीं हो सका।',
   invalidCredentials: 'लॉगिन आईडी या पिन गलत है।',
   duplicateAccount: 'इन विवरणों से एक खाता पहले से मौजूद है।',
+  mobileRegistered: 'इस मोबाइल नंबर से खाता पहले से मौजूद है। कृपया साइन इन करें।',
+  emailRegistered: 'इस ईमेल पते से खाता पहले से मौजूद है।',
+  verificationExpired: 'आपके मोबाइल का सत्यापन समाप्त हो गया है। कृपया अपना नंबर फिर से सत्यापित करें।',
+  otpResendWait: 'नया ओटीपी माँगने से पहले कृपया एक मिनट प्रतीक्षा करें।',
   tooManyAttempts: 'बहुत अधिक प्रयास हो गए। कुछ देर बाद फिर कोशिश करें।',
   networkError: 'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें।',
   chooseLanguage: 'भाषा चुनें',
@@ -268,6 +279,7 @@ const HI: AppCopy = {
   dobDay: 'दिन',
   dobMonth: 'माह',
   dobYear: 'वर्ष',
+  monthNames: 'जनवरी फ़रवरी मार्च अप्रैल मई जून जुलाई अगस्त सितंबर अक्टूबर नवंबर दिसंबर',
   ageMin: 'स्वतंत्र पास के लिए न्यूनतम आयु 18 वर्ष।',
   occupationHint: 'कार्यक्रमों में किसानों और मछुआरों की पहचान के लिए।',
   occupationSelect: 'चुनें',
@@ -298,6 +310,7 @@ const EN: AppCopy = {
   govChip: 'Government of India',
   brandName: 'Sahakar Bharati',
   appTitle: 'Sahakar Bharati Rath Yatra',
+  welcomeTitle: 'Welcome to Sahakar Bharati',
   honour: "Honouring India's food heroes",
   subtitle: 'Farmers & Fishermen Celebration',
   registerNow: 'Register Now',
@@ -361,6 +374,10 @@ const EN: AppCopy = {
   signInFailed: 'Sign in failed.',
   invalidCredentials: 'Login ID or PIN is incorrect.',
   duplicateAccount: 'An account with these details already exists.',
+  mobileRegistered: 'An account already exists for this mobile number. Please sign in.',
+  emailRegistered: 'An account already exists with this email address.',
+  verificationExpired: 'Your mobile verification has expired. Please verify your number again.',
+  otpResendWait: 'Please wait a minute before requesting another OTP.',
   tooManyAttempts: 'Too many attempts. Try again later.',
   networkError: 'The server could not be reached. Check your connection.',
   chooseLanguage: 'Choose language',
@@ -415,6 +432,7 @@ const EN: AppCopy = {
   dobDay: 'Day',
   dobMonth: 'Month',
   dobYear: 'Year',
+  monthNames: 'January February March April May June July August September October November December',
   ageMin: 'Minimum age 18 for an independent pass.',
   occupationHint: 'Used to recognise farmers and fishermen at the events.',
   occupationSelect: 'Select',

@@ -557,17 +557,21 @@ a {
 .start__glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 20%, rgba(240, 138, 36, 0.12), rgba(255, 255, 255, 0) 46%);
+  background: radial-gradient(circle at 50% 40%, rgba(240, 138, 36, 0.12), rgba(255, 255, 255, 0) 46%);
   pointer-events: none;
 }
 
+/* Three rows: picker, brand, buttons. The equal outer rows keep the brand in the middle of
+   the screen; on short screens they grow to fit their content and the page scrolls. */
 .start__content {
   position: relative;
   z-index: 1;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  justify-items: center;
   padding: 18px 22px 20px;
   text-align: center;
 }
@@ -575,6 +579,7 @@ a {
 .start__top {
   position: relative;
   z-index: 5;
+  align-self: start;
   width: 100%;
   display: flex;
   align-items: center;
@@ -582,11 +587,18 @@ a {
   gap: 12px;
 }
 
+.start__hero {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+}
+
 .start__emblem {
   width: 148px;
   height: 148px;
   object-fit: contain;
-  margin-top: 36px;
 }
 
 .start__honour {
@@ -598,11 +610,13 @@ a {
 }
 
 .start__title {
+  width: 100%;
   margin: 10px 0 0;
   color: #163a78;
   font-size: 34px;
   line-height: 1.15;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .start__subtitle {
@@ -614,9 +628,9 @@ a {
 }
 
 .start__actions {
+  align-self: end;
   width: 100%;
-  margin-top: auto;
-  padding-top: 28px;
+  padding-top: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -945,6 +959,12 @@ html[dir='rtl'] .lang-sheet__option {
 .verify__submit {
   border-radius: 999px;
   min-height: 52px;
+}
+
+.verify__signin {
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 999px;
 }
 
 .signin {
@@ -1315,10 +1335,52 @@ html[dir='rtl'] .lang-sheet__option {
   color: #b85d12;
 }
 
+/* Day, month and year always share one row; the month gets the most room for its name. */
 .reg-dob {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.82fr) minmax(0, 1.04fr);
+  gap: 6px;
+}
+
+/* While still empty, the "Day / Month / Year" prompt is smaller so long words fit. */
+.reg-dob select.field__control:invalid {
+  font-size: 13px;
+}
+
+/* A slim custom arrow leaves more room for the text than the browser's own. */
+.reg-dob select.field__control {
+  width: 100%;
+  min-width: 0;
+  padding: 0 17px 0 7px;
+  appearance: none;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2317263f' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 6px center;
+}
+
+/* Below iPhone widths (where 16px is needed to stop zoom on focus) the text can be smaller. */
+@media (max-width: 374px) {
+  .reg-dob select.field__control {
+    font-size: 14px;
+  }
+
+  .reg-dob select.field__control:invalid {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 340px) {
+  .reg-dob {
+    gap: 3px;
+  }
+
+  .reg-dob select.field__control {
+    font-size: 13px;
+    padding: 0 14px 0 5px;
+    background-position: right 4px center;
+  }
+
+  .reg-dob select.field__control:invalid {
+    font-size: 11px;
+  }
 }
 
 .reg .field__control,

@@ -29,19 +29,27 @@ export class ApiError extends Error {
 // The API sends English error details; show the known ones in the chosen language.
 const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
   'An account with these details already exists.': 'duplicateAccount',
+  'An account already exists for this mobile number.': 'mobileRegistered',
+  'An account already exists with this email address.': 'emailRegistered',
   'Login ID or PIN is incorrect.': 'invalidCredentials',
   'Too many attempts. Try again later.': 'tooManyAttempts',
   'The code is incorrect or has expired.': 'otpInvalid',
-  'Verify this mobile number before registering.': 'otpVerifyRequired',
+  'Verify this mobile number before registering.': 'verificationExpired',
+}
+
+/** Which known error this is, so a screen can react to it (not just show its text). */
+export function apiErrorKey(err: unknown): keyof AppCopy | null {
+  if (!(err instanceof ApiError)) return null
+  if (err.status === 0) return 'networkError'
+  const key = SERVER_MESSAGES[err.message]
+  if (key) return key
+  if (err.status === 429) return 'tooManyAttempts'
+  return null
 }
 
 export function apiErrorText(err: unknown, copy: AppCopy, fallback: string): string {
-  if (!(err instanceof ApiError)) return fallback
-  if (err.status === 0) return copy.networkError
-  const key = SERVER_MESSAGES[err.message]
-  if (key) return copy[key]
-  if (err.status === 429) return copy.tooManyAttempts
-  return fallback
+  const key = apiErrorKey(err)
+  return key ? copy[key] : fallback
 }
 
 const rawBase = import.meta.env.VITE_API_BASE_URL
