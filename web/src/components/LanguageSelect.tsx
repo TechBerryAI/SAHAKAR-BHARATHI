@@ -114,7 +114,10 @@ export function LanguageSelect({ variant = 'dark' }: LanguageSelectProps) {
                           >
                             <span className="lang-sheet__copy">
                               <span className="lang-sheet__native">{option.native}</span>
-                              <span className="lang-sheet__name">{option.name}</span>
+                              {/* English names only in English; every other UI stays in its own language. */}
+                              {language === 'en' ? (
+                                <span className="lang-sheet__name">{option.name}</span>
+                              ) : null}
                             </span>
                             {selected ? (
                               <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">

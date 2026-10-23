@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LanguageSelect } from '../components/LanguageSelect.tsx'
-import { Button, Card, ErrorBanner, Field } from '../components/ui.tsx'
+import { Button, Card, ErrorBanner, Field, RequiredMark } from '../components/ui.tsx'
 import {
   ApiError,
+  apiErrorText,
   confirmPhoneVerification,
   registerAndSignIn,
   sendPhoneVerification,
@@ -17,6 +17,7 @@ import { GENDERS, OCCUPATIONS } from '../lib/types.ts'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PIN_PATTERN = /^\d{4,6}$/
+const PINCODE_PATTERN = /^\d{6}$/
 const INDIAN_MOBILE = /^[6-9]\d{9}$/
 
 type Gate = 'mobile' | 'details'
@@ -73,6 +74,10 @@ function tracksFor(copy: AppCopy) {
   return [copy.stepPersonalTrack, copy.stepContactTrack, copy.stepProfileTrack, copy.stepSecurityTrack]
 }
 
+function sectionId(index: number) {
+  return `reg-section-${index}`
+}
+
 function genderLabel(copy: AppCopy, gender: Gender) {
   if (gender === 'Male') return copy.male
   if (gender === 'Female') return copy.female
@@ -101,8 +106,8 @@ function joinDob(year: string, month: string, day: string) {
   return `${year}-${month}-${day.padStart(2, '0')}`
 }
 
-function validateStep(step: number, form: FormState, copy: AppCopy): string {
-  if (step === 0) {
+function validateSection(section: number, form: FormState, copy: AppCopy): string {
+  if (section === 0) {
     if (form.full_name.trim().length < 2) return copy.fullNameRequired
     if (!form.gender) return copy.genderRequired
     if (!form.date_of_birth || !isValidIsoDate(form.date_of_birth)) return copy.dobRequired
@@ -110,14 +115,15 @@ function validateStep(step: number, form: FormState, copy: AppCopy): string {
     if (!form.occupation) return copy.occupationRequired
     return ''
   }
-  if (step === 1) {
+  if (section === 1) {
     if (!INDIAN_MOBILE.test(form.mobile)) return copy.mobileRequired
     if (form.email.trim() && !EMAIL_PATTERN.test(form.email.trim())) return copy.validEmail
     return ''
   }
-  if (step === 2) {
-    if (!form.address_line.trim() && !form.locality.trim()) return copy.addressRequired
-    if (form.pincode && !/^\d{6}$/.test(form.pincode)) return copy.pinDigits
+  if (section === 2) {
+    if (!form.district.trim()) return copy.districtRequired
+    if (!form.state.trim()) return copy.stateRequired
+    if (!PINCODE_PATTERN.test(form.pincode)) return copy.pinDigits
     return ''
   }
   if (!PIN_PATTERN.test(form.pin)) return copy.passwordLength
@@ -125,35 +131,61 @@ function validateStep(step: number, form: FormState, copy: AppCopy): string {
   return ''
 }
 
+// Required items per section, mirroring validateSection: a section is complete
+// exactly when all of its items pass. Optional fields only count when they are invalid.
+function sectionChecks(section: number, form: FormState): boolean[] {
+  if (section === 0) {
+    const dobOk =
+      isValidIsoDate(form.date_of_birth) && ageYears(form.date_of_birth) >= 18
+    return [form.full_name.trim().length >= 2, Boolean(form.gender), dobOk, Boolean(form.occupation)]
+  }
+  if (section === 1) {
+    const emailOk = !form.email.trim() || EMAIL_PATTERN.test(form.email.trim())
+    return [INDIAN_MOBILE.test(form.mobile), emailOk]
+  }
+  if (section === 2) {
+    return [Boolean(form.district.trim()), Boolean(form.state.trim()), PINCODE_PATTERN.test(form.pincode)]
+  }
+  return [PIN_PATTERN.test(form.pin), form.confirmPin !== '' && form.confirmPin === form.pin]
+}
+
 export function RegisterScreen() {
   const navigate = useNavigate()
   const { copy } = useLanguage()
   const { ready, uid } = useSession()
   const createdOnThisPage = useRef(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const verifyErrorRef = useRef<HTMLDivElement>(null)
   const [gate, setGate] = useState<Gate>('mobile')
-  const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [otp, setOtp] = useState('')
   const [challengeId, setChallengeId] = useState('')
   const [verificationToken, setVerificationToken] = useState('')
   const [otpNote, setOtpNote] = useState('')
   const [error, setError] = useState('')
+  // Section whose validation failed; null shows the error at the top of the form.
+  const [errorSection, setErrorSection] = useState<number | null>(null)
+  const [activeSection, setActiveSection] = useState(0)
   const [busy, setBusy] = useState(false)
   const [otpBusy, setOtpBusy] = useState(false)
   const [showSos, setShowSos] = useState(false)
   const [dobDay, setDobDay] = useState('')
   const [dobMonth, setDobMonth] = useState('')
   const [dobYear, setDobYear] = useState('')
-  const [locating, setLocating] = useState(false)
-  const [locationNote, setLocationNote] = useState('')
   const titles = titlesFor(copy)
   const tracks = tracksFor(copy)
-  const stepPercent = (step + 1) * 25
-  const stepBadge = copy.stepBadge
-    .replace('{current}', String(step + 1))
-    .replace('{title}', titles[step].toUpperCase())
-    .replace('{percent}', String(stepPercent))
+  const fractions = titles.map((_, index) => {
+    const checks = sectionChecks(index, form)
+    return checks.filter(Boolean).length / checks.length
+  })
+  const completed = fractions.map((fraction) => fraction === 1)
+  const doneCount = completed.filter(Boolean).length
+  const progressPercent = Math.round(
+    (fractions.reduce((sum, fraction) => sum + fraction, 0) / fractions.length) * 100,
+  )
+  const progressBadge = copy.formProgress
+    .replace('{done}', String(doneCount))
+    .replace('{percent}', String(progressPercent))
   const currentYear = new Date().getFullYear()
   const years = Array.from({ length: 90 }, (_, index) => String(currentYear - 10 - index))
   const months = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'))
@@ -181,57 +213,6 @@ export function RegisterScreen() {
     }
   }
 
-  async function fillFromLocation() {
-    if (locating || !navigator.geolocation) {
-      setLocationNote(copy.locationUnavailable)
-      return
-    }
-    setLocating(true)
-    setLocationNote(copy.locatingAddress)
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 12000,
-        })
-      })
-      const { latitude, longitude } = position.coords
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-        { headers: { Accept: 'application/json' } },
-      )
-      if (!response.ok) throw new Error('geocode')
-      const data = (await response.json()) as {
-        address?: Record<string, string>
-        display_name?: string
-      }
-      const place = data.address ?? {}
-      const line = [place.house_number, place.road || place.pedestrian || place.residential]
-        .filter(Boolean)
-        .join(' ')
-      setForm((current) => ({
-        ...current,
-        address_line: line || data.display_name?.split(',')[0] || current.address_line,
-        locality:
-          place.village ||
-          place.town ||
-          place.suburb ||
-          place.neighbourhood ||
-          place.city_district ||
-          current.locality,
-        district: place.county || place.state_district || place.city || current.district,
-        state: place.state || current.state,
-        pincode: (place.postcode || '').replace(/\D/g, '').slice(0, 6) || current.pincode,
-      }))
-      setLocationNote(copy.locationFilled)
-    } catch (err) {
-      const code = typeof err === 'object' && err && 'code' in err ? Number(err.code) : 0
-      setLocationNote(code === 1 ? copy.locationDenied : copy.locationUnavailable)
-    } finally {
-      setLocating(false)
-    }
-  }
-
   function setDob(next: { day?: string; month?: string; year?: string }) {
     const day = next.day ?? dobDay
     const month = next.month ?? dobMonth
@@ -244,15 +225,50 @@ export function RegisterScreen() {
 
   function goBack() {
     setError('')
+    setErrorSection(null)
     if (gate === 'mobile') {
       navigate('/')
       return
     }
-    if (step === 0) {
-      setGate('mobile')
+    setGate('mobile')
+  }
+
+  function scrollToSection(section: number) {
+    document.getElementById(sectionId(section))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // The section in view is the last one whose heading has passed 30% of the scroll area;
+  // once scrolled to the very bottom it is the last section.
+  function trackActiveSection() {
+    const body = bodyRef.current
+    if (!body) return
+    if (body.scrollTop > 0 && body.scrollTop + body.clientHeight >= body.scrollHeight - 4) {
+      setActiveSection(titles.length - 1)
       return
     }
-    setStep((current) => current - 1)
+    const marker = body.getBoundingClientRect().top + body.clientHeight * 0.3
+    let current = 0
+    titles.forEach((_, index) => {
+      const top = document.getElementById(sectionId(index))?.getBoundingClientRect().top
+      if (top !== undefined && top <= marker) current = index
+    })
+    setActiveSection(current)
+  }
+
+  function showError(message: string, section: number | null) {
+    setError(message)
+    setErrorSection(section)
+    if (section === null) bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    else scrollToSection(section)
+  }
+
+  function sectionProps(index: number) {
+    return {
+      index,
+      title: titles[index],
+      done: completed[index],
+      error: errorSection === index ? error : '',
+    }
   }
 
   async function sendOtp() {
@@ -270,7 +286,7 @@ export function RegisterScreen() {
       setOtp('')
       setOtpNote(copy.otpSent)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : copy.otpSendFailed)
+      setError(apiErrorText(err, copy, copy.otpSendFailed))
     } finally {
       setOtpBusy(false)
     }
@@ -292,10 +308,9 @@ export function RegisterScreen() {
       const confirmed = await confirmPhoneVerification(challengeId, otp)
       setVerificationToken(confirmed.verification_token)
       setOtpNote(copy.otpVerified)
-      setStep(0)
       setGate('details')
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : copy.otpVerifyFailed)
+      setError(apiErrorText(err, copy, copy.otpVerifyFailed))
       if (err instanceof ApiError && err.status === 429) {
         // This code can no longer be verified; go back to "Send OTP" for a new one.
         setChallengeId('')
@@ -307,22 +322,21 @@ export function RegisterScreen() {
     }
   }
 
-  async function onContinue(event: FormEvent) {
+  async function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const message = validateStep(step, form, copy)
-    if (message) {
-      setError(message)
-      return
+    for (let section = 0; section < titles.length; section += 1) {
+      const message = validateSection(section, form, copy)
+      if (message) {
+        showError(message, section)
+        return
+      }
     }
     if (!verificationToken) {
-      setError(copy.otpVerifyRequired)
+      showError(copy.otpVerifyRequired, 1)
       return
     }
     setError('')
-    if (step < 3) {
-      setStep((current) => current + 1)
-      return
-    }
+    setErrorSection(null)
 
     const body: RegistrationCreate = {
       full_name: form.full_name.trim(),
@@ -346,7 +360,7 @@ export function RegisterScreen() {
       await registerAndSignIn(body)
       navigate('/register/success', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : copy.registrationFailed)
+      showError(apiErrorText(err, copy, copy.registrationFailed), null)
     } finally {
       setBusy(false)
     }
@@ -356,13 +370,12 @@ export function RegisterScreen() {
     return (
       <section className="verify">
         <header className="verify__bar">
-          <button type="button" className="verify__back" aria-label="Back" onClick={goBack}>
+          <button type="button" className="verify__back" aria-label={copy.back} onClick={goBack}>
             <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="currentColor" d="M19 11H7.83l4.58-4.59L11 5l-7 7 7 7 1.41-1.41L7.83 13H19z" />
             </svg>
           </button>
           <h1>{copy.verifyMobile}</h1>
-          <LanguageSelect variant="light" />
         </header>
         <form
           className="verify__form"
@@ -373,9 +386,6 @@ export function RegisterScreen() {
           }}
         >
           <div className="verify__body">
-            <Card title={copy.mobileTitle}>
-              <p className="card__body">{copy.mobileBody}</p>
-            </Card>
             <Card>
               <label className="field" htmlFor="mobile">
                 <span className="field__label">{copy.mobileLabel}</span>
@@ -447,20 +457,20 @@ export function RegisterScreen() {
             <path fill="currentColor" d="M19 11H7.83l4.58-4.59L11 5l-7 7 7 7 1.41-1.41L7.83 13H19z" />
           </svg>
         </button>
-        <h1>{titles[step]}</h1>
+        <h1>{copy.registrationTitle}</h1>
         <button type="button" className="reg__sos" onClick={() => setShowSos(true)}>
           {copy.sos}
         </button>
       </header>
       <div className="reg__accent" />
-      <form className="reg__form" onSubmit={onContinue}>
-        <div className="reg__body">
-          <ErrorBanner message={error} />
+      <form className="reg__form" onSubmit={onSubmit} noValidate>
+        <div className="reg__body" ref={bodyRef} onScroll={trackActiveSection}>
+          {errorSection === null ? <ErrorBanner message={error} /> : null}
           <section className="reg-card">
             <div className="reg-card__row">
               <span className="reg-chip">
                 <span className="reg-chip__dot" />
-                {stepBadge}
+                {progressBadge}
               </span>
               <span className="reg-portal">
                 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -472,275 +482,275 @@ export function RegisterScreen() {
                 {copy.govtPortal}
               </span>
             </div>
-            <div className="reg-track" aria-hidden="true">
-              <span className="reg-track__fill" style={{ width: `${stepPercent}%` }} />
-            </div>
             <ol className="reg-steps">
               {tracks.map((label, index) => (
-                <li key={label} className={index === step ? 'is-current' : undefined}>
-                  {label}
+                <li key={label}>
+                  <button
+                    type="button"
+                    className={
+                      [completed[index] && 'is-done', index === activeSection && 'is-active']
+                        .filter(Boolean)
+                        .join(' ') || undefined
+                    }
+                    aria-current={index === activeSection ? 'step' : undefined}
+                    onClick={() => scrollToSection(index)}
+                  >
+                    <span className="reg-steps__bar" aria-hidden="true">
+                      <span
+                        className="reg-steps__fill"
+                        style={{ width: `${Math.round(fractions[index] * 100)}%` }}
+                      />
+                    </span>
+                    <span className="reg-steps__label">
+                      {completed[index] ? (
+                        <svg
+                          className="reg-steps__check"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      ) : null}
+                      {label}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ol>
           </section>
 
-          {step === 0 ? (
-            <>
-              <section className="reg-card">
-                <label className="field" htmlFor="full_name">
-                  <span className="field__label">{copy.legalName}</span>
-                  <input
-                    id="full_name"
-                    name="full_name"
-                    className="field__control"
-                    autoComplete="name"
-                    value={form.full_name}
-                    onChange={(event) => update('full_name', event.target.value)}
-                  />
-                  <p className="field__hint">{copy.nameAadhaarHint}</p>
-                </label>
-              </section>
-              <section className="reg-card">
-                <div className="reg-card__row">
-                  <span className="field__label">{copy.gender}</span>
-                  <span className="reg-required">{copy.mandatory}</span>
-                </div>
-                <div className="reg-genders">
-                  {GENDERS.map((gender) => (
-                    <button
-                      key={gender}
-                      type="button"
-                      className={`reg-gender${form.gender === gender ? ' is-selected' : ''}`}
-                      aria-pressed={form.gender === gender}
-                      onClick={() => update('gender', form.gender === gender ? '' : gender)}
-                    >
-                      <GenderIcon gender={gender} />
-                      {genderLabel(copy, gender)}
-                    </button>
-                  ))}
-                </div>
-              </section>
-              <section className="reg-card">
-                <span className="field__label">{copy.dobFull}</span>
-                <div className="reg-dob">
-                  <select
-                    className="field__control"
-                    aria-label={copy.dobDay}
-                    value={dobDay}
-                    onChange={(event) => setDob({ day: event.target.value })}
+          <RegSection {...sectionProps(0)}>
+            <section className="reg-card">
+              <label className="field" htmlFor="full_name">
+                <span className="field__label">
+                  {copy.legalName}
+                  <RequiredMark />
+                </span>
+                <input
+                  id="full_name"
+                  name="full_name"
+                  className="field__control"
+                  autoComplete="name"
+                  required
+                  value={form.full_name}
+                  onChange={(event) => update('full_name', event.target.value)}
+                />
+                <p className="field__hint">{copy.nameAadhaarHint}</p>
+              </label>
+            </section>
+            <section className="reg-card">
+              <span className="field__label" id="gender_label">
+                {copy.gender}
+                <RequiredMark />
+              </span>
+              <div className="reg-genders" role="group" aria-labelledby="gender_label">
+                {GENDERS.map((gender) => (
+                  <button
+                    key={gender}
+                    type="button"
+                    className={`reg-gender${form.gender === gender ? ' is-selected' : ''}`}
+                    aria-pressed={form.gender === gender}
+                    onClick={() => update('gender', form.gender === gender ? '' : gender)}
                   >
-                    <option value="">{copy.dobDay}</option>
-                    {days.map((day) => (
-                      <option key={day} value={day}>
-                        {day}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="field__control"
-                    aria-label={copy.dobMonth}
-                    value={dobMonth}
-                    onChange={(event) => setDob({ month: event.target.value })}
-                  >
-                    <option value="">{copy.dobMonth}</option>
-                    {months.map((month) => (
-                      <option key={month} value={month}>
-                        {month}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="field__control"
-                    aria-label={copy.dobYear}
-                    value={dobYear}
-                    onChange={(event) => setDob({ year: event.target.value })}
-                  >
-                    <option value="">{copy.dobYear}</option>
-                    {years.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <p className="field__hint">{copy.ageMin}</p>
-              </section>
-              <section className="reg-card">
-                <span className="field__label">{copy.occupation}</span>
-                <p className="field__hint">{copy.occupationHint}</p>
+                    <GenderIcon gender={gender} />
+                    {genderLabel(copy, gender)}
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="reg-card">
+              <span className="field__label">
+                {copy.dobFull}
+                <RequiredMark />
+              </span>
+              <div className="reg-dob">
                 <select
                   className="field__control"
-                  aria-label={copy.occupation}
-                  value={form.occupation}
-                  onChange={(event) => update('occupation', event.target.value as Occupation | '')}
+                  aria-label={copy.dobDay}
+                  required
+                  value={dobDay}
+                  onChange={(event) => setDob({ day: event.target.value })}
                 >
-                  <option value="">{copy.occupationSelect}</option>
-                  {OCCUPATIONS.map((occupation) => (
-                    <option key={occupation} value={occupation}>
-                      {occupationLabel(copy, occupation)}
+                  <option value="">{copy.dobDay}</option>
+                  {days.map((day) => (
+                    <option key={day} value={day}>
+                      {day}
                     </option>
                   ))}
                 </select>
-              </section>
-            </>
-          ) : null}
-
-          {step === 1 ? (
-            <>
-              <section className="reg-card">
-                <p className="reg-lead__title">{copy.contactCardTitle}</p>
-                <p className="reg-lead__body">{copy.contactCardBody}</p>
-              </section>
-              <section className="reg-card">
-                <label className="field" htmlFor="contact_mobile">
-                  <span className="field__label">{copy.mobileLabel}</span>
-                  <span className="reg-phone">
-                    <span className="reg-phone__prefix">+91</span>
-                    <input
-                      id="contact_mobile"
-                      name="mobile"
-                      className="reg-phone__input"
-                      readOnly
-                      value={form.mobile}
-                    />
-                  </span>
-                  <p className="field__hint">{copy.contactVerifiedHint}</p>
-                </label>
-              </section>
-              <section className="reg-card">
-                <Field
-                  label={copy.emailOptional}
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={form.email}
-                  onChange={(event) => update('email', event.target.value)}
-                  hint={copy.contactEmailHint}
-                />
-              </section>
-            </>
-          ) : null}
-
-          {step === 2 ? (
-            <>
-              <section className="reg-card">
-                <p className="reg-lead__title">{copy.addressCardTitle}</p>
-                <p className="reg-lead__body">{copy.addressCardBody}</p>
-                <button
-                  type="button"
-                  className="reg-locate"
-                  onClick={() => void fillFromLocation()}
-                  disabled={locating}
+                <select
+                  className="field__control"
+                  aria-label={copy.dobMonth}
+                  required
+                  value={dobMonth}
+                  onChange={(event) => setDob({ month: event.target.value })}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      fill="currentColor"
-                      d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8m8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7"
-                    />
-                  </svg>
-                  <span>
-                    <span className="reg-locate__title">
-                      {locating ? copy.locatingAddress : copy.useMyLocation}
-                    </span>
-                    <span className="reg-locate__hint">{copy.useMyLocationHint}</span>
-                  </span>
-                </button>
-                {locationNote ? <p className="field__hint">{locationNote}</p> : null}
-                <Field
-                  label={copy.houseLabel}
-                  name="address_line"
-                  autoComplete="street-address"
-                  value={form.address_line}
-                  onChange={(event) => update('address_line', event.target.value)}
-                  hint={copy.houseHint}
-                />
-                <Field
-                  label={copy.localityLabel}
-                  name="locality"
-                  value={form.locality}
-                  onChange={(event) => update('locality', event.target.value)}
-                />
-                <div className="reg-split">
-                  <Field
-                    label={copy.districtLabel}
-                    name="district"
-                    value={form.district}
-                    onChange={(event) => update('district', event.target.value)}
-                  />
-                  <Field
-                    label={copy.stateLabel}
-                    name="state"
-                    value={form.state}
-                    onChange={(event) => update('state', event.target.value)}
-                  />
-                </div>
-                <Field
-                  label={copy.pincodeLabel}
-                  name="pincode"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={form.pincode}
-                  onChange={(event) => update('pincode', event.target.value.replace(/\D/g, '').slice(0, 6))}
-                />
-              </section>
-            </>
-          ) : null}
+                  <option value="">{copy.dobMonth}</option>
+                  {months.map((month) => (
+                    <option key={month} value={month}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="field__control"
+                  aria-label={copy.dobYear}
+                  required
+                  value={dobYear}
+                  onChange={(event) => setDob({ year: event.target.value })}
+                >
+                  <option value="">{copy.dobYear}</option>
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="field__hint">{copy.ageMin}</p>
+            </section>
+            <section className="reg-card">
+              <span className="field__label">
+                {copy.occupation}
+                <RequiredMark />
+              </span>
+              <p className="field__hint">{copy.occupationHint}</p>
+              <select
+                className="field__control"
+                aria-label={copy.occupation}
+                required
+                value={form.occupation}
+                onChange={(event) => update('occupation', event.target.value as Occupation | '')}
+              >
+                <option value="">{copy.occupationSelect}</option>
+                {OCCUPATIONS.map((occupation) => (
+                  <option key={occupation} value={occupation}>
+                    {occupationLabel(copy, occupation)}
+                  </option>
+                ))}
+              </select>
+            </section>
+          </RegSection>
 
-          {step === 3 ? (
-            <>
-              <section className="reg-card">
-                <p className="reg-lead__title">{copy.securityCardTitle}</p>
-                <p className="reg-lead__body">{copy.securityCardBody}</p>
-              </section>
-              <section className="reg-card">
-                <Field
-                  label={copy.securityPinLabel}
-                  name="pin"
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="new-password"
-                  maxLength={6}
-                  value={form.pin}
-                  onChange={(event) => update('pin', event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  hint={copy.securityPinHint}
-                  revealable
-                  revealShowLabel={copy.showPin}
-                  revealHideLabel={copy.hidePin}
-                />
-              </section>
-              <section className="reg-card">
-                <Field
-                  label={copy.securityConfirmPin}
-                  name="confirmPin"
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="new-password"
-                  maxLength={6}
-                  value={form.confirmPin}
-                  onChange={(event) =>
-                    update('confirmPin', event.target.value.replace(/\D/g, '').slice(0, 6))
-                  }
-                />
-              </section>
-            </>
-          ) : null}
-
-          <section className="reg-card reg-privacy">
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5zm-1 6h2v2h-2zm0 4h2v6h-2z"
+          <RegSection {...sectionProps(1)}>
+            <section className="reg-card">
+              <label className="field" htmlFor="contact_mobile">
+                <span className="field__label">{copy.mobileLabel}</span>
+                <span className="reg-phone">
+                  <span className="reg-phone__prefix">+91</span>
+                  <input
+                    id="contact_mobile"
+                    name="mobile"
+                    className="reg-phone__input"
+                    readOnly
+                    value={form.mobile}
+                  />
+                </span>
+                <p className="field__hint">{copy.contactVerifiedHint}</p>
+              </label>
+            </section>
+            <section className="reg-card">
+              <Field
+                label={copy.emailOptional}
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={form.email}
+                onChange={(event) => update('email', event.target.value)}
+                hint={copy.contactEmailHint}
               />
-            </svg>
-            <div>
-              <p className="reg-privacy__title">{copy.privacyTitle}</p>
-              <p className="reg-privacy__body">{copy.privacyBody}</p>
-            </div>
-          </section>
+            </section>
+          </RegSection>
+
+          <RegSection {...sectionProps(2)}>
+            <section className="reg-card">
+              <p className="reg-lead__body">{copy.addressCardBody}</p>
+              <Field
+                label={copy.houseLabel}
+                name="address_line"
+                autoComplete="street-address"
+                value={form.address_line}
+                onChange={(event) => update('address_line', event.target.value)}
+              />
+              <Field
+                label={copy.localityLabel}
+                name="locality"
+                value={form.locality}
+                onChange={(event) => update('locality', event.target.value)}
+              />
+              <div className="reg-split">
+                <Field
+                  label={copy.districtLabel}
+                  name="district"
+                  required
+                  value={form.district}
+                  onChange={(event) => update('district', event.target.value)}
+                />
+                <Field
+                  label={copy.stateLabel}
+                  name="state"
+                  required
+                  value={form.state}
+                  onChange={(event) => update('state', event.target.value)}
+                />
+              </div>
+              <Field
+                label={copy.pincodeLabel}
+                name="pincode"
+                inputMode="numeric"
+                maxLength={6}
+                required
+                value={form.pincode}
+                onChange={(event) => update('pincode', event.target.value.replace(/\D/g, '').slice(0, 6))}
+              />
+            </section>
+          </RegSection>
+
+          <RegSection {...sectionProps(3)}>
+            <section className="reg-card">
+              <p className="reg-lead__title">{copy.securityCardTitle}</p>
+              <p className="reg-lead__body">{copy.securityCardBody}</p>
+            </section>
+            <section className="reg-card">
+              <Field
+                label={copy.securityPinLabel}
+                name="pin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={6}
+                required
+                value={form.pin}
+                onChange={(event) => update('pin', event.target.value.replace(/\D/g, '').slice(0, 6))}
+                hint={copy.securityPinHint}
+                revealable
+                revealShowLabel={copy.showPin}
+                revealHideLabel={copy.hidePin}
+              />
+            </section>
+            <section className="reg-card">
+              <Field
+                label={copy.securityConfirmPin}
+                name="confirmPin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={6}
+                required
+                value={form.confirmPin}
+                onChange={(event) =>
+                  update('confirmPin', event.target.value.replace(/\D/g, '').slice(0, 6))
+                }
+              />
+            </section>
+          </RegSection>
+
         </div>
         <div className="reg__footer">
           <Button type="submit" className="reg__submit" disabled={busy}>
-            {busy ? copy.registering : step === 3 ? copy.createAccountBtn : copy.continue}
+            {busy ? copy.registering : copy.createAccountBtn}
             {busy ? null : <span aria-hidden="true">→</span>}
           </Button>
         </div>
@@ -760,6 +770,35 @@ export function RegisterScreen() {
           </div>
         </div>
       ) : null}
+    </section>
+  )
+}
+
+function RegSection({
+  index,
+  title,
+  done,
+  error,
+  children,
+}: {
+  index: number
+  title: string
+  done: boolean
+  error: string
+  children: ReactNode
+}) {
+  const id = sectionId(index)
+  const headingId = `${id}-title`
+  return (
+    <section className="reg-section" id={id} aria-labelledby={headingId}>
+      <h2 className="reg-section__title" id={headingId}>
+        <span className={`reg-section__num${done ? ' is-done' : ''}`} aria-hidden="true">
+          {index + 1}
+        </span>
+        {title}
+      </h2>
+      <ErrorBanner message={error} />
+      {children}
     </section>
   )
 }

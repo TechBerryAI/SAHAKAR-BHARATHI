@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
-import { LanguageSelect } from '../components/LanguageSelect.tsx'
 import { Button, Card, Screen, StatusChip } from '../components/ui.tsx'
 import { occupationLabel } from '../lib/copy.ts'
 import { useLanguage } from '../lib/language.tsx'
@@ -14,7 +13,7 @@ export function RegisterSuccessScreen() {
 
   return (
     <>
-      <AppBar title={copy.registered} showEmblem trailing={<LanguageSelect variant="bar" />} />
+      <AppBar title={copy.registered} showEmblem />
       <Screen>
         <Card kicker={copy.accountReady} title={copy.keepLoginId}>
           <p className="card__body">{copy.keepLoginIdBody}</p>

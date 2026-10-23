@@ -29,6 +29,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const option = languageByCode(language)
     document.documentElement.lang = language
     document.documentElement.dir = option.rtl ? 'rtl' : 'ltr'
+    document.title = copyFor(language).appTitle
     try {
       localStorage.setItem(STORAGE_KEY, language)
     } catch {

@@ -6,6 +6,7 @@ import {
   markReady,
   setAccessToken,
 } from './session.ts'
+import type { AppCopy } from './copy.ts'
 import type {
   PhoneVerificationConfirmed,
   PhoneVerificationCreated,
@@ -23,6 +24,24 @@ export class ApiError extends Error {
     this.status = status
     this.name = 'ApiError'
   }
+}
+
+// The API sends English error details; show the known ones in the chosen language.
+const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
+  'An account with these details already exists.': 'duplicateAccount',
+  'Login ID or PIN is incorrect.': 'invalidCredentials',
+  'Too many attempts. Try again later.': 'tooManyAttempts',
+  'The code is incorrect or has expired.': 'otpInvalid',
+  'Verify this mobile number before registering.': 'otpVerifyRequired',
+}
+
+export function apiErrorText(err: unknown, copy: AppCopy, fallback: string): string {
+  if (!(err instanceof ApiError)) return fallback
+  if (err.status === 0) return copy.networkError
+  const key = SERVER_MESSAGES[err.message]
+  if (key) return copy[key]
+  if (err.status === 429) return copy.tooManyAttempts
+  return fallback
 }
 
 const rawBase = import.meta.env.VITE_API_BASE_URL

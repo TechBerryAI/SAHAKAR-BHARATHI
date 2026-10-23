@@ -4,7 +4,7 @@ import { useLanguage } from '../lib/language.tsx'
 export function BottomNav() {
   const { copy } = useLanguage()
   return (
-    <nav className="bottom-nav" aria-label="Main">
+    <nav className="bottom-nav" aria-label={copy.mainNav}>
       <NavLink to="/" end className={({ isActive }) => `nav-item${isActive ? ' is-active' : ''}`}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path

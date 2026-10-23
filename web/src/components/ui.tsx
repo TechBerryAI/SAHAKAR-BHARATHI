@@ -14,6 +14,15 @@ export function Button({ variant = 'primary', className, ...props }: ButtonProps
   return <button className={`btn btn--${variant}${className ? ` ${className}` : ''}`} {...props} />
 }
 
+// Visual "*" after a label. Inputs carry `required` for assistive tech, so this stays hidden from it.
+export function RequiredMark() {
+  return (
+    <span className="field__required" aria-hidden="true">
+      *
+    </span>
+  )
+}
+
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string
   hint?: string
@@ -37,7 +46,10 @@ export function Field({
   const inputType = revealable ? (revealed ? 'text' : 'password') : type
   return (
     <label className="field" htmlFor={fieldId}>
-      <span className="field__label">{label}</span>
+      <span className="field__label">
+        {label}
+        {props.required ? <RequiredMark /> : null}
+      </span>
       <span className={`field__input${revealable ? ' field__input--reveal' : ''}`}>
         <input id={fieldId} className="field__control" type={inputType} {...props} />
         {revealable ? (

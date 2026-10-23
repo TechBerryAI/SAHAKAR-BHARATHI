@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { LanguageSelect } from '../components/LanguageSelect.tsx'
+import { Seal } from '../components/Seal.tsx'
 import { Button, ErrorBanner, Field } from '../components/ui.tsx'
-import { ApiError, signIn } from '../lib/api.ts'
+import { apiErrorText, signIn } from '../lib/api.ts'
 import { useLanguage } from '../lib/language.tsx'
 
 const PIN_PATTERN = /^\d{4,6}$/
@@ -28,7 +28,7 @@ export function SignInScreen() {
       await signIn(login, pin)
       navigate('/', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : copy.signInFailed)
+      setError(apiErrorText(err, copy, copy.signInFailed))
     } finally {
       setBusy(false)
     }
@@ -43,12 +43,11 @@ export function SignInScreen() {
           </svg>
         </button>
         <h1>{copy.signIn}</h1>
-        <LanguageSelect variant="light" />
       </header>
 
       <form className="signin__form" onSubmit={onSubmit}>
         <div className="signin__body">
-          <img className="signin__emblem" src="/emblem.png" alt="" />
+          <Seal className="signin__emblem" />
           <h2 className="signin__title">{copy.accessTitle}</h2>
           <p className="signin__lead">{copy.accessBody}</p>
           <ErrorBanner message={error} />
