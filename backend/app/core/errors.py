@@ -16,6 +16,16 @@ class DuplicateAccountError(AppError):
         super().__init__(status.HTTP_409_CONFLICT, "An account with these details already exists.")
 
 
+class MobileAlreadyRegisteredError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_409_CONFLICT, "An account already exists for this mobile number.")
+
+
+class EmailAlreadyRegisteredError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_409_CONFLICT, "An account already exists with this email address.")
+
+
 class InvalidCredentialsError(AppError):
     def __init__(self) -> None:
         super().__init__(

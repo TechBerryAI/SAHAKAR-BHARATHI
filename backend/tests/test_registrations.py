@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from tests.conftest import register_payload, verified_register_payload
+from tests.conftest import register_payload, verified_register_payload, verify_mobile
 
 
 def test_registration_success_persists_user_and_registration(
@@ -74,7 +74,7 @@ def test_duplicate_mobile_returns_409(client: TestClient) -> None:
     duplicate["verification_token"] = "not-a-real-verification-token"
     second = client.post("/api/v1/registrations", json=duplicate)
     assert second.status_code == 409
-    assert "already exists" in second.json()["detail"]
+    assert second.json()["detail"] == "An account already exists for this mobile number."
 
 
 def test_duplicate_email_returns_409(client: TestClient) -> None:
@@ -85,3 +85,30 @@ def test_duplicate_email_returns_409(client: TestClient) -> None:
         json=verified_register_payload(client, mobile="9876543211"),
     )
     assert second.status_code == 409
+    assert second.json()["detail"] == "An account already exists with this email address."
+
+
+def test_registered_mobile_cannot_request_an_otp(client: TestClient) -> None:
+    created = client.post("/api/v1/registrations", json=verified_register_payload(client))
+    assert created.status_code == 201
+    response = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "An account already exists for this mobile number."
+
+
+def test_verified_mobile_without_registration_creates_no_account(
+    client: TestClient,
+    engine: Engine,
+) -> None:
+    verify_mobile(client, "9876543212")
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT count(*) FROM users")).scalar_one() == 0
+    sign_in = client.post("/api/v1/sessions", json={"identifier": "9876543212", "pin": "2468"})
+    assert sign_in.status_code == 401
+    # Coming back later starts over from the mobile step: the number can get a fresh OTP.
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE phone_verifications SET created_at = created_at - interval '5 minutes'")
+        )
+    again = client.post("/api/v1/phone-verifications", json={"mobile": "9876543212"})
+    assert again.status_code == 202

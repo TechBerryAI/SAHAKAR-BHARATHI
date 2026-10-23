@@ -11,9 +11,11 @@ export function SignInScreen() {
   const navigate = useNavigate()
   const location = useLocation()
   const { copy } = useLanguage()
+  const routeState = location.state as { createdLoginId?: string; identifier?: string } | null
   // Set by registration when the account was created but the automatic sign-in failed.
-  const createdLoginId = (location.state as { createdLoginId?: string } | null)?.createdLoginId ?? ''
-  const [identifier, setIdentifier] = useState(createdLoginId)
+  const createdLoginId = routeState?.createdLoginId ?? ''
+  // Registration also sends people here with their number when it already has an account.
+  const [identifier, setIdentifier] = useState(() => createdLoginId || routeState?.identifier || '')
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Card, ErrorBanner, Field, RequiredMark } from '../components/ui.tsx'
 import {
   ApiError,
+  apiErrorKey,
   apiErrorText,
   confirmPhoneVerification,
   registerAndSignIn,
@@ -166,6 +167,8 @@ export function RegisterScreen() {
   const [error, setError] = useState('')
   // Section whose validation failed; null shows the error at the top of the form.
   const [errorSection, setErrorSection] = useState<number | null>(null)
+  // The mobile number already has an account: offer Sign in instead of registering.
+  const [accountExists, setAccountExists] = useState(false)
   const [activeSection, setActiveSection] = useState(0)
   const [busy, setBusy] = useState(false)
   const [otpBusy, setOtpBusy] = useState(false)
@@ -190,6 +193,7 @@ export function RegisterScreen() {
   const currentYear = new Date().getFullYear()
   const years = Array.from({ length: 90 }, (_, index) => String(currentYear - 10 - index))
   const months = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'))
+  const monthNames = copy.monthNames.split(' ')
   const days = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, '0'))
 
   useEffect(() => {
@@ -211,6 +215,10 @@ export function RegisterScreen() {
       setVerificationToken('')
       setOtp('')
       setOtpNote('')
+      if (accountExists) {
+        setAccountExists(false)
+        setError('')
+      }
     }
   }
 
@@ -224,14 +232,32 @@ export function RegisterScreen() {
     update('date_of_birth', joinDob(year, month, day))
   }
 
-  function goBack() {
-    setError('')
+  // An account exists only once the form is submitted, so leaving the form throws the
+  // verification away: the person starts again from "enter mobile → verify OTP".
+  function restartRegistration(
+    options: { keepMobile?: boolean; message?: string; accountExists?: boolean } = {},
+  ) {
+    setForm({ ...emptyForm, mobile: options.keepMobile ? form.mobile : '' })
+    setDobDay('')
+    setDobMonth('')
+    setDobYear('')
+    setOtp('')
+    setChallengeId('')
+    setVerificationToken('')
+    setOtpNote('')
     setErrorSection(null)
+    setActiveSection(0)
+    setError(options.message ?? '')
+    setAccountExists(options.accountExists ?? false)
+    setGate('mobile')
+  }
+
+  function goBack() {
     if (gate === 'mobile') {
       navigate('/')
       return
     }
-    setGate('mobile')
+    restartRegistration()
   }
 
   function scrollToSection(section: number) {
@@ -280,6 +306,7 @@ export function RegisterScreen() {
     setOtpBusy(true)
     setError('')
     setOtpNote('')
+    setAccountExists(false)
     try {
       const created = await sendPhoneVerification(form.mobile)
       setChallengeId(created.id)
@@ -287,7 +314,15 @@ export function RegisterScreen() {
       setOtp('')
       setOtpNote(copy.otpSent)
     } catch (err) {
-      setError(apiErrorText(err, copy, copy.otpSendFailed))
+      // The API only refuses an OTP with 409 when this number already has an account.
+      if (err instanceof ApiError && err.status === 409) {
+        setError(copy.mobileRegistered)
+        setAccountExists(true)
+      } else if (err instanceof ApiError && err.status === 429) {
+        setError(copy.otpResendWait)
+      } else {
+        setError(apiErrorText(err, copy, copy.otpSendFailed))
+      }
     } finally {
       setOtpBusy(false)
     }
@@ -333,7 +368,7 @@ export function RegisterScreen() {
       }
     }
     if (!verificationToken) {
-      showError(copy.otpVerifyRequired, 1)
+      restartRegistration({ keepMobile: true, message: copy.verificationExpired })
       return
     }
     setError('')
@@ -366,7 +401,18 @@ export function RegisterScreen() {
         navigate('/sign-in', { replace: true, state: { createdLoginId: err.loginId } })
         return
       }
-      showError(apiErrorText(err, copy, copy.registrationFailed), null)
+      createdOnThisPage.current = false
+      const key = apiErrorKey(err)
+      if (key === 'verificationExpired') {
+        // The one-time verification ran out or was already used: verify the number again.
+        restartRegistration({ keepMobile: true, message: copy.verificationExpired })
+      } else if (key === 'mobileRegistered') {
+        restartRegistration({ keepMobile: true, message: copy.mobileRegistered, accountExists: true })
+      } else if (key === 'emailRegistered') {
+        showError(copy.emailRegistered, 1)
+      } else {
+        showError(apiErrorText(err, copy, copy.registrationFailed), null)
+      }
     } finally {
       setBusy(false)
     }
@@ -441,6 +487,17 @@ export function RegisterScreen() {
             {error ? (
               <div ref={verifyErrorRef}>
                 <ErrorBanner message={error} />
+                {accountExists ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="verify__signin"
+                    onClick={() => navigate('/sign-in', { state: { identifier: form.mobile } })}
+                  >
+                    {copy.signIn}
+                    <span aria-hidden="true">→</span>
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -594,9 +651,9 @@ export function RegisterScreen() {
                   onChange={(event) => setDob({ month: event.target.value })}
                 >
                   <option value="">{copy.dobMonth}</option>
-                  {months.map((month) => (
+                  {months.map((month, index) => (
                     <option key={month} value={month}>
-                      {month}
+                      {monthNames[index]}
                     </option>
                   ))}
                 </select>
