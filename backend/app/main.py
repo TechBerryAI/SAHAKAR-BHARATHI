@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 _CORS_METHODS = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
 _CORS_HEADERS = ["Authorization", "Content-Type"]
 _READY_TIMEOUT_MS = 2000
-_SENSITIVE_FIELDS = frozenset({"pin", "password", "token", "access_token", "authorization"})
+_SENSITIVE_FIELDS = frozenset(
+    {"pin", "password", "token", "access_token", "authorization", "code", "verification_token"}
+)
 
 
 def sanitize_validation_errors(errors: list[object]) -> list[object]:
@@ -34,7 +36,8 @@ def sanitize_validation_errors(errors: list[object]) -> list[object]:
         item = dict(error)
         loc = item.get("loc", ())
         names = {str(part).lower() for part in loc} if isinstance(loc, (list, tuple)) else set()
-        if names & _SENSITIVE_FIELDS:
+        # Missing-field and model-level errors carry the whole parent object, including any PIN.
+        if names & _SENSITIVE_FIELDS or isinstance(item.get("input"), (dict, list)):
             item.pop("input", None)
         sanitized.append(item)
     return jsonable_encoder(sanitized)

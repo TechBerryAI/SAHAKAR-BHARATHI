@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, ErrorBanner, Field, RequiredMark } from '../components/ui.tsx'
 import {
+  ApiError,
   apiErrorText,
   confirmPhoneVerification,
   registerAndSignIn,
@@ -154,6 +155,7 @@ export function RegisterScreen() {
   const { ready, uid } = useSession()
   const createdOnThisPage = useRef(false)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const verifyErrorRef = useRef<HTMLDivElement>(null)
   const [gate, setGate] = useState<Gate>('mobile')
   const [form, setForm] = useState<FormState>(emptyForm)
   const [otp, setOtp] = useState('')
@@ -194,6 +196,14 @@ export function RegisterScreen() {
   useEffect(() => {
     if (ready && uid && !createdOnThisPage.current) navigate('/', { replace: true })
   }, [ready, uid, navigate])
+
+  // The verify panel scrolls; without this a wrong-OTP error can sit out of view
+  // and people keep pressing Verify until the code locks.
+  useEffect(() => {
+    if (error && gate !== 'details') {
+      verifyErrorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }, [error, gate])
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -354,6 +364,12 @@ export function RegisterScreen() {
       setGate('details')
     } catch (err) {
       setError(apiErrorText(err, copy, copy.otpVerifyFailed))
+      if (err instanceof ApiError && err.status === 429) {
+        // This code can no longer be verified; go back to "Send OTP" for a new one.
+        setChallengeId('')
+        setOtp('')
+        setOtpNote('')
+      }
     } finally {
       setOtpBusy(false)
     }
@@ -423,7 +439,6 @@ export function RegisterScreen() {
           }}
         >
           <div className="verify__body">
-            <ErrorBanner message={error} />
             <Card title={copy.mobileTitle}>
               <p className="card__body">{copy.mobileBody}</p>
             </Card>
@@ -473,6 +488,11 @@ export function RegisterScreen() {
               ) : null}
               {otpNote ? <p className="field__hint">{otpNote}</p> : null}
             </Card>
+            {error ? (
+              <div ref={verifyErrorRef}>
+                <ErrorBanner message={error} />
+              </div>
+            ) : null}
           </div>
           <div className="verify__footer">
             <Button type="submit" className="verify__submit" disabled={otpBusy}>

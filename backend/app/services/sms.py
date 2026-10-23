@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Protocol
 
 import httpx
@@ -9,6 +11,10 @@ from app.core.errors import SmsDeliveryError
 
 _SENT = {"sent", "delivered"}
 _FAILED = {"failed"}
+# The SIM that has service rarely changes, so the device lookup (a full extra
+# round trip to Textbee) is reused across requests for a while.
+_SIM_CACHE_SECONDS = 600.0
+_sim_cache: dict[str, tuple[int, float]] = {}
 
 
 class SmsGateway(Protocol):
@@ -29,6 +35,7 @@ class TextbeeGateway:
         transport: httpx.BaseTransport | None = None,
         sim_subscription_id: int | None = None,
         resolve_sim: bool = False,
+        client: httpx.Client | None = None,
     ) -> None:
         self._api_key = api_key
         self._device_id = device_id.strip()
@@ -37,7 +44,16 @@ class TextbeeGateway:
         self._transport = transport
         self._sim_subscription_id = sim_subscription_id
         self._resolve_sim = resolve_sim
+        self._client = client
         self._last_batch_id: str | None = None
+
+    @contextmanager
+    def _http(self) -> Iterator[httpx.Client]:
+        if self._client is not None:
+            yield self._client
+            return
+        with httpx.Client(timeout=self._timeout, transport=self._transport) as client:
+            yield client
 
     def send(self, recipient_e164: str, message: str) -> None:
         body: dict[str, object] = {
@@ -47,7 +63,7 @@ class TextbeeGateway:
         if self._device_id:
             body["deviceId"] = self._device_id
         try:
-            with httpx.Client(timeout=self._timeout, transport=self._transport) as client:
+            with self._http() as client:
                 sim_id = self._subscription_id(client)
                 if sim_id is not None:
                     body["simSubscriptionId"] = sim_id
@@ -74,7 +90,7 @@ class TextbeeGateway:
             return False
         deadline = time.monotonic() + timeout
         try:
-            with httpx.Client(timeout=self._timeout, transport=self._transport) as client:
+            with self._http() as client:
                 while True:
                     status = self._batch_status(client)
                     if status in _SENT:
@@ -122,6 +138,10 @@ class TextbeeGateway:
             return self._sim_subscription_id
         if not self._resolve_sim or not self._device_id:
             return None
+        cache_key = f"{self._base_url}|{self._device_id}"
+        cached = _sim_cache.get(cache_key)
+        if cached is not None and cached[1] > time.monotonic():
+            return cached[0]
         try:
             response = client.get(
                 f"{self._base_url}/gateway/devices/{self._device_id}",
@@ -131,7 +151,10 @@ class TextbeeGateway:
             return None
         if response.status_code != 200:
             return None
-        return _in_service_subscription_id(response.json())
+        sim_id = _in_service_subscription_id(response.json())
+        if sim_id is not None:
+            _sim_cache[cache_key] = (sim_id, time.monotonic() + _SIM_CACHE_SECONDS)
+        return sim_id
 
 
 def _in_service_subscription_id(payload: object) -> int | None:

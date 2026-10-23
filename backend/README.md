@@ -45,6 +45,16 @@ ruff check
 
 Tests use `TEST_DATABASE_URL` or `POSTGRES_TEST_DB` only. They never fall back to `DATABASE_URL`.
 
+Measure per-endpoint latency and database round-trips against the local test database. The script injects network delay through a local proxy; it sends no traffic to Render or Supabase and no SMS:
+
+```bash
+cd backend
+python scripts/latency_bench.py --rtt-ms 0
+python scripts/latency_bench.py --rtt-ms 270
+```
+
+`tests/test_query_budget.py` fails when an endpoint exceeds its SQL statement budget or runs SQL after its commit.
+
 Android emulator debug builds should use `http://10.0.2.2:8000/`. A physical device needs the development machine LAN address. Production builds must use HTTPS via `api.base.url=https://sahakar-bharathi-api.onrender.com/` in `local.properties`.
 
 ## Environment variables
@@ -84,6 +94,7 @@ PINs are 4–6 digits and are never stored or logged. Login identifiers are cano
 
 | Method | Path | Notes |
 |---|---|---|
+| `GET`, `HEAD` | `/` | Service status JSON. No database access. |
 | `POST` | `/api/v1/registrations` | Creates user + registration. Returns server `registration_id` / `login_id`. |
 | `POST` | `/api/v1/sessions` | Login with login ID or mobile + PIN. |
 | `DELETE` | `/api/v1/sessions/current` | Logout / revoke. |
@@ -115,6 +126,8 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-all
 - `DATABASE_URL` — Supabase PostgreSQL URI. Session mode (port 5432) or transaction pooler (port 6543) are both accepted. Transaction pooler disables prepared statements.
 
 **Optional:** `CORS_ORIGINS`, `SESSION_TTL_SECONDS`, and the rate-limit / lockout knobs above.
+
+**Region:** run the service in the region closest to the Supabase project. Every SQL statement is a network round-trip, and a login needs about seven. On 2026-10-22 production `/health` (five round-trips) took about 1.4 s longer than `/health/live`, roughly 270 ms per round-trip to the `ap-south-1` database. Render cannot move an existing service between regions; create a new service in the target region and switch clients over.
 
 A Blueprint file lives at the repository root as [`render.yaml`](../render.yaml). Secrets are `sync: false` and must be entered in the dashboard.
 
