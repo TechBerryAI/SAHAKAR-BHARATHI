@@ -549,15 +549,15 @@ a {
   flex: 1;
   min-height: 0;
   display: flex;
-  background: #0c1b34;
-  color: #fff8ef;
+  background: #ffffff;
+  color: #163a78;
   overflow: auto;
 }
 
 .start__glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 18%, rgba(254, 152, 58, 0.22), rgba(12, 27, 52, 0.1) 36%, #0c1b34 68%);
+  background: radial-gradient(circle at 50% 20%, rgba(240, 138, 36, 0.12), rgba(255, 255, 255, 0) 46%);
   pointer-events: none;
 }
 
@@ -578,31 +578,8 @@ a {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
-}
-
-.start__gov,
-.start__lang {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: rgba(2, 17, 41, 0.7);
-  color: #ffdea5;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-
-.start__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #fe983a;
-  box-shadow: 0 0 0 4px rgba(254, 152, 58, 0.18);
 }
 
 .start__emblem {
@@ -614,7 +591,7 @@ a {
 
 .start__honour {
   margin: 28px 0 0;
-  color: #ffdea5;
+  color: #b85a0b;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -622,7 +599,7 @@ a {
 
 .start__title {
   margin: 10px 0 0;
-  color: #fff8ef;
+  color: #163a78;
   font-size: 34px;
   line-height: 1.15;
   font-weight: 700;
@@ -630,14 +607,15 @@ a {
 
 .start__subtitle {
   margin: 8px 0 0;
-  color: #e8c179;
+  color: #b85a0b;
   font-size: 17px;
+  font-weight: 600;
   line-height: 1.4;
 }
 
 .start__tagline {
   margin: 14px 8px 0;
-  color: rgba(232, 224, 214, 0.92);
+  color: #2a3f6b;
   font-size: 15px;
   line-height: 1.45;
 }
@@ -659,14 +637,18 @@ a {
 }
 
 .start__signin {
-  color: #fff8ef;
+  color: #163a78;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
 }
 
 .start__signin:hover {
-  color: #ffdea5;
+  color: #b85a0b;
+}
+
+.start .lang-select--light .lang-select__button {
+  color: #163a78;
 }
 
 .lang-select {

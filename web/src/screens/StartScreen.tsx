@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { LanguageSelect } from '../components/LanguageSelect.tsx'
+import { Seal } from '../components/Seal.tsx'
 import { useLanguage } from '../lib/language.tsx'
 
 export function StartScreen() {
@@ -10,14 +11,10 @@ export function StartScreen() {
       <div className="start__glow" aria-hidden="true" />
       <div className="start__content">
         <header className="start__top">
-          <span className="start__gov">
-            <span className="start__dot" aria-hidden="true" />
-            {copy.govChip}
-          </span>
-          <LanguageSelect />
+          <LanguageSelect variant="light" />
         </header>
 
-        <img className="start__emblem" src="/emblem.png" alt="" />
+        <Seal className="start__emblem" />
 
         <p className="start__honour">{copy.honour}</p>
         <h1 className="start__title">Sahakar Bharati</h1>
