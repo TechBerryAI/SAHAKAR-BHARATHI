@@ -1069,20 +1069,6 @@ html[dir='rtl'] .lang-sheet__option {
   min-height: 52px;
 }
 
-.signin__create {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #17263f;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.signin__create:hover {
-  color: #0f3d2e;
-}
-
 .reg {
   position: relative;
   flex: 1;
