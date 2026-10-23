@@ -3,14 +3,13 @@ import { TRANSLATIONS } from './translations.ts'
 
 export type AppCopy = {
   govChip: string
+  brandName: string
+  appTitle: string
   honour: string
   subtitle: string
-  tagline: string
   registerNow: string
   alreadyRegistered: string
   verifyMobile: string
-  mobileTitle: string
-  mobileBody: string
   mobileLabel: string
   mobileHint: string
   sendOtp: string
@@ -125,31 +124,20 @@ export type AppCopy = {
   ageMin: string
   occupationHint: string
   occupationSelect: string
-  privacyTitle: string
-  privacyBody: string
   sos: string
   sosTitle: string
   sosBody: string
   genderRequired: string
   dobRequired: string
   occupationRequired: string
-  contactCardTitle: string
-  contactCardBody: string
   contactVerifiedHint: string
   contactEmailHint: string
   addressCardBody: string
   houseLabel: string
-  houseHint: string
   localityLabel: string
   districtLabel: string
   stateLabel: string
   pincodeLabel: string
-  useMyLocation: string
-  useMyLocationHint: string
-  locatingAddress: string
-  locationFilled: string
-  locationDenied: string
-  locationUnavailable: string
   districtRequired: string
   stateRequired: string
   securityCardTitle: string
@@ -161,15 +149,13 @@ export type AppCopy = {
 
 const HI: AppCopy = {
   govChip: 'भारत सरकार',
+  brandName: 'सहकार भारती',
+  appTitle: 'सहकार भारती रथ यात्रा',
   honour: 'भारत के अन्न नायकों का सम्मान',
   subtitle: 'किसान और मछुआरा उत्सव',
-  tagline: 'भारत के किसानों और मछुआरों के असाधारण कार्य को राष्ट्रव्यापी श्रद्धांजलि।',
   registerNow: 'अभी पंजीकरण करें',
   alreadyRegistered: 'पहले से पंजीकृत हैं? साइन इन',
   verifyMobile: 'मोबाइल सत्यापित करें',
-  mobileTitle: 'मोबाइल नंबर',
-  mobileBody:
-    'पंजीकरण से पहले अपना मोबाइल नंबर लिखें। ओटीपी भेजें, सत्यापित करें, फिर व्यक्तिगत विवरण खुलेगा।',
   mobileLabel: 'मोबाइल नंबर',
   mobileHint: '10 अंकों का भारतीय मोबाइल नंबर।',
   sendOtp: 'ओटीपी भेजें',
@@ -285,31 +271,20 @@ const HI: AppCopy = {
   ageMin: 'स्वतंत्र पास के लिए न्यूनतम आयु 18 वर्ष।',
   occupationHint: 'कार्यक्रमों में किसानों और मछुआरों की पहचान के लिए।',
   occupationSelect: 'चुनें',
-  privacyTitle: 'गोपनीयता',
-  privacyBody: 'पंजीकरण सहकार भारती सर्वर पर संग्रहीत होता है।',
   sos: 'SOS',
   sosTitle: 'सहायता',
   sosBody: 'निकटतम सहायता केंद्र से संपर्क करें, या आपात स्थिति में 112 पर कॉल करें।',
   genderRequired: 'लिंग चुनें।',
   dobRequired: 'जन्म तिथि लिखें।',
   occupationRequired: 'व्यवसाय चुनें।',
-  contactCardTitle: 'मोबाइल और ईमेल',
-  contactCardBody: 'उत्सव अपडेट और सहायता के लिए पंजीकृत मोबाइल नंबर लिखें।',
   contactVerifiedHint: 'यह नंबर ओटीपी से सत्यापित है।',
   contactEmailHint: 'केवल पास और सूचनाएँ भेजने के लिए।',
   addressCardBody: 'अपने प्रतिभागी पास के लिए पता लिखें।',
   houseLabel: 'मकान / गली / पता पंक्ति',
-  houseHint: 'संभव होने पर लोकेशन से भरा जाता है। ज़रूरत हो तो बदलें।',
   localityLabel: 'गाँव / वार्ड / इलाका',
   districtLabel: 'ज़िला',
   stateLabel: 'राज्य',
   pincodeLabel: 'पिनकोड',
-  useMyLocation: 'वर्तमान लोकेशन से पता भरें',
-  useMyLocationHint: 'सटीक पता के लिए डिवाइस लोकेशन की अनुमति दें।',
-  locatingAddress: 'लोकेशन और पता खोजा जा रहा है…',
-  locationFilled: 'पता लोकेशन से भरा गया। जाँच कर ठीक करें।',
-  locationDenied: 'लोकेशन अनुमति नहीं मिली। पता स्वयं लिखें।',
-  locationUnavailable: 'लोकेशन नहीं मिली। पता स्वयं लिखें।',
   districtRequired: 'ज़िला लिखें।',
   stateRequired: 'राज्य लिखें।',
   securityCardTitle: 'ऐप पिन',
@@ -321,15 +296,13 @@ const HI: AppCopy = {
 
 const EN: AppCopy = {
   govChip: 'Government of India',
+  brandName: 'Sahakar Bharati',
+  appTitle: 'Sahakar Bharati Rath Yatra',
   honour: "Honouring India's food heroes",
   subtitle: 'Farmers & Fishermen Celebration',
-  tagline: "A nationwide tribute to the extraordinary work of India's farmers and fishermen.",
   registerNow: 'Register Now',
   alreadyRegistered: 'Already registered? Sign In',
   verifyMobile: 'Verify mobile',
-  mobileTitle: 'Mobile number',
-  mobileBody:
-    'Enter your mobile number before registration. Send the OTP, verify it, and the personal details page will open.',
   mobileLabel: 'Mobile number',
   mobileHint: '10-digit Indian mobile number.',
   sendOtp: 'Send OTP',
@@ -445,31 +418,20 @@ const EN: AppCopy = {
   ageMin: 'Minimum age 18 for an independent pass.',
   occupationHint: 'Used to recognise farmers and fishermen at the events.',
   occupationSelect: 'Select',
-  privacyTitle: 'Privacy',
-  privacyBody: 'Registration is stored on the Sahakar Bharati server.',
   sos: 'SOS',
   sosTitle: 'Help',
   sosBody: 'Use the nearest event help desk or call 112 in an emergency.',
   genderRequired: 'Select a gender.',
   dobRequired: 'Enter your date of birth.',
   occupationRequired: 'Select an occupation.',
-  contactCardTitle: 'Mobile and email',
-  contactCardBody: 'Add a registered mobile number so celebration updates and help can reach you.',
   contactVerifiedHint: 'This number is verified with OTP.',
   contactEmailHint: 'Used only to send the pass and notices.',
   addressCardBody: 'Add the address for your participant pass.',
   houseLabel: 'HOUSE / STREET / ADDRESS LINE',
-  houseHint: 'Filled from location when possible. Edit if needed.',
   localityLabel: 'VILLAGE / WARD / LOCALITY',
   districtLabel: 'DISTRICT',
   stateLabel: 'STATE',
   pincodeLabel: 'PINCODE',
-  useMyLocation: 'Fill address from current location',
-  useMyLocationHint: 'Allow location so the address matches where you are.',
-  locatingAddress: 'Finding location and address…',
-  locationFilled: 'Address filled from location. Check and correct it.',
-  locationDenied: 'Location permission denied. Enter the address yourself.',
-  locationUnavailable: 'Location unavailable. Enter the address yourself.',
   districtRequired: 'Enter your district.',
   stateRequired: 'Enter your state.',
   securityCardTitle: 'App PIN',

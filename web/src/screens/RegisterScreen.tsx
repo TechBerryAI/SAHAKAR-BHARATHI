@@ -172,8 +172,6 @@ export function RegisterScreen() {
   const [dobDay, setDobDay] = useState('')
   const [dobMonth, setDobMonth] = useState('')
   const [dobYear, setDobYear] = useState('')
-  const [locating, setLocating] = useState(false)
-  const [locationNote, setLocationNote] = useState('')
   const titles = titlesFor(copy)
   const tracks = tracksFor(copy)
   const fractions = titles.map((_, index) => {
@@ -212,57 +210,6 @@ export function RegisterScreen() {
       setVerificationToken('')
       setOtp('')
       setOtpNote('')
-    }
-  }
-
-  async function fillFromLocation() {
-    if (locating || !navigator.geolocation) {
-      setLocationNote(copy.locationUnavailable)
-      return
-    }
-    setLocating(true)
-    setLocationNote(copy.locatingAddress)
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 12000,
-        })
-      })
-      const { latitude, longitude } = position.coords
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-        { headers: { Accept: 'application/json' } },
-      )
-      if (!response.ok) throw new Error('geocode')
-      const data = (await response.json()) as {
-        address?: Record<string, string>
-        display_name?: string
-      }
-      const place = data.address ?? {}
-      const line = [place.house_number, place.road || place.pedestrian || place.residential]
-        .filter(Boolean)
-        .join(' ')
-      setForm((current) => ({
-        ...current,
-        address_line: line || data.display_name?.split(',')[0] || current.address_line,
-        locality:
-          place.village ||
-          place.town ||
-          place.suburb ||
-          place.neighbourhood ||
-          place.city_district ||
-          current.locality,
-        district: place.county || place.state_district || place.city || current.district,
-        state: place.state || current.state,
-        pincode: (place.postcode || '').replace(/\D/g, '').slice(0, 6) || current.pincode,
-      }))
-      setLocationNote(copy.locationFilled)
-    } catch (err) {
-      const code = typeof err === 'object' && err && 'code' in err ? Number(err.code) : 0
-      setLocationNote(code === 1 ? copy.locationDenied : copy.locationUnavailable)
-    } finally {
-      setLocating(false)
     }
   }
 
@@ -439,9 +386,6 @@ export function RegisterScreen() {
           }}
         >
           <div className="verify__body">
-            <Card title={copy.mobileTitle}>
-              <p className="card__body">{copy.mobileBody}</p>
-            </Card>
             <Card>
               <label className="field" htmlFor="mobile">
                 <span className="field__label">{copy.mobileLabel}</span>
@@ -692,10 +636,6 @@ export function RegisterScreen() {
 
           <RegSection {...sectionProps(1)}>
             <section className="reg-card">
-              <p className="reg-lead__title">{copy.contactCardTitle}</p>
-              <p className="reg-lead__body">{copy.contactCardBody}</p>
-            </section>
-            <section className="reg-card">
               <label className="field" htmlFor="contact_mobile">
                 <span className="field__label">{copy.mobileLabel}</span>
                 <span className="reg-phone">
@@ -727,33 +667,12 @@ export function RegisterScreen() {
           <RegSection {...sectionProps(2)}>
             <section className="reg-card">
               <p className="reg-lead__body">{copy.addressCardBody}</p>
-              <button
-                type="button"
-                className="reg-locate"
-                onClick={() => void fillFromLocation()}
-                disabled={locating}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    fill="currentColor"
-                    d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8m8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7"
-                  />
-                </svg>
-                <span>
-                  <span className="reg-locate__title">
-                    {locating ? copy.locatingAddress : copy.useMyLocation}
-                  </span>
-                  <span className="reg-locate__hint">{copy.useMyLocationHint}</span>
-                </span>
-              </button>
-              {locationNote ? <p className="field__hint">{locationNote}</p> : null}
               <Field
                 label={copy.houseLabel}
                 name="address_line"
                 autoComplete="street-address"
                 value={form.address_line}
                 onChange={(event) => update('address_line', event.target.value)}
-                hint={copy.houseHint}
               />
               <Field
                 label={copy.localityLabel}
@@ -828,18 +747,6 @@ export function RegisterScreen() {
             </section>
           </RegSection>
 
-          <section className="reg-card reg-privacy">
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5zm-1 6h2v2h-2zm0 4h2v6h-2z"
-              />
-            </svg>
-            <div>
-              <p className="reg-privacy__title">{copy.privacyTitle}</p>
-              <p className="reg-privacy__body">{copy.privacyBody}</p>
-            </div>
-          </section>
         </div>
         <div className="reg__footer">
           <Button type="submit" className="reg__submit" disabled={busy}>

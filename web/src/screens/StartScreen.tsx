@@ -17,9 +17,8 @@ export function StartScreen() {
         <Seal className="start__emblem" />
 
         <p className="start__honour">{copy.honour}</p>
-        <h1 className="start__title">Sahakar Bharati</h1>
+        <h1 className="start__title">{copy.brandName}</h1>
         <p className="start__subtitle">{copy.subtitle}</p>
-        <p className="start__tagline">{copy.tagline}</p>
 
         <div className="start__actions">
           <Link className="btn btn--primary start__register" to="/register">
