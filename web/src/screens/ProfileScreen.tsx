@@ -10,8 +10,7 @@ import {
   Screen,
   StatusChip,
 } from '../components/ui.tsx'
-import { LanguageSelect } from '../components/LanguageSelect.tsx'
-import { ApiError, getMe, logout, updateMe } from '../lib/api.ts'
+import { ApiError, apiErrorText, getMe, logout, updateMe } from '../lib/api.ts'
 import { occupationLabel } from '../lib/copy.ts'
 import { blankToNull, formatMobile, initials } from '../lib/format.ts'
 import { useLanguage } from '../lib/language.tsx'
@@ -88,7 +87,7 @@ export function ProfileScreen() {
       setProfile(next)
       setSaved(copy.saved)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : copy.updateFailed)
+      setError(apiErrorText(err, copy, copy.updateFailed))
     } finally {
       setSaving(false)
     }
@@ -102,7 +101,7 @@ export function ProfileScreen() {
 
   return (
     <>
-      <AppBar title={copy.profile} showEmblem trailing={<LanguageSelect variant="bar" />} />
+      <AppBar title={copy.profile} showEmblem />
       <Screen withNav>
         <Card>
           <div className="identity">

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { AppBar } from '../components/AppBar.tsx'
 import { LanguageSelect } from '../components/LanguageSelect.tsx'
 import { Card, ErrorBanner, Screen, StatusChip } from '../components/ui.tsx'
-import { ApiError, getMe } from '../lib/api.ts'
-import { occupationLabel } from '../lib/copy.ts'
+import { ApiError, apiErrorText, getMe } from '../lib/api.ts'
+import { occupationLabel, statusLabel } from '../lib/copy.ts'
 import { firstName, initials, regionLabel } from '../lib/format.ts'
 import { useLanguage } from '../lib/language.tsx'
 import { getSnapshot, setProfile, useSession } from '../lib/session.ts'
@@ -11,7 +11,8 @@ import { getSnapshot, setProfile, useSession } from '../lib/session.ts'
 export function HomeScreen() {
   const { copy } = useLanguage()
   const { profile } = useSession()
-  const [error, setError] = useState('')
+  // Kept raw so the message follows the chosen language.
+  const [loadError, setLoadError] = useState<unknown>(null)
   const [loading, setLoading] = useState(!profile)
 
   useEffect(() => {
@@ -20,14 +21,14 @@ export function HomeScreen() {
       .then((next) => {
         if (!cancelled) {
           setProfile(next)
-          setError('')
+          setLoadError(null)
         }
       })
       .catch((err: unknown) => {
         if (cancelled) return
         if (err instanceof ApiError && err.status === 401) return
         if (!getSnapshot().profile) {
-          setError(err instanceof ApiError ? err.message : copy.loadFailed)
+          setLoadError(err)
         }
       })
       .finally(() => {
@@ -36,7 +37,9 @@ export function HomeScreen() {
     return () => {
       cancelled = true
     }
-  }, [copy.loadFailed])
+  }, [])
+
+  const error = loadError ? apiErrorText(loadError, copy, copy.loadFailed) : ''
 
   const name = profile?.full_name ?? ''
   const greeting = name ? `${copy.jaiKisan}, ${firstName(name)}` : copy.jaiKisan
@@ -77,7 +80,7 @@ export function HomeScreen() {
             </Card>
             <Card kicker={copy.account} title={copy.yourProfile}>
               <p className="card__body">
-                {copy.profileStatus.replace('{status}', profile?.status || 'active')}
+                {copy.profileStatus.replace('{status}', statusLabel(copy, profile?.status || 'active'))}
               </p>
             </Card>
             <Card kicker={copy.mobile} title={profile?.mobile ? `+91 ${profile.mobile}` : copy.mobileOnFile}>
