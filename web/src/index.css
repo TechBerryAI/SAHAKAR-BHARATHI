@@ -620,11 +620,13 @@ a {
 }
 
 .start__subtitle {
+  width: 100%;
   margin: 8px 0 0;
   color: #b85a0b;
   font-size: 17px;
   font-weight: 600;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 .start__actions {
