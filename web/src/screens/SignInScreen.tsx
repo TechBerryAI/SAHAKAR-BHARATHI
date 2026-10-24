@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Seal } from '../components/Seal.tsx'
 import { Button, ErrorBanner, Field } from '../components/ui.tsx'
 import { apiErrorText, signIn } from '../lib/api.ts'
@@ -86,9 +86,6 @@ export function SignInScreen() {
             {busy ? copy.signingIn : copy.signIn}
             {busy ? null : <span aria-hidden="true">→</span>}
           </Button>
-          <Link className="signin__create" to="/register">
-            {copy.createAccount}
-          </Link>
         </div>
       </form>
     </section>

@@ -33,7 +33,6 @@ export type AppCopy = {
   accessBody: string
   email: string
   emailOptional: string
-  createAccount: string
   loginIdLabel: string
   loginIdHint: string
   pinLabel: string
@@ -185,7 +184,6 @@ const HI: AppCopy = {
   accessBody: 'ऐप का उपयोग करने से पहले पंजीकरण और साइन इन आवश्यक है।',
   email: 'ईमेल',
   emailOptional: 'ईमेल (वैकल्पिक)',
-  createAccount: 'खाता बनाएँ',
   loginIdLabel: 'लॉगिन आईडी / मोबाइल',
   loginIdHint: 'पंजीकरण के बाद मिली लॉगिन आईडी या अपना 10 अंकों का मोबाइल नंबर उपयोग करें।',
   pinLabel: 'पिन',
@@ -338,7 +336,6 @@ const EN: AppCopy = {
   accessBody: 'Registration and sign in are required before anyone can use the app.',
   email: 'Email',
   emailOptional: 'Email (optional)',
-  createAccount: 'Create account',
   loginIdLabel: 'Login ID / mobile',
   loginIdHint: 'Use the login ID from registration or your 10-digit mobile number.',
   pinLabel: 'PIN',

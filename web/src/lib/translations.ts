@@ -35,7 +35,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'অ্যাপ ব্যবহারের আগে নিবন্ধন ও সাইন ইন করা আবশ্যক।',
     email: 'ইমেল',
     emailOptional: 'ইমেল (ঐচ্ছিক)',
-    createAccount: 'অ্যাকাউন্ট তৈরি করুন',
     loginIdLabel: 'লগইন আইডি / মোবাইল',
     loginIdHint: 'নিবন্ধনের পরে পাওয়া লগইন আইডি বা আপনার 10 অঙ্কের মোবাইল নম্বর ব্যবহার করুন।',
     pinLabel: 'পিন',
@@ -90,6 +89,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'এই লগইন আইডিটি রেখে দিন',
     keepLoginIdBody:
       'এই আইডিটি আপনার কাছে সংরক্ষণ করে রাখুন। লগইন আইডি বা মোবাইল এবং পিন দিয়ে সাইন ইন করুন।',
+    copyLoginId: 'কপি করুন',
+    loginIdCopied: 'কপি হয়েছে',
     loginId: 'লগইন আইডি',
     goHome: 'হোমে যান',
     jaiKisan: 'জয় কিষাণ',
@@ -191,7 +192,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ॲप वापरण्यापूर्वी नोंदणी आणि साइन इन आवश्यक आहे.',
     email: 'ईमेल',
     emailOptional: 'ईमेल (ऐच्छिक)',
-    createAccount: 'खाते तयार करा',
     loginIdLabel: 'लॉगिन आयडी / मोबाइल',
     loginIdHint: 'नोंदणीनंतर मिळालेला लॉगिन आयडी किंवा तुमचा 10 अंकी मोबाइल नंबर वापरा.',
     pinLabel: 'पिन',
@@ -245,6 +245,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'हा लॉगिन आयडी जपून ठेवा',
     keepLoginIdBody:
       'हा आयडी तुमच्या नोंदीसाठी जपून ठेवा. लॉगिन आयडी किंवा मोबाइल आणि पिनने साइन इन करा.',
+    copyLoginId: 'कॉपी करा',
+    loginIdCopied: 'कॉपी झाले',
     loginId: 'लॉगिन आयडी',
     goHome: 'मुख्यपृष्ठावर जा',
     jaiKisan: 'जय किसान',
@@ -345,7 +347,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'యాప్ ఉపయోగించే ముందు నమోదు మరియు సైన్ ఇన్ తప్పనిసరి.',
     email: 'ఈమెయిల్',
     emailOptional: 'ఈమెయిల్ (ఐచ్ఛికం)',
-    createAccount: 'ఖాతా సృష్టించండి',
     loginIdLabel: 'లాగిన్ ఐడీ / మొబైల్',
     loginIdHint: 'నమోదు తర్వాత వచ్చిన లాగిన్ ఐడీ లేదా మీ 10 అంకెల మొబైల్ నంబర్ ఉపయోగించండి.',
     pinLabel: 'పిన్',
@@ -400,6 +401,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ఈ లాగిన్ ఐడీని భద్రపరచుకోండి',
     keepLoginIdBody:
       'ఈ ఐడీని మీ రికార్డుల కోసం భద్రపరచుకోండి. లాగిన్ ఐడీ లేదా మొబైల్ మరియు పిన్‌తో సైన్ ఇన్ చేయండి.',
+    copyLoginId: 'కాపీ చేయండి',
+    loginIdCopied: 'కాపీ అయింది',
     loginId: 'లాగిన్ ఐడీ',
     goHome: 'హోమ్‌కు వెళ్లండి',
     jaiKisan: 'జై కిసాన్',
@@ -501,7 +504,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'செயலியைப் பயன்படுத்தும் முன் பதிவும் உள்நுழைவும் அவசியம்.',
     email: 'மின்னஞ்சல்',
     emailOptional: 'மின்னஞ்சல் (விருப்பத்தேர்வு)',
-    createAccount: 'கணக்கை உருவாக்கவும்',
     loginIdLabel: 'உள்நுழைவு ஐடி / மொபைல்',
     loginIdHint:
       'பதிவுக்குப் பின் கிடைத்த உள்நுழைவு ஐடி அல்லது உங்கள் 10 இலக்க மொபைல் எண்ணைப் பயன்படுத்தவும்.',
@@ -557,6 +559,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'இந்த உள்நுழைவு ஐடியைப் பாதுகாத்து வைக்கவும்',
     keepLoginIdBody:
       'இந்த ஐடியை உங்கள் பதிவுக்காகப் பாதுகாத்து வைக்கவும். உள்நுழைவு ஐடி அல்லது மொபைல் மற்றும் பின் மூலம் உள்நுழையவும்.',
+    copyLoginId: 'நகலெடு',
+    loginIdCopied: 'நகலெடுக்கப்பட்டது',
     loginId: 'உள்நுழைவு ஐடி',
     goHome: 'முகப்புக்குச் செல்லவும்',
     jaiKisan: 'ஜெய் கிசான்',
@@ -659,7 +663,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'એપનો ઉપયોગ કરતાં પહેલાં નોંધણી અને સાઇન ઇન જરૂરી છે.',
     email: 'ઇમેઇલ',
     emailOptional: 'ઇમેઇલ (વૈકલ્પિક)',
-    createAccount: 'ખાતું બનાવો',
     loginIdLabel: 'લૉગિન આઈડી / મોબાઇલ',
     loginIdHint: 'નોંધણી પછી મળેલો લૉગિન આઈડી અથવા તમારો 10 અંકનો મોબાઇલ નંબર વાપરો.',
     pinLabel: 'પિન',
@@ -714,6 +717,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'આ લૉગિન આઈડી સાચવી રાખો',
     keepLoginIdBody:
       'આ આઈડી તમારા રેકોર્ડ માટે સાચવી રાખો. લૉગિન આઈડી અથવા મોબાઇલ અને પિનથી સાઇન ઇન કરો.',
+    copyLoginId: 'કૉપિ કરો',
+    loginIdCopied: 'કૉપિ થયું',
     loginId: 'લૉગિન આઈડી',
     goHome: 'હોમ પર જાઓ',
     jaiKisan: 'જય કિસાન',
@@ -814,7 +819,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ایپ استعمال کرنے سے پہلے رجسٹریشن اور سائن اِن ضروری ہے۔',
     email: 'ای میل',
     emailOptional: 'ای میل (اختیاری)',
-    createAccount: 'اکاؤنٹ بنائیں',
     loginIdLabel: 'لاگ اِن آئی ڈی / موبائل',
     loginIdHint:
       'رجسٹریشن کے بعد ملی لاگ اِن آئی ڈی یا اپنا 10 ہندسوں کا موبائل نمبر استعمال کریں۔',
@@ -870,6 +874,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'یہ لاگ اِن آئی ڈی محفوظ رکھیں',
     keepLoginIdBody:
       'یہ آئی ڈی اپنے ریکارڈ کے لیے محفوظ رکھیں۔ لاگ اِن آئی ڈی یا موبائل اور پن سے سائن اِن کریں۔',
+    copyLoginId: 'کاپی کریں',
+    loginIdCopied: 'کاپی ہو گیا',
     loginId: 'لاگ اِن آئی ڈی',
     goHome: 'ہوم پر جائیں',
     jaiKisan: 'جے کسان',
@@ -969,7 +975,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ಆ್ಯಪ್ ಬಳಸುವ ಮೊದಲು ನೋಂದಣಿ ಮತ್ತು ಸೈನ್ ಇನ್ ಕಡ್ಡಾಯ.',
     email: 'ಇಮೇಲ್',
     emailOptional: 'ಇಮೇಲ್ (ಐಚ್ಛಿಕ)',
-    createAccount: 'ಖಾತೆ ರಚಿಸಿ',
     loginIdLabel: 'ಲಾಗಿನ್ ಐಡಿ / ಮೊಬೈಲ್',
     loginIdHint: 'ನೋಂದಣಿಯ ನಂತರ ಸಿಕ್ಕ ಲಾಗಿನ್ ಐಡಿ ಅಥವಾ ನಿಮ್ಮ 10 ಅಂಕಿಯ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ಬಳಸಿ.',
     pinLabel: 'ಪಿನ್',
@@ -1024,6 +1029,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ಈ ಲಾಗಿನ್ ಐಡಿಯನ್ನು ಜೋಪಾನವಾಗಿಡಿ',
     keepLoginIdBody:
       'ಈ ಐಡಿಯನ್ನು ನಿಮ್ಮ ದಾಖಲೆಗಾಗಿ ಜೋಪಾನವಾಗಿಡಿ. ಲಾಗಿನ್ ಐಡಿ ಅಥವಾ ಮೊಬೈಲ್ ಮತ್ತು ಪಿನ್ ಬಳಸಿ ಸೈನ್ ಇನ್ ಮಾಡಿ.',
+    copyLoginId: 'ನಕಲಿಸಿ',
+    loginIdCopied: 'ನಕಲಿಸಲಾಗಿದೆ',
     loginId: 'ಲಾಗಿನ್ ಐಡಿ',
     goHome: 'ಮುಖಪುಟಕ್ಕೆ ಹೋಗಿ',
     jaiKisan: 'ಜೈ ಕಿಸಾನ್',
@@ -1125,7 +1132,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ଆପ୍ ବ୍ୟବହାର କରିବା ପୂର୍ବରୁ ପଞ୍ଜୀକରଣ ଓ ସାଇନ୍ ଇନ୍ ଆବଶ୍ୟକ।',
     email: 'ଇମେଲ୍',
     emailOptional: 'ଇମେଲ୍ (ଇଚ୍ଛାଧୀନ)',
-    createAccount: 'ଖାତା ତିଆରି କରନ୍ତୁ',
     loginIdLabel: 'ଲଗଇନ୍ ଆଇଡି / ମୋବାଇଲ୍',
     loginIdHint:
       'ପଞ୍ଜୀକରଣ ପରେ ମିଳିଥିବା ଲଗଇନ୍ ଆଇଡି କିମ୍ବା ଆପଣଙ୍କ 10 ଅଙ୍କ ବିଶିଷ୍ଟ ମୋବାଇଲ୍ ନମ୍ବର ବ୍ୟବହାର କରନ୍ତୁ।',
@@ -1181,6 +1187,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ଏହି ଲଗଇନ୍ ଆଇଡି ସାଇତି ରଖନ୍ତୁ',
     keepLoginIdBody:
       'ଏହି ଆଇଡି ଆପଣଙ୍କ ରେକର୍ଡ ପାଇଁ ସାଇତି ରଖନ୍ତୁ। ଲଗଇନ୍ ଆଇଡି କିମ୍ବା ମୋବାଇଲ୍ ଓ ପିନ୍ ଦ୍ୱାରା ସାଇନ୍ ଇନ୍ କରନ୍ତୁ।',
+    copyLoginId: 'କପି କରନ୍ତୁ',
+    loginIdCopied: 'କପି ହେଲା',
     loginId: 'ଲଗଇନ୍ ଆଇଡି',
     goHome: 'ମୂଳପୃଷ୍ଠାକୁ ଯାଆନ୍ତୁ',
     jaiKisan: 'ଜୟ କିଷାନ',
@@ -1282,7 +1290,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ആപ്പ് ഉപയോഗിക്കുന്നതിന് മുമ്പ് രജിസ്ട്രേഷനും സൈൻ ഇന്നും നിർബന്ധമാണ്.',
     email: 'ഇമെയിൽ',
     emailOptional: 'ഇമെയിൽ (ഐച്ഛികം)',
-    createAccount: 'അക്കൗണ്ട് സൃഷ്ടിക്കുക',
     loginIdLabel: 'ലോഗിൻ ഐഡി / മൊബൈൽ',
     loginIdHint: 'രജിസ്ട്രേഷന് ശേഷം ലഭിച്ച ലോഗിൻ ഐഡിയോ നിങ്ങളുടെ 10 അക്ക മൊബൈൽ നമ്പറോ ഉപയോഗിക്കുക.',
     pinLabel: 'പിൻ',
@@ -1337,6 +1344,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ഈ ലോഗിൻ ഐഡി സൂക്ഷിക്കുക',
     keepLoginIdBody:
       'ഈ ഐഡി നിങ്ങളുടെ രേഖകൾക്കായി സൂക്ഷിച്ചുവയ്ക്കുക. ലോഗിൻ ഐഡി അല്ലെങ്കിൽ മൊബൈൽ നമ്പറും പിന്നും ഉപയോഗിച്ച് സൈൻ ഇൻ ചെയ്യുക.',
+    copyLoginId: 'പകർത്തുക',
+    loginIdCopied: 'പകർത്തി',
     loginId: 'ലോഗിൻ ഐഡി',
     goHome: 'ഹോമിലേക്ക് പോകുക',
     jaiKisan: 'ജയ് കിസാൻ',
@@ -1440,7 +1449,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ਐਪ ਵਰਤਣ ਤੋਂ ਪਹਿਲਾਂ ਰਜਿਸਟ੍ਰੇਸ਼ਨ ਅਤੇ ਸਾਈਨ ਇਨ ਲਾਜ਼ਮੀ ਹੈ।',
     email: 'ਈਮੇਲ',
     emailOptional: 'ਈਮੇਲ (ਵਿਕਲਪਿਕ)',
-    createAccount: 'ਖਾਤਾ ਬਣਾਓ',
     loginIdLabel: 'ਲੌਗਇਨ ਆਈਡੀ / ਮੋਬਾਈਲ',
     loginIdHint: 'ਰਜਿਸਟ੍ਰੇਸ਼ਨ ਤੋਂ ਬਾਅਦ ਮਿਲੀ ਲੌਗਇਨ ਆਈਡੀ ਜਾਂ ਆਪਣਾ 10 ਅੰਕਾਂ ਦਾ ਮੋਬਾਈਲ ਨੰਬਰ ਵਰਤੋ।',
     pinLabel: 'ਪਿੰਨ',
@@ -1495,6 +1503,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ਇਹ ਲੌਗਇਨ ਆਈਡੀ ਸੰਭਾਲ ਕੇ ਰੱਖੋ',
     keepLoginIdBody:
       'ਇਹ ਆਈਡੀ ਆਪਣੇ ਰਿਕਾਰਡ ਲਈ ਸੰਭਾਲ ਕੇ ਰੱਖੋ। ਲੌਗਇਨ ਆਈਡੀ ਜਾਂ ਮੋਬਾਈਲ ਅਤੇ ਪਿੰਨ ਨਾਲ ਸਾਈਨ ਇਨ ਕਰੋ।',
+    copyLoginId: 'ਕਾਪੀ ਕਰੋ',
+    loginIdCopied: 'ਕਾਪੀ ਹੋ ਗਿਆ',
     loginId: 'ਲੌਗਇਨ ਆਈਡੀ',
     goHome: 'ਹੋਮ ਉੱਤੇ ਜਾਓ',
     jaiKisan: 'ਜੈ ਕਿਸਾਨ',
@@ -1594,7 +1604,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'এপ্ ব্যৱহাৰৰ আগতে পঞ্জীয়ন আৰু চাইন ইন বাধ্যতামূলক।',
     email: 'ইমেইল',
     emailOptional: 'ইমেইল (ঐচ্ছিক)',
-    createAccount: 'একাউণ্ট সৃষ্টি কৰক',
     loginIdLabel: 'লগইন আইডি / মোবাইল',
     loginIdHint: 'পঞ্জীয়নৰ পিছত পোৱা লগইন আইডি বা আপোনাৰ 10 অংকৰ মোবাইল নম্বৰ ব্যৱহাৰ কৰক।',
     pinLabel: 'পিন',
@@ -1649,6 +1658,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'এই লগইন আইডিটো সাঁচি ৰাখক',
     keepLoginIdBody:
       'আপোনাৰ ৰেকৰ্ডৰ বাবে এই আইডিটো সাঁচি ৰাখক। লগইন আইডি বা মোবাইল আৰু পিনেৰে চাইন ইন কৰক।',
+    copyLoginId: 'কপি কৰক',
+    loginIdCopied: 'কপি হৈছে',
     loginId: 'লগইন আইডি',
     goHome: 'হোমলৈ যাওক',
     jaiKisan: 'জয় কিষাণ',
@@ -1750,7 +1761,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ऐप उपयोग करबासँ पहिने पंजीकरण आ साइन इन आवश्यक अछि।',
     email: 'ईमेल',
     emailOptional: 'ईमेल (वैकल्पिक)',
-    createAccount: 'खाता बनाउ',
     loginIdLabel: 'लॉगिन आईडी / मोबाइल',
     loginIdHint: 'पंजीकरणक बाद भेटल लॉगिन आईडी वा अपन 10 अंकक मोबाइल नम्बर उपयोग करू।',
     pinLabel: 'पिन',
@@ -1805,6 +1815,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ई लॉगिन आईडी सम्हारि कऽ राखू',
     keepLoginIdBody:
       'ई आईडी अपन रिकॉर्ड लेल सम्हारि कऽ राखू। लॉगिन आईडी वा मोबाइल आ पिनसँ साइन इन करू।',
+    copyLoginId: 'कॉपी करू',
+    loginIdCopied: 'कॉपी भेल',
     loginId: 'लॉगिन आईडी',
     goHome: 'होमपर जाउ',
     jaiKisan: 'जय किसान',
@@ -1904,7 +1916,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ᱮᱯ ᱵᱮᱵᱷᱟᱨ ᱞᱟᱦᱟ ᱧᱩᱛᱩᱢ ᱚᱞ ᱟᱨ ᱥᱟᱭᱤᱱ ᱤᱱ ᱞᱟᱹᱠᱛᱤᱜ ᱠᱟᱱᱟ᱾',
     email: 'ᱤᱢᱮᱞ',
     emailOptional: 'ᱤᱢᱮᱞ (ᱢᱚᱱᱮ ᱛᱮ)',
-    createAccount: 'ᱠᱷᱟᱛᱟ ᱛᱮᱭᱟᱨ ᱢᱮ',
     loginIdLabel: 'ᱞᱚᱜᱤᱱ ᱟᱭᱰᱤ / ᱢᱚᱵᱟᱭᱤᱞ',
     loginIdHint: 'ᱧᱩᱛᱩᱢ ᱚᱞ ᱛᱟᱭᱚᱢ ᱧᱟᱢ ᱟᱠᱟᱱ ᱞᱚᱜᱤᱱ ᱟᱭᱰᱤ ᱥᱮ ᱟᱢᱟᱜ 10 ᱮᱞᱟᱜ ᱢᱚᱵᱟᱭᱤᱞ ᱱᱟᱢᱵᱟᱨ ᱵᱮᱵᱷᱟᱨ ᱢᱮ᱾',
     pinLabel: 'ᱯᱤᱱ',
@@ -1960,6 +1971,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ᱱᱚᱶᱟ ᱞᱚᱜᱤᱱ ᱟᱭᱰᱤ ᱫᱚᱦᱚ ᱢᱮ',
     keepLoginIdBody:
       'ᱱᱚᱶᱟ ᱟᱭᱰᱤ ᱟᱢᱟᱜ ᱨᱮᱠᱚᱨᱰ ᱞᱟᱹᱜᱤᱫ ᱫᱚᱦᱚ ᱢᱮ᱾ ᱞᱚᱜᱤᱱ ᱟᱭᱰᱤ ᱥᱮ ᱢᱚᱵᱟᱭᱤᱞ ᱟᱨ ᱯᱤᱱ ᱛᱮ ᱥᱟᱭᱤᱱ ᱤᱱ ᱢᱮ᱾',
+    copyLoginId: 'ᱠᱚᱯᱤ ᱢᱮ',
+    loginIdCopied: 'ᱠᱚᱯᱤ ᱮᱱᱟ',
     loginId: 'ᱞᱚᱜᱤᱱ ᱟᱭᱰᱤ',
     goHome: 'ᱚᱲᱟᱜ ᱥᱮᱫ ᱪᱟᱞᱟᱜ ᱢᱮ',
     jaiKisan: 'ᱡᱚᱭ ᱠᱤᱥᱟᱱ',
@@ -2060,7 +2073,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ایپ استعمال کرنہٕ برونٛہہ چھُ رجسٹریشن تہٕ سائن اِن لازمی۔',
     email: 'ای میل',
     emailOptional: 'ای میل (اختیٲری)',
-    createAccount: 'اکاؤنٹ بنٲوِو',
     loginIdLabel: 'لاگ اِن آئی ڈی / موبائل',
     loginIdHint:
       'رجسٹریشنہٕ پتہٕ میلِمٕژ لاگ اِن آئی ڈی یا پنُن 10 ہِندسن ہُنٛد موبائل نمبر استعمال کٔرِو۔',
@@ -2117,6 +2129,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'یہِ لاگ اِن آئی ڈی تھٲوِو حِفاظتس منٛز',
     keepLoginIdBody:
       'یہِ آئی ڈی تھٲوِو پنٕنہِ ریکارڈ خٲطرٕ۔ لاگ اِن آئی ڈی یا موبائل تہٕ پِن سٟتۍ کٔرِو سائن اِن۔',
+    copyLoginId: 'کاپی کٔرِو',
+    loginIdCopied: 'کاپی گوٚو',
     loginId: 'لاگ اِن آئی ڈی',
     goHome: 'ہومس پؠٹھ گٔژھِو',
     jaiKisan: 'جے کِسان',
@@ -2216,7 +2230,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'एप प्रयोग गर्नुअघि दर्ता र साइन इन अनिवार्य छ।',
     email: 'इमेल',
     emailOptional: 'इमेल (ऐच्छिक)',
-    createAccount: 'खाता बनाउनुहोस्',
     loginIdLabel: 'लगइन आईडी / मोबाइल',
     loginIdHint: 'दर्तापछि पाएको लगइन आईडी वा आफ्नो 10 अङ्कको मोबाइल नम्बर प्रयोग गर्नुहोस्।',
     pinLabel: 'पिन',
@@ -2271,6 +2284,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'यो लगइन आईडी सुरक्षित राख्नुहोस्',
     keepLoginIdBody:
       'यो आईडी आफ्नो अभिलेखका लागि सुरक्षित राख्नुहोस्। लगइन आईडी वा मोबाइल र पिनबाट साइन इन गर्नुहोस्।',
+    copyLoginId: 'कपी गर्नुहोस्',
+    loginIdCopied: 'कपी भयो',
     loginId: 'लगइन आईडी',
     goHome: 'गृहपृष्ठमा जानुहोस्',
     jaiKisan: 'जय किसान',
@@ -2372,7 +2387,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ॲप वापरचे आदीं नोंदणी आनी साइन इन गरजेचें आसा.',
     email: 'ईमेल',
     emailOptional: 'ईमेल (पर्यायी)',
-    createAccount: 'खातें तयार करात',
     loginIdLabel: 'लॉगिन आयडी / मोबायल',
     loginIdHint: 'नोंदणी उपरांत मेळिल्लो लॉगिन आयडी वा तुमचो 10 आंकड्यांचो मोबायल नंबर वापरात.',
     pinLabel: 'पिन',
@@ -2427,6 +2441,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'हो लॉगिन आयडी सांबाळून दवरात',
     keepLoginIdBody:
       'हो आयडी तुमच्या नोंदी खातीर सांबाळून दवरात. लॉगिन आयडी वा मोबायल आनी पिन वापरून साइन इन करात.',
+    copyLoginId: 'कॉपी करात',
+    loginIdCopied: 'कॉपी जालें',
     loginId: 'लॉगिन आयडी',
     goHome: 'मुखेल पानार वचात',
     jaiKisan: 'जय किसान',
@@ -2528,7 +2544,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ايپ استعمال ڪرڻ کان اڳ رجسٽريشن ۽ سائن ان ضروري آهي.',
     email: 'اي ميل',
     emailOptional: 'اي ميل (اختياري)',
-    createAccount: 'اڪائونٽ ٺاهيو',
     loginIdLabel: 'لاگ ان آئي ڊي / موبائيل',
     loginIdHint:
       'رجسٽريشن کان پوءِ مليل لاگ ان آئي ڊي يا پنهنجو 10 انگن وارو موبائيل نمبر استعمال ڪريو.',
@@ -2584,6 +2599,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'هي لاگ ان آئي ڊي سنڀالي رکو',
     keepLoginIdBody:
       'هي آئي ڊي پنهنجي رڪارڊ لاءِ سنڀالي رکو. لاگ ان آئي ڊي يا موبائيل ۽ پن سان سائن ان ڪريو.',
+    copyLoginId: 'ڪاپي ڪريو',
+    loginIdCopied: 'ڪاپي ٿي وئي',
     loginId: 'لاگ ان آئي ڊي',
     goHome: 'هوم ڏانهن وڃو',
     jaiKisan: 'جئي ڪسان',
@@ -2683,7 +2700,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ऐप बरतने शा पैह्लें पंजीकरण ते साइन इन जरूरी ऐ।',
     email: 'ईमेल',
     emailOptional: 'ईमेल (वैकल्पिक)',
-    createAccount: 'खाता बनाओ',
     loginIdLabel: 'लॉगिन आईडी / मोबाइल',
     loginIdHint: 'पंजीकरण दे बाद थ्होई दी लॉगिन आईडी जां अपना 10 अंकें दा मोबाइल नंबर बरतो।',
     pinLabel: 'पिन',
@@ -2738,6 +2754,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'एह् लॉगिन आईडी संभाली रक्खो',
     keepLoginIdBody:
       'एह् आईडी अपने रिकार्ड आस्तै संभाली रक्खो। लॉगिन आईडी जां मोबाइल ते पिन कन्नै साइन इन करो।',
+    copyLoginId: 'कापी करो',
+    loginIdCopied: 'कापी होई गेआ',
     loginId: 'लॉगिन आईडी',
     goHome: 'होम पर जाओ',
     jaiKisan: 'जै किसान',
@@ -2837,7 +2855,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'এপ শিজিন্নদ্রিঙৈগী মমাংদা রেজিস্টার অমসুং সাইন ইন তৌবা মথৌ তাই।',
     email: 'ইমেইল',
     emailOptional: 'ইমেইল (পাম্লবদি)',
-    createAccount: 'একাউন্ত শেম্বিযু',
     loginIdLabel: 'লগইন আইদি / মোবাইল',
     loginIdHint:
       'রেজিস্টার তৌরবা মতুংদা ফংলকপা লগইন আইদি নত্রগা নহাক্কী 10 মশিং লৈবা মোবাইল নম্বর শিজিন্নবিযু।',
@@ -2893,6 +2910,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'লগইন আইদি অসি ঙাক্না থম্বিযু',
     keepLoginIdBody:
       'আইদি অসি নহাক্কী রেকোর্দকীদমক ঙাক্না থম্বিযু। লগইন আইদি নত্রগা মোবাইল অমসুং পিন শিজিন্নদুনা সাইন ইন তৌবিযু।',
+    copyLoginId: 'কপি তৌবিয়ু',
+    loginIdCopied: 'কপি তৌরে',
     loginId: 'লগইন আইদি',
     goHome: 'য়ুমদা চৎপিযু',
     jaiKisan: 'জয় কিষান',
@@ -2995,7 +3014,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'एप बाहायनायनि सिगां रेजिस्टार आरो साइन इन गोनांथार।',
     email: 'इमेल',
     emailOptional: 'इमेल (गावनि गोसो बादि)',
-    createAccount: 'एकाउन्ट सोरजिदो',
     loginIdLabel: 'लगइन आइडि / मबाइल',
     loginIdHint:
       'रेजिस्टार खालामनायनि उनाव मोननाय लगइन आइडि एबा नोंथांनि 10 अनजिमानि मबाइल नम्बर बाहायदो।',
@@ -3051,6 +3069,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'बे लगइन आइडिखौ रैखा खालामनानै दोन',
     keepLoginIdBody:
       'बे आइडिखौ नोंथांनि रेकर्डनि थाखाय रैखा खालामनानै दोन। लगइन आइडि एबा मबाइल आरो पिन बाहायनानै साइन इन खालामदो।',
+    copyLoginId: 'कपि खालाम',
+    loginIdCopied: 'कपि जादों',
     loginId: 'लगइन आइडि',
     goHome: 'नʼआव थांदो',
     jaiKisan: 'जय किसान',
@@ -3152,7 +3172,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'अनुप्रयोगस्य उपयोगात् पूर्वं पञ्जीकरणं प्रवेशः च आवश्यकौ।',
     email: 'ईपत्रम्',
     emailOptional: 'ईपत्रम् (वैकल्पिकम्)',
-    createAccount: 'लेखां रचयन्तु',
     loginIdLabel: 'प्रवेशपरिचयः / चलदूरभाषः',
     loginIdHint:
       'पञ्जीकरणानन्तरं प्राप्तं प्रवेशपरिचयं स्वस्य 10 अङ्कात्मिकां चलदूरभाषसङ्ख्यां वा उपयुञ्जन्तु।',
@@ -3208,6 +3227,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'एतं प्रवेशपरिचयं रक्षन्तु',
     keepLoginIdBody:
       'एतं परिचयं स्वाभिलेखार्थं रक्षन्तु। प्रवेशपरिचयेन चलदूरभाषेण वा, पिन् च उपयुज्य प्रविशन्तु।',
+    copyLoginId: 'प्रतिलिपिं कुरुत',
+    loginIdCopied: 'प्रतिलिपिः कृता',
     loginId: 'प्रवेशपरिचयः',
     goHome: 'मुखपृष्ठं गच्छन्तु',
     jaiKisan: 'जय किसान',
@@ -3308,7 +3329,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ऐप चलावे से पहिले पंजीकरण आ साइन इन जरूरी बा।',
     email: 'ईमेल',
     emailOptional: 'ईमेल (मन होखे त)',
-    createAccount: 'खाता बनाईं',
     loginIdLabel: 'लॉगिन आईडी / मोबाइल',
     loginIdHint: 'पंजीकरण के बाद मिलल लॉगिन आईडी भा आपन 10 अंक के मोबाइल नंबर इस्तेमाल करीं।',
     pinLabel: 'पिन',
@@ -3363,6 +3383,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ई लॉगिन आईडी सँभाल के राखीं',
     keepLoginIdBody:
       'ई आईडी आपन रिकॉर्ड खातिर सँभाल के राखीं। लॉगिन आईडी भा मोबाइल आ पिन से साइन इन करीं।',
+    copyLoginId: 'कॉपी करीं',
+    loginIdCopied: 'कॉपी हो गइल',
     loginId: 'लॉगिन आईडी',
     goHome: 'होम पर जाईं',
     jaiKisan: 'जय किसान',
@@ -3462,7 +3484,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ऐप बरतण सूं पैलां पंजीकरण अर साइन इन जरूरी है।',
     email: 'ईमेल',
     emailOptional: 'ईमेल (मरजी सूं)',
-    createAccount: 'खातो बणाओ',
     loginIdLabel: 'लॉगिन आईडी / मोबाइल',
     loginIdHint: 'पंजीकरण रै पछै मिल्योड़ी लॉगिन आईडी का आपरो 10 अंकां रो मोबाइल नंबर बरतो।',
     pinLabel: 'पिन',
@@ -3517,6 +3538,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'आ लॉगिन आईडी संभाळ नै राखो',
     keepLoginIdBody:
       'आ आईडी आपरै रिकॉर्ड सारू संभाळ नै राखो। लॉगिन आईडी का मोबाइल अर पिन सूं साइन इन करो।',
+    copyLoginId: 'कॉपी करो',
+    loginIdCopied: 'कॉपी होग्यो',
     loginId: 'लॉगिन आईडी',
     goHome: 'होम माथै जावो',
     jaiKisan: 'जय किसान',
@@ -3616,7 +3639,6 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     accessBody: 'ಆ್ಯಪ್ ಉಪಯೋಗ ಮಲ್ಪುನ ದುಂಬು ನೋಂದಣಿ ಬೊಕ್ಕ ಸೈನ್ ಇನ್ ಅಗತ್ಯ ಉಂಡು.',
     email: 'ಇಮೇಲ್',
     emailOptional: 'ಇಮೇಲ್ (ಐಚ್ಛಿಕ)',
-    createAccount: 'ಖಾತೆ ಮಲ್ಪುಲೆ',
     loginIdLabel: 'ಲಾಗಿನ್ ಐಡಿ / ಮೊಬೈಲ್',
     loginIdHint:
       'ನೋಂದಣಿದ ಬುಕ್ಕ ತಿಕ್ಕಿನ ಲಾಗಿನ್ ಐಡಿ ಅತ್ತಂಡ ಈರೆನ 10 ಅಂಕಿದ ಮೊಬೈಲ್ ನಂಬರ್ ಉಪಯೋಗ ಮಲ್ಪುಲೆ.',
@@ -3672,6 +3694,8 @@ export const TRANSLATIONS: Record<Exclude<LangCode, 'en' | 'hi'>, AppCopy> = {
     keepLoginId: 'ಈ ಲಾಗಿನ್ ಐಡಿನ್ ಜಾಗ್ರತೆಡ್ ದೀಲೆ',
     keepLoginIdBody:
       'ಈ ಐಡಿನ್ ಈರೆನ ದಾಖಲೆಗಾದ್ ಜಾಗ್ರತೆಡ್ ದೀಲೆ. ಲಾಗಿನ್ ಐಡಿ ಅತ್ತಂಡ ಮೊಬೈಲ್ ಬೊಕ್ಕ ಪಿನ್‌ಡ್ ಸೈನ್ ಇನ್ ಮಲ್ಪುಲೆ.',
+    copyLoginId: 'ಕಾಪಿ ಮಲ್ಪುಲೆ',
+    loginIdCopied: 'ಕಾಪಿ ಆಂಡ್',
     loginId: 'ಲಾಗಿನ್ ಐಡಿ',
     goHome: 'ಮುಖಪುಟೊಗು ಪೋಲೆ',
     jaiKisan: 'ಜೈ ಕಿಸಾನ್',
