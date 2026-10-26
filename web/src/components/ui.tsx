@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from 'react'
+import { Icon, type IconName } from './icons.tsx'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'ghost' | 'danger' | 'text'
@@ -169,5 +170,78 @@ export function Screen({
     <div className="screen">
       <div className={`screen-scroll${withNav ? ' screen-scroll--nav' : ''}`}>{children}</div>
     </div>
+  )
+}
+
+export function PersonHeader({
+  initials,
+  name,
+  role,
+  children,
+}: {
+  initials: string
+  name: string
+  role: string
+  children?: ReactNode
+}) {
+  return (
+    <section className="person-header">
+      <div className="identity">
+        <div className="avatar avatar--lg" aria-hidden="true">
+          {initials}
+        </div>
+        <div>
+          <h2 className="card__title">{name}</h2>
+          <p className="muted">{role}</p>
+          {children ? <div className="chips person-header__chips">{children}</div> : null}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export function Panel({
+  title,
+  icon,
+  children,
+}: {
+  title: string
+  icon?: IconName
+  children?: ReactNode
+}) {
+  return (
+    <section className="panel">
+      <h2 className="panel__title">
+        {icon ? <Icon name={icon} size={18} /> : null}
+        {title}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+export type InfoRow = {
+  icon?: IconName
+  label: string
+  value: string
+}
+
+export function InfoList({ rows }: { rows: InfoRow[] }) {
+  return (
+    <dl className="info-list">
+      {rows.map((row) => (
+        <div className="info-list__row" key={row.label}>
+          {row.icon ? (
+            <span className="info-list__icon">
+              <Icon name={row.icon} size={18} />
+            </span>
+          ) : null}
+          <div>
+            <dt className="info-list__label">{row.label}</dt>
+            <dd className="info-list__value">{row.value}</dd>
+          </div>
+        </div>
+      ))}
+    </dl>
   )
 }
