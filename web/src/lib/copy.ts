@@ -33,7 +33,6 @@ export type AppCopy = {
   accessBody: string
   email: string
   emailOptional: string
-  createAccount: string
   loginIdLabel: string
   loginIdHint: string
   pinLabel: string
@@ -87,6 +86,8 @@ export type AppCopy = {
   keepLoginId: string
   keepLoginIdBody: string
   loginId: string
+  copyLoginId: string
+  loginIdCopied: string
   goHome: string
   jaiKisan: string
   registeredParticipant: string
@@ -185,7 +186,6 @@ const HI: AppCopy = {
   accessBody: 'ऐप का उपयोग करने से पहले पंजीकरण और साइन इन आवश्यक है।',
   email: 'ईमेल',
   emailOptional: 'ईमेल (वैकल्पिक)',
-  createAccount: 'खाता बनाएँ',
   loginIdLabel: 'लॉगिन आईडी / मोबाइल',
   loginIdHint: 'पंजीकरण के बाद मिली लॉगिन आईडी या अपना 10 अंकों का मोबाइल नंबर उपयोग करें।',
   pinLabel: 'पिन',
@@ -239,6 +239,8 @@ const HI: AppCopy = {
   keepLoginId: 'यह लॉगिन आईडी रखें',
   keepLoginIdBody: 'यह आईडी संभालकर रखें। साइन इन लॉगिन आईडी या मोबाइल और पिन से होगा।',
   loginId: 'लॉगिन आईडी',
+  copyLoginId: 'कॉपी करें',
+  loginIdCopied: 'कॉपी हो गया',
   goHome: 'होम पर जाएँ',
   jaiKisan: 'जय किसान',
   registeredParticipant: 'पंजीकृत प्रतिभागी',
@@ -338,7 +340,6 @@ const EN: AppCopy = {
   accessBody: 'Registration and sign in are required before anyone can use the app.',
   email: 'Email',
   emailOptional: 'Email (optional)',
-  createAccount: 'Create account',
   loginIdLabel: 'Login ID / mobile',
   loginIdHint: 'Use the login ID from registration or your 10-digit mobile number.',
   pinLabel: 'PIN',
@@ -392,6 +393,8 @@ const EN: AppCopy = {
   keepLoginId: 'Keep this login ID',
   keepLoginIdBody: 'Keep this ID for your records. Sign in with your login ID or mobile and PIN.',
   loginId: 'Login ID',
+  copyLoginId: 'Copy',
+  loginIdCopied: 'Copied',
   goHome: 'Go to Home',
   jaiKisan: 'Jai Kisan',
   registeredParticipant: 'Registered participant',

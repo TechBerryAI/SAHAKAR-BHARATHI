@@ -41,6 +41,8 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
       - name: Unit tests
         run: ./gradlew --no-daemon :app:testDebugUnitTest
       - name: Debug build
@@ -77,6 +79,8 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
       - name: Restore upload keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
