@@ -17,6 +17,9 @@ _RATE_LIMIT_BACKENDS = {"memory", "postgres"}
 _DEV_CORS_ORIGINS = (
     "http://127.0.0.1:5173",
     "http://localhost:5173",
+    # start.js serves the web app on 5174.
+    "http://127.0.0.1:5174",
+    "http://localhost:5174",
     "https://sahakarbharati-e3b04.web.app",
     "https://sahakarbharati-e3b04.firebaseapp.com",
 )

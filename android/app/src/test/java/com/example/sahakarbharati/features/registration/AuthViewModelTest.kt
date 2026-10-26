@@ -87,14 +87,14 @@ class AuthViewModelTest {
     @Test
     fun signIn_error_setsErrorState() = runTest {
         val repository = FakeAuthRepository(
-            signInResult = Result.failure(Exception("Login ID or PIN is incorrect.")),
+            signInResult = Result.failure(Exception("Mobile number or PIN is incorrect.")),
         )
         val viewModel = SignInViewModel(repository)
         viewModel.submit("9876543210", "0000")
         advanceUntilIdle()
         val state = viewModel.state
         assertTrue(state is UiState.Error)
-        assertEquals("Login ID or PIN is incorrect.", (state as UiState.Error).message)
+        assertEquals("Mobile number or PIN is incorrect.", (state as UiState.Error).message)
     }
 
     @Test

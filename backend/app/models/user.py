@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, String, func
+from sqlalchemy import CheckConstraint, Date, DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,6 +17,12 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('participant', 'admin', 'super_admin')",
+            name="ck_users_role",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -41,6 +47,12 @@ class User(Base):
         nullable=False,
         default="active",
         server_default="active",
+    )
+    role: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="participant",
+        server_default="participant",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

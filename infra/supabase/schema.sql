@@ -1,5 +1,5 @@
 -- Sahakar Bharati participant schema for Supabase (PostgreSQL).
--- Matches Alembic head 20261023_0006 (verification_challenges is not created).
+-- Matches Alembic head 20261026_0007 (verification_challenges is not created).
 -- backend/tests/test_database_schema.py fails if this file drifts from the models.
 --
 -- USE ONLY ON AN EMPTY DATABASE. The preferred path is `alembic upgrade head`
@@ -7,7 +7,7 @@
 -- Editor when Alembic cannot reach the database. Apply it with:
 --   psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/supabase/schema.sql
 --
--- It records Alembic revision 20261023_0006, so `alembic upgrade head` works
+-- It records Alembic revision 20261026_0007, so `alembic upgrade head` works
 -- afterwards. If alembic_version already has a row the script stops with an
 -- error instead of creating a second version row.
 --
@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     pincode varchar(6),
     status varchar(32) NOT NULL DEFAULT 'active'
         CONSTRAINT ck_users_status CHECK (status IN ('active', 'disabled')),
+    role varchar(32) NOT NULL DEFAULT 'participant'
+        CONSTRAINT ck_users_role CHECK (role IN ('participant', 'admin', 'super_admin')),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT users_login_id_key UNIQUE (login_id),
@@ -152,6 +154,6 @@ BEGIN
     IF EXISTS (SELECT 1 FROM public.alembic_version) THEN
         RAISE EXCEPTION 'alembic_version is not empty: run alembic upgrade head instead of schema.sql';
     END IF;
-    INSERT INTO public.alembic_version (version_num) VALUES ('20261023_0006');
+    INSERT INTO public.alembic_version (version_num) VALUES ('20261026_0007');
 END
 $$;

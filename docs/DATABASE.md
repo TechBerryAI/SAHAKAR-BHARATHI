@@ -9,7 +9,7 @@ and the app does not use Supabase Auth, PostgREST, or the Supabase JS client.
 |---|---|
 | `backend/app/models/` | SQLAlchemy models, the source of truth for code. |
 | `backend/migrations/versions/` | Alembic migrations, the **preferred** way to create and evolve a database. |
-| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261023_0006`) for the Supabase SQL Editor. **Empty databases only.** |
+| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261026_0007`) for the Supabase SQL Editor. **Empty databases only.** |
 | `infra/supabase/runtime_role.sql` | Optional least-privilege role for the running API. |
 
 The two init paths produce the same schema. `backend/tests/test_database_schema.py`
@@ -33,6 +33,7 @@ production schema.
 | `20261022_0004` | `phone_verifications` (OTP challenges) |
 | `20261023_0005` | Enable RLS and revoke `anon` / `authenticated` on all app tables |
 | `20261023_0006` | `rate_limit_buckets` for `RATE_LIMIT_BACKEND=postgres` |
+| `20261026_0007` | `users.role` (`participant`, `admin`, `super_admin`) |
 
 **Why 0005 matters:** Supabase grants the public `anon` and `authenticated` roles
 full privileges on new tables in `public`, and exposes them over PostgREST with the
@@ -60,7 +61,7 @@ proves 0005 removes it.
    role password outside the file, and point Render `DATABASE_URL` at `sahakar_api`.
 
 Alternative when Alembic cannot reach the database: run `infra/supabase/schema.sql`
-once in the SQL Editor on the **empty** database. It stamps `20261023_0006`, so
+once in the SQL Editor on the **empty** database. It stamps `20261026_0007`, so
 later releases use `alembic upgrade head` as normal.
 
 ## Existing database (every release)

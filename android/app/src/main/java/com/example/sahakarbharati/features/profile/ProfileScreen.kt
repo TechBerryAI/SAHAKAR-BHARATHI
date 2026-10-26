@@ -179,7 +179,7 @@ fun ProfileScreen(
             SectionLabel(if (hindi) "खाता" else "Account")
             ProfileRow(
                 icon = Icons.Outlined.Badge,
-                title = if (hindi) "लॉगिन आईडी" else "Login ID",
+                title = if (hindi) "प्रतिभागी आईडी" else "Participant ID",
                 subtitle = loginId,
             )
             ProfileRow(

@@ -64,17 +64,17 @@ beforeEach(() => {
 describe('session lifecycle', () => {
   it('signs in, stores the token and the profile from the session response', async () => {
     const calls = scriptServer({ status: 200, body: { ...profileBody, access_token: 'tok-1', token_type: 'bearer' } })
-    const profile = await signIn(' SB-1234ABCD ', '2468')
+    const profile = await signIn(' 9876543210 ', '2468')
     expect(profile.login_id).toBe('SB-1234ABCD')
     expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBe('tok-1')
     expect(getSnapshot().uid).toBe('SB-1234ABCD')
     expect(calls[0].url).toBe(`${API}/api/v1/sessions`)
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ identifier: 'SB-1234ABCD', pin: '2468' })
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ identifier: '9876543210', pin: '2468' })
   })
 
   it('a wrong PIN is an error, not a session', async () => {
-    scriptServer({ status: 401, body: { detail: 'Login ID or PIN is incorrect.' } })
-    const error = await signIn('SB-1234ABCD', '0000').catch((err: unknown) => err)
+    scriptServer({ status: 401, body: { detail: 'Mobile number or PIN is incorrect.' } })
+    const error = await signIn('9876543210', '0000').catch((err: unknown) => err)
     expect(error).toBeInstanceOf(ApiError)
     expect(apiErrorText(error, copyFor('en'), 'fallback')).toBe(copyFor('en').invalidCredentials)
     expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull()

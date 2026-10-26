@@ -39,10 +39,8 @@ def normalize_name(value: str) -> str:
 
 
 def canonical_login_identifier(value: str) -> str:
-    mobile = normalize_mobile(value)
-    if is_valid_mobile(mobile):
-        return mobile
-    return value.replace(" ", "").upper()
+    """Sign-in identifier is the 10-digit mobile number only."""
+    return normalize_mobile(value)
 
 
 def is_valid_pin(value: str) -> bool:

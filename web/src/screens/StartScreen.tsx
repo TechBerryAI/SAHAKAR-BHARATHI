@@ -7,25 +7,28 @@ import { useLanguage } from '../lib/language.tsx'
 export function StartScreen() {
   const { copy } = useLanguage()
   const titleRef = useRef<HTMLHeadingElement>(null)
+  const subtitleRef = useRef<HTMLParagraphElement>(null)
 
-  // The welcome line stays on one row: shrink its font until it fits the screen width.
+  // The welcome lines stay on one row each, so the block stays a tidy centred stack on any
+  // phone: shrink a line's font until it fits the screen width.
   useLayoutEffect(() => {
-    const title = titleRef.current
-    if (!title) return
+    const lines = [titleRef.current, subtitleRef.current].filter((el) => el !== null)
     const fit = () => {
-      title.style.fontSize = ''
-      const room = title.clientWidth
-      const needed = title.scrollWidth
-      if (needed > room) {
-        const base = parseFloat(getComputedStyle(title).fontSize)
-        title.style.fontSize = `${Math.floor(base * (room / needed) * 10) / 10}px`
+      for (const line of lines) {
+        line.style.fontSize = ''
+        const room = line.clientWidth
+        const needed = line.scrollWidth
+        if (needed > room) {
+          const base = parseFloat(getComputedStyle(line).fontSize)
+          line.style.fontSize = `${Math.floor(base * (room / needed) * 10) / 10}px`
+        }
       }
     }
     fit()
     document.fonts?.ready.then(fit)
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [copy.welcomeTitle])
+  }, [copy.welcomeTitle, copy.subtitle])
 
   return (
     <section className="start">
@@ -41,7 +44,9 @@ export function StartScreen() {
           <h1 ref={titleRef} className="start__title">
             {copy.welcomeTitle}
           </h1>
-          <p className="start__subtitle">{copy.subtitle}</p>
+          <p ref={subtitleRef} className="start__subtitle">
+            {copy.subtitle}
+          </p>
         </div>
 
         <div className="start__actions">

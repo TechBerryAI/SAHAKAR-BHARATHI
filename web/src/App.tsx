@@ -5,6 +5,9 @@ import { Button, Card, Screen } from './components/ui.tsx'
 import { logout, restoreSession } from './lib/api.ts'
 import { useLanguage } from './lib/language.tsx'
 import { useSession } from './lib/session.ts'
+import { isStaffRole } from './lib/api.ts'
+import { AdminUserScreen } from './screens/AdminUserScreen.tsx'
+import { AdminUsersScreen } from './screens/AdminUsersScreen.tsx'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { ProfileScreen } from './screens/ProfileScreen.tsx'
 import { RegisterScreen } from './screens/RegisterScreen.tsx'
@@ -21,6 +24,13 @@ function GuestRoute({ children }: { children: ReactNode }) {
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { uid } = useSession()
   if (!uid) return <Navigate to="/" replace />
+  return children
+}
+
+function AdminRoute({ children }: { children: ReactNode }) {
+  const { uid, profile } = useSession()
+  if (!uid) return <Navigate to="/" replace />
+  if (!isStaffRole(profile?.role)) return <Navigate to="/" replace />
   return children
 }
 
@@ -96,6 +106,22 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminUsersScreen />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/users/:userId"
+          element={
+            <AdminRoute>
+              <AdminUserScreen />
+            </AdminRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
@@ -105,7 +131,9 @@ function AppRoutes() {
 export default function App() {
   const location = useLocation()
   const { uid } = useSession()
-  const showNav = Boolean(uid) && (location.pathname === '/' || location.pathname === '/profile')
+  const showNav =
+    Boolean(uid) &&
+    (location.pathname === '/' || location.pathname === '/profile' || location.pathname.startsWith('/admin'))
 
   return (
     <AppShell showNav={showNav}>

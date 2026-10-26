@@ -53,8 +53,8 @@ class RemoteAuthRepository(
             RegistrationResult(created.registrationId, result.profile.withRegistration(created))
         }.recoverCatching { error ->
             throw Exception(
-                "Your account was created (Login ID ${created.loginId}), but signing in failed: " +
-                    mapApiError(error, "please try again.") + " Sign in with your Login ID and PIN.",
+                "Your account was created, but signing in failed: " +
+                    mapApiError(error, "please try again.") + " Sign in with your mobile number and PIN.",
             )
         }
     }

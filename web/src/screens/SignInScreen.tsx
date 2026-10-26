@@ -1,36 +1,35 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Seal } from '../components/Seal.tsx'
 import { Button, ErrorBanner, Field } from '../components/ui.tsx'
 import { apiErrorText, signIn } from '../lib/api.ts'
 import { useLanguage } from '../lib/language.tsx'
 
 const PIN_PATTERN = /^\d{4,6}$/
+const MOBILE_PATTERN = /^[6-9]\d{9}$/
 
 export function SignInScreen() {
   const navigate = useNavigate()
   const location = useLocation()
   const { copy } = useLanguage()
-  const routeState = location.state as { createdLoginId?: string; identifier?: string } | null
-  // Set by registration when the account was created but the automatic sign-in failed.
-  const createdLoginId = routeState?.createdLoginId ?? ''
-  // Registration also sends people here with their number when it already has an account.
-  const [identifier, setIdentifier] = useState(() => createdLoginId || routeState?.identifier || '')
+  const routeState = location.state as { identifier?: string; accountReady?: boolean } | null
+  // Registration sends the number when sign-in after create failed, or when the number already has an account.
+  const presetMobile = (routeState?.identifier ?? '').replace(/\D/g, '').slice(-10)
+  const [mobile, setMobile] = useState(() => (MOBILE_PATTERN.test(presetMobile) ? presetMobile : ''))
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const login = identifier.trim()
-    if (!login || !PIN_PATTERN.test(pin)) {
+    if (!MOBILE_PATTERN.test(mobile) || !PIN_PATTERN.test(pin)) {
       setError(copy.enterLoginPin)
       return
     }
     setBusy(true)
     setError('')
     try {
-      await signIn(login, pin)
+      await signIn(mobile, pin)
       navigate('/', { replace: true })
     } catch (err) {
       setError(apiErrorText(err, copy, copy.signInFailed))
@@ -55,20 +54,21 @@ export function SignInScreen() {
           <Seal className="signin__emblem" />
           <h2 className="signin__title">{copy.accessTitle}</h2>
           <p className="signin__lead">{copy.accessBody}</p>
-          {createdLoginId && !error ? (
+          {routeState?.accountReady && mobile && !error ? (
             <div className="banner banner--ok" role="status">
-              {copy.accountReady} — {copy.loginId}: <strong>{createdLoginId}</strong>
+              {copy.accountReady} — {copy.mobileLabel}: <strong>{mobile}</strong>
             </div>
           ) : null}
           <ErrorBanner message={error} />
           <Field
-            label={copy.loginIdLabel}
-            name="identifier"
-            autoComplete="username"
-            inputMode="text"
-            value={identifier}
-            onChange={(event) => setIdentifier(event.target.value)}
-            hint={copy.loginIdHint}
+            label={copy.mobileLabel}
+            name="mobile"
+            autoComplete="tel"
+            inputMode="numeric"
+            maxLength={10}
+            value={mobile}
+            onChange={(event) => setMobile(event.target.value.replace(/\D/g, '').slice(0, 10))}
+            hint={copy.mobileHint}
           />
           <Field
             label={copy.pinLabel}
@@ -86,9 +86,6 @@ export function SignInScreen() {
             {busy ? copy.signingIn : copy.signIn}
             {busy ? null : <span aria-hidden="true">→</span>}
           </Button>
-          <Link className="signin__create" to="/register">
-            {copy.createAccount}
-          </Link>
         </div>
       </form>
     </section>

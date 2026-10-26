@@ -146,7 +146,7 @@ fun CitizenHomeScreen(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatusChip(
-                            if (displayId.isBlank()) copy.homeId else "ID: $displayId",
+                            if (displayId.isBlank()) copy.homeId else displayId,
                             container = RathYatraColors.SurfaceContainerLow,
                             content = RathYatraColors.Navy,
                         )

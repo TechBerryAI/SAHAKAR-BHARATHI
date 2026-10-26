@@ -30,6 +30,7 @@ class ProfileService:
             state=user.state,
             pincode=user.pincode,
             status=user.status,
+            role=user.role,
         )
 
     def update(self, user: User, payload: ProfileUpdate) -> ProfileResponse:
