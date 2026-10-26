@@ -67,7 +67,7 @@ def test_registration_budget(client: TestClient, engine: Engine) -> None:
 def test_login_budget(client: TestClient, engine: Engine) -> None:
     created, _session = register_and_login(client)
     with record_sql(engine) as events:
-        response = client.post("/api/v1/sessions", json={"identifier": created["login_id"], "pin": "2468"})
+        response = client.post("/api/v1/sessions", json={"identifier": "9876543210", "pin": "2468"})
     assert response.status_code == 200
     body = response.json()
     assert body["login_id"] == created["login_id"]

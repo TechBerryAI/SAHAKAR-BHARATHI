@@ -44,6 +44,7 @@ def test_production_accepts_remote_database_url() -> None:
     settings = Settings(
         environment="production",
         database_url="postgresql://u:p@db.example.com:5432/app",
+        cors_origins="",
     )
     assert settings.sqlalchemy_url().startswith("postgresql+psycopg://")
     assert settings.engine_kwargs()["connect_args"]["sslmode"] == "require"
@@ -63,7 +64,7 @@ def test_alembic_head_is_applied(engine) -> None:
 
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "20261023_0006"
+    assert version == "20261026_0007"
 
 
 def test_production_disables_openapi_docs(monkeypatch) -> None:

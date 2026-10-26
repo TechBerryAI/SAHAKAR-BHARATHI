@@ -145,7 +145,7 @@ Full procedure: [`docs/DATABASE.md`](../docs/DATABASE.md). Do not run Alembic fr
 
 1. If the Render plan has a pre-deploy command, set it to `alembic upgrade head`.
 2. Otherwise run `MIGRATION_DATABASE_URL=… alembic upgrade head` from a trusted machine or a one-off Render shell before sending traffic to a new revision.
-3. `infra/supabase/schema.sql` is only for an empty database; it stamps `20261023_0006` itself and refuses to run if `alembic_version` already has a row.
+3. `infra/supabase/schema.sql` is only for an empty database; it stamps `20261026_0007` itself and refuses to run if `alembic_version` already has a row.
 4. Never run `alembic downgrade`, `alembic stamp` against the wrong revision, or a database reset on production.
 
 Migration `20261023_0005` enables RLS and revokes the Supabase `anon`/`authenticated` roles on every app table. Databases created with Alembic before it exposed `pin_hash` and `token_hash` to the public anon key; apply it promptly. The backend does not use Supabase Auth.

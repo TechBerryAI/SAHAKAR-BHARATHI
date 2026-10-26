@@ -21,6 +21,7 @@ class ProfileResponse(ORMModel):
     state: str | None = None
     pincode: str | None = None
     status: str
+    role: str = "participant"
 
 
 class ProfileUpdate(ORMModel):

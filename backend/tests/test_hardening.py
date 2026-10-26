@@ -22,7 +22,11 @@ def test_production_rejects_downgraded_tls(sslmode: str) -> None:
 
 
 def test_production_accepts_verify_full_tls() -> None:
-    settings = Settings(environment="production", database_url=f"{_REMOTE_DB}?sslmode=verify-full")
+    settings = Settings(
+        environment="production",
+        database_url=f"{_REMOTE_DB}?sslmode=verify-full",
+        cors_origins="",
+    )
     assert settings.engine_kwargs()["connect_args"]["sslmode"] == "verify-full"
 
 
@@ -36,7 +40,7 @@ def test_production_rejects_insecure_cors_origins(origins: str) -> None:
 
 
 def test_production_without_cors_origins_allows_no_browser_origin() -> None:
-    settings = Settings(environment="production", database_url=_REMOTE_DB)
+    settings = Settings(environment="production", database_url=_REMOTE_DB, cors_origins="")
     assert settings.cors_origin_list == []
 
 

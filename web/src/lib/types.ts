@@ -1,4 +1,5 @@
 export type Gender = 'Male' | 'Female' | 'Other'
+export type UserRole = 'participant' | 'admin' | 'super_admin'
 export type Occupation = 'Farmer' | 'Fisherman' | 'Both' | 'Allied'
 
 export const GENDERS: Gender[] = ['Male', 'Female', 'Other']
@@ -18,6 +19,7 @@ export type Profile = {
   state: string | null
   pincode: string | null
   status: string
+  role: UserRole
 }
 
 export type RegistrationCreate = {
@@ -74,4 +76,28 @@ export type SessionResponse = {
   district: string | null
   pincode: string | null
   status: string
+  role: UserRole
+}
+
+export type AdminUserSummary = {
+  id: string
+  login_id: string
+  full_name: string
+  mobile: string
+  district: string | null
+  state: string | null
+  role: UserRole
+  status: string
+}
+
+export type AdminUserList = {
+  items: AdminUserSummary[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export type AdminUserDetail = Profile & {
+  id: string
+  created_at: string
 }

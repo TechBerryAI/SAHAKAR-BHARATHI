@@ -10,12 +10,15 @@ import {
 } from './session.ts'
 import type { AppCopy } from './copy.ts'
 import type {
+  AdminUserDetail,
+  AdminUserList,
   PhoneVerificationConfirmed,
   PhoneVerificationCreated,
   Profile,
   ProfileUpdate,
   RegistrationCreate,
   SessionResponse,
+  UserRole,
 } from './types.ts'
 
 export class ApiError extends Error {
@@ -45,7 +48,7 @@ const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
   'An account with these details already exists.': 'duplicateAccount',
   'An account already exists for this mobile number.': 'mobileRegistered',
   'An account already exists with this email address.': 'emailRegistered',
-  'Login ID or PIN is incorrect.': 'invalidCredentials',
+  'Mobile number or PIN is incorrect.': 'invalidCredentials',
   'Too many attempts. Try again later.': 'tooManyAttempts',
   'The code is incorrect or has expired.': 'otpInvalid',
   'Verify this mobile number before registering.': 'verificationExpired',
@@ -80,6 +83,15 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length ? value : null
 }
 
+function asRole(value: unknown): UserRole {
+  if (value === 'admin' || value === 'super_admin' || value === 'participant') return value
+  return 'participant'
+}
+
+export function isStaffRole(role: string | undefined): boolean {
+  return role === 'admin' || role === 'super_admin'
+}
+
 export function profileFromPayload(data: Record<string, unknown>): Profile {
   return {
     login_id: String(data.login_id ?? ''),
@@ -95,6 +107,7 @@ export function profileFromPayload(data: Record<string, unknown>): Profile {
     state: asString(data.state),
     pincode: asString(data.pincode),
     status: String(data.status ?? 'active'),
+    role: asRole(data.role),
   }
 }
 
@@ -263,6 +276,29 @@ export async function registerAndSignIn(body: RegistrationCreate): Promise<Profi
     const cause = err instanceof ApiError ? err : new ApiError(0, 'Sign in failed.')
     throw new RegisteredButSignInFailedError(created.login_id, cause)
   }
+}
+
+export function listAdminUsers(query: string, offset = 0): Promise<AdminUserList> {
+  const params = new URLSearchParams({ limit: '20', offset: String(offset) })
+  const trimmed = query.trim()
+  if (trimmed) params.set('q', trimmed)
+  return request<AdminUserList>(`/api/v1/admin/users?${params.toString()}`, {
+    fallback: 'Could not load registered users.',
+  })
+}
+
+export function getAdminUser(id: string): Promise<AdminUserDetail> {
+  return request<AdminUserDetail>(`/api/v1/admin/users/${id}`, {
+    fallback: 'Could not load this person.',
+  })
+}
+
+export function setAdminUserRole(id: string, role: 'admin' | 'participant'): Promise<AdminUserDetail> {
+  return request<AdminUserDetail>(`/api/v1/admin/users/${id}/role`, {
+    method: 'POST',
+    body: { role },
+    fallback: 'Could not update access.',
+  })
 }
 
 export async function logout(): Promise<void> {

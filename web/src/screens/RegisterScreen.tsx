@@ -398,7 +398,7 @@ export function RegisterScreen() {
     } catch (err) {
       if (err instanceof RegisteredButSignInFailedError) {
         // The account exists; send the participant to sign in rather than a retry that would fail.
-        navigate('/sign-in', { replace: true, state: { createdLoginId: err.loginId } })
+        navigate('/sign-in', { replace: true, state: { identifier: form.mobile, accountReady: true } })
         return
       }
       createdOnThisPage.current = false

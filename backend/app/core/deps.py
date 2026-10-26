@@ -6,11 +6,13 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
-from app.core.errors import SmsDeliveryError
+from app.core.errors import ForbiddenError, SmsDeliveryError
 from app.core.rate_limit import SlidingWindowLimiter
+from app.core.roles import ROLE_SUPER_ADMIN, STAFF_ROLES
 from app.db.session import get_db
 from app.models.session import AuthSession
 from app.models.user import User
+from app.services.admin import AdminService
 from app.services.auth import AuthService
 from app.services.phone_verification import PhoneVerificationService
 from app.services.profile import ProfileService
@@ -79,6 +81,10 @@ def get_profile_service(db: Session = Depends(get_db)) -> ProfileService:
     return ProfileService(db)
 
 
+def get_admin_service(db: Session = Depends(get_db)) -> AdminService:
+    return AdminService(db)
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     auth: AuthService = Depends(get_auth_service),
@@ -94,3 +100,15 @@ def get_current_session(
 ) -> tuple[User, AuthSession]:
     token = credentials.credentials if credentials else None
     return auth.authenticate(token)
+
+
+def require_staff(user: User = Depends(get_current_user)) -> User:
+    if user.role not in STAFF_ROLES:
+        raise ForbiddenError()
+    return user
+
+
+def require_super_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role != ROLE_SUPER_ADMIN:
+        raise ForbiddenError()
+    return user

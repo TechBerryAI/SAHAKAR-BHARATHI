@@ -17,13 +17,13 @@ def test_login_success_with_mobile(client: TestClient) -> None:
     assert "pin" not in session
 
 
-def test_login_success_with_login_id(client: TestClient) -> None:
+def test_login_id_is_rejected(client: TestClient) -> None:
     created, _session = register_and_login(client)
     response = client.post(
         "/api/v1/sessions",
         json={"identifier": created["login_id"], "pin": "2468"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 422
 
 
 def test_login_validation_does_not_echo_pin(client: TestClient) -> None:

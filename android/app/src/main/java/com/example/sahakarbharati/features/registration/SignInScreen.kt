@@ -59,7 +59,7 @@ fun SignInScreen(
     val copy = LocalCopy.current
     val hindi = AppLanguage.usesHindiCopy(LocalLanguage.current)
     val viewModel: SignInViewModel = sahakarViewModel()
-    var loginId by rememberSaveable { mutableStateOf("") }
+    var mobile by rememberSaveable { mutableStateOf("") }
     var pin by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf("") }
 
@@ -75,17 +75,17 @@ fun SignInScreen(
     }
 
     val title = if (hindi) "साइन इन" else "Sign In"
-    val loginLabel = if (hindi) "लॉगिन आईडी / मोबाइल" else "LOGIN ID / MOBILE"
+    val loginLabel = if (hindi) "मोबाइल नंबर" else "MOBILE NUMBER"
     val loginHint = if (hindi) {
-        "पंजीकरण के बाद मिला लॉगिन आईडी या 10 अंकों का मोबाइल।"
+        "पंजीकरण में दर्ज 10 अंकों का मोबाइल नंबर।"
     } else {
-        "Use the login ID from registration or your 10-digit mobile number."
+        "Use the 10-digit mobile number from registration."
     }
     val pinLabel = if (hindi) "पिन" else "PIN"
     val missing = if (hindi) {
-        "लॉगिन आईडी और पिन लिखें।"
+        "10 अंकों का मोबाइल नंबर और पिन लिखें।"
     } else {
-        "Enter your login ID and PIN."
+        "Enter your 10-digit mobile number and PIN."
     }
 
     Column(
@@ -127,11 +127,12 @@ fun SignInScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(loginLabel, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
                     OutlinedTextField(
-                        value = loginId,
-                        onValueChange = { loginId = it },
+                        value = mobile,
+                        onValueChange = { mobile = it.filter(Char::isDigit).take(10) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = FieldShape,
                         colors = signInFieldColors(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                     )
                     Text(loginHint, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
@@ -171,10 +172,10 @@ fun SignInScreen(
                 SaffronButton(
                     text = copy.signIn,
                     onClick = {
-                        error = if (loginId.isBlank() || pin.length < 4) {
+                        error = if (mobile.length != 10 || pin.length < 4) {
                             missing
                         } else {
-                            viewModel.submit(loginId, pin)
+                            viewModel.submit(mobile, pin)
                             ""
                         }
                     },

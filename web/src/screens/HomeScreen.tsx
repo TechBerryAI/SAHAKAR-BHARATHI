@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { LanguageSelect } from '../components/LanguageSelect.tsx'
 import { Card, ErrorBanner, Screen, StatusChip } from '../components/ui.tsx'
-import { ApiError, apiErrorText, getMe } from '../lib/api.ts'
+import { ApiError, apiErrorText, getMe, isStaffRole } from '../lib/api.ts'
 import { occupationLabel, statusLabel } from '../lib/copy.ts'
 import { firstName, initials, regionLabel } from '../lib/format.ts'
 import { useLanguage } from '../lib/language.tsx'
@@ -68,16 +69,23 @@ export function HomeScreen() {
                   <p className="muted">{copy.registeredParticipant}</p>
                 </div>
               </div>
-              <div className="chips" style={{ marginTop: 12 }}>
-                <StatusChip>
-                  {copy.loginId}: {profile?.login_id || '—'}
-                </StatusChip>
-                {profile?.occupation ? (
-                  <StatusChip>{occupationLabel(copy, profile.occupation)}</StatusChip>
-                ) : null}
-                {region ? <StatusChip tone="saffron">{region}</StatusChip> : null}
-              </div>
+              {profile?.occupation || region ? (
+                <div className="chips" style={{ marginTop: 12 }}>
+                  {profile?.occupation ? (
+                    <StatusChip>{occupationLabel(copy, profile.occupation)}</StatusChip>
+                  ) : null}
+                  {region ? <StatusChip tone="saffron">{region}</StatusChip> : null}
+                </div>
+              ) : null}
             </Card>
+            {isStaffRole(profile?.role) ? (
+              <Card kicker="Admin" title="Registered users">
+                <p className="card__body">Open the directory to read registration details.</p>
+                <Link className="btn btn--primary admin-home-link" to="/admin">
+                  View users
+                </Link>
+              </Card>
+            ) : null}
             <Card kicker={copy.account} title={copy.yourProfile}>
               <p className="card__body">
                 {copy.profileStatus.replace('{status}', statusLabel(copy, profile?.status || 'active'))}

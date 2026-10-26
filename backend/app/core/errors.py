@@ -30,7 +30,7 @@ class InvalidCredentialsError(AppError):
     def __init__(self) -> None:
         super().__init__(
             status.HTTP_401_UNAUTHORIZED,
-            "Login ID or PIN is incorrect.",
+            "Mobile number or PIN is incorrect.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -43,6 +43,16 @@ class RateLimitedError(AppError):
             "Too many attempts. Try again later.",
             headers=headers,
         )
+
+
+class ForbiddenError(AppError):
+    def __init__(self, detail: str = "You do not have access to this.") -> None:
+        super().__init__(status.HTTP_403_FORBIDDEN, detail)
+
+
+class NotFoundError(AppError):
+    def __init__(self, detail: str = "That person was not found.") -> None:
+        super().__init__(status.HTTP_404_NOT_FOUND, detail)
 
 
 class UnauthorizedError(AppError):

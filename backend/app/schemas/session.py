@@ -2,21 +2,21 @@ from datetime import date, datetime
 
 from pydantic import Field, field_validator
 
-from app.core.security import is_valid_pin, normalize_name
+from app.core.security import is_valid_mobile, is_valid_pin, normalize_mobile
 from app.schemas.common import ORMModel
 
 
 class SessionCreate(ORMModel):
-    identifier: str = Field(min_length=4, max_length=64)
+    identifier: str = Field(min_length=10, max_length=16)
     pin: str = Field(min_length=4, max_length=6)
 
     @field_validator("identifier")
     @classmethod
     def clean_identifier(cls, value: str) -> str:
-        cleaned = normalize_name(value)
-        if not cleaned:
-            raise ValueError("Login ID or mobile is required.")
-        return cleaned
+        mobile = normalize_mobile(value)
+        if not is_valid_mobile(mobile):
+            raise ValueError("Enter a valid 10-digit Indian mobile number.")
+        return mobile
 
     @field_validator("pin")
     @classmethod
@@ -43,3 +43,4 @@ class SessionResponse(ORMModel):
     district: str | None = None
     pincode: str | None = None
     status: str = "active"
+    role: str = "participant"

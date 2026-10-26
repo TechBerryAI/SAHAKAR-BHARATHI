@@ -182,7 +182,7 @@ def register_and_login(
     created = client.post("/api/v1/registrations", json=verified_register_payload(client, **overrides))
     assert created.status_code == 201, created.text
     body = created.json()
-    identifier = overrides.get("mobile", body["login_id"])
+    identifier = body["mobile"]
     session = client.post(
         "/api/v1/sessions",
         json={"identifier": identifier, "pin": overrides.get("pin", "2468")},
