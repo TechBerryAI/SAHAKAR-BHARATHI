@@ -122,7 +122,8 @@ class SessionHandlingTest {
         val result = repository.register(registrationRequest)
 
         val message = result.exceptionOrNull()?.message.orEmpty()
-        assertTrue(message, message.contains("SB-1234ABCD"))
+        assertTrue(message, message.contains(registrationRequest.mobile))
+        assertTrue(message, message.contains("mobile number and PIN"))
         assertFalse(message, message.startsWith("Registration failed"))
         assertFalse(session.isLoggedIn())
     }
