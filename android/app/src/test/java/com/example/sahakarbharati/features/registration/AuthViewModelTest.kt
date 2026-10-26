@@ -94,7 +94,7 @@ class AuthViewModelTest {
         advanceUntilIdle()
         val state = viewModel.state
         assertTrue(state is UiState.Error)
-        assertEquals("Login ID or PIN is incorrect.", (state as UiState.Error).message)
+        assertEquals("Mobile number or PIN is incorrect.", (state as UiState.Error).message)
     }
 
     @Test

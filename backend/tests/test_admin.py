@@ -83,7 +83,12 @@ def test_admin_can_read_users_but_cannot_change_roles(client: TestClient, engine
 
 
 def test_super_admin_grants_and_removes_admin_but_cannot_demote_self(client: TestClient) -> None:
-    _created, _session = register_and_login(client, mobile="9123456780", email="ravi@example.com", full_name="Ravi Kumar")
+    _created, _session = register_and_login(
+        client,
+        mobile="9123456780",
+        email="ravi@example.com",
+        full_name="Ravi Kumar",
+    )
     db = SessionLocal()
     try:
         seeded = seed_super_admin(db, pin="1234")
@@ -118,7 +123,11 @@ def test_super_admin_grants_and_removes_admin_but_cannot_demote_self(client: Tes
     assert removed.status_code == 200
     assert removed.json()["role"] == "participant"
 
-    own_id = client.get("/api/v1/admin/users", headers=headers, params={"q": SUPER_ADMIN_LOGIN_ID}).json()["items"][0]["id"]
+    own_id = client.get(
+        "/api/v1/admin/users",
+        headers=headers,
+        params={"q": SUPER_ADMIN_LOGIN_ID},
+    ).json()["items"][0]["id"]
     demote = client.post(f"/api/v1/admin/users/{own_id}/role", headers=headers, json={"role": "participant"})
     assert demote.status_code == 403
 
@@ -148,7 +157,11 @@ def test_super_admin_can_block_and_restore_sign_in(client: TestClient) -> None:
     signed_in = client.post("/api/v1/sessions", json={"identifier": SUPER_ADMIN_MOBILE, "pin": "1234"})
     assert signed_in.status_code == 200, signed_in.text
     headers = _headers(signed_in.json()["access_token"])
-    target_id = client.get("/api/v1/admin/users", headers=headers, params={"q": created["login_id"]}).json()["items"][0]["id"]
+    target_id = client.get(
+        "/api/v1/admin/users",
+        headers=headers,
+        params={"q": created["login_id"]},
+    ).json()["items"][0]["id"]
 
     blocked = client.post(f"/api/v1/admin/users/{target_id}/status", headers=headers, json={"status": "disabled"})
     assert blocked.status_code == 200, blocked.text
@@ -157,7 +170,11 @@ def test_super_admin_can_block_and_restore_sign_in(client: TestClient) -> None:
     rejected = client.post("/api/v1/sessions", json={"identifier": "9876543210", "pin": "2468"})
     assert rejected.status_code == 401
 
-    own_id = client.get("/api/v1/admin/users", headers=headers, params={"q": SUPER_ADMIN_LOGIN_ID}).json()["items"][0]["id"]
+    own_id = client.get(
+        "/api/v1/admin/users",
+        headers=headers,
+        params={"q": SUPER_ADMIN_LOGIN_ID},
+    ).json()["items"][0]["id"]
     self_block = client.post(f"/api/v1/admin/users/{own_id}/status", headers=headers, json={"status": "disabled"})
     assert self_block.status_code == 403
 
