@@ -1,14 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
+import { Icon } from '../components/icons.tsx'
 import {
   Button,
-  Card,
   ChoiceChip,
   ErrorBanner,
   Field,
+  InfoList,
+  Panel,
+  PersonHeader,
   Screen,
   StatusChip,
+  type InfoRow,
 } from '../components/ui.tsx'
 import { ApiError, apiErrorText, getMe, logout, updateMe } from '../lib/api.ts'
 import { occupationLabel } from '../lib/copy.ts'
@@ -102,51 +106,37 @@ export function ProfileScreen() {
     navigate('/sign-in', { replace: true })
   }
 
+  const message = error || (refreshError ? apiErrorText(refreshError, copy, copy.loadFailed) : '')
+  const accountRows: InfoRow[] = [
+    { icon: 'badge', label: copy.loginId, value: profile?.login_id || '—' },
+    { icon: 'phone', label: copy.mobile, value: profile?.mobile ? formatMobile(profile.mobile) : '—' },
+    { icon: 'mail', label: copy.email, value: profile?.email || '—' },
+  ]
+
   return (
     <>
       <AppBar title={copy.profile} showEmblem />
       <Screen withNav>
-        <Card>
-          <div className="identity">
-            <div className="avatar avatar--lg" aria-hidden="true">
-              {initials(profile?.full_name ?? '')}
-            </div>
-            <div>
-              <h2 className="card__title">{profile?.full_name || copy.participant}</h2>
-              <p className="muted">{copy.registeredParticipant}</p>
-              <div className="chips" style={{ marginTop: 8 }}>
-                <StatusChip tone="saffron">{profile?.login_id || '—'}</StatusChip>
-              </div>
-            </div>
-          </div>
-        </Card>
+        <PersonHeader
+          initials={initials(profile?.full_name ?? '')}
+          name={profile?.full_name || copy.participant}
+          role={copy.registeredParticipant}
+        >
+          {profile?.occupation ? (
+            <StatusChip tone="saffron">{occupationLabel(copy, profile.occupation)}</StatusChip>
+          ) : null}
+        </PersonHeader>
 
-        <Card kicker={copy.account}>
-          <div className="stack">
-            <div className="profile-row">
-              <span className="profile-row__label">{copy.loginId}</span>
-              <span className="profile-row__value">{profile?.login_id || '—'}</span>
-            </div>
-            <div className="profile-row">
-              <span className="profile-row__label">{copy.email}</span>
-              <span className="profile-row__value">{profile?.email || '—'}</span>
-            </div>
-            <div className="profile-row">
-              <span className="profile-row__label">{copy.mobile}</span>
-              <span className="profile-row__value">
-                {profile?.mobile ? formatMobile(profile.mobile) : '—'}
-              </span>
-            </div>
-          </div>
-        </Card>
+        <Panel title={copy.account} icon="shield">
+          <InfoList rows={accountRows} />
+        </Panel>
 
         <form className="stack" onSubmit={onSave}>
-          <Card kicker={copy.editDetails} title={copy.updateProfile}>
+          <ErrorBanner message={message} />
+          {saved ? <div className="banner banner--ok">{saved}</div> : null}
+
+          <Panel title={copy.formTitle} icon="user">
             <div className="stack">
-              <ErrorBanner
-                message={error || (refreshError ? apiErrorText(refreshError, copy, copy.loadFailed) : '')}
-              />
-              {saved ? <div className="banner banner--ok">{saved}</div> : null}
               <Field
                 label={copy.fullName}
                 name="full_name"
@@ -166,6 +156,11 @@ export function ProfileScreen() {
                   ))}
                 </div>
               </div>
+            </div>
+          </Panel>
+
+          <Panel title={copy.profileTitle} icon="pin">
+            <div className="stack">
               <Field
                 label={copy.address}
                 name="address_line"
@@ -178,18 +173,20 @@ export function ProfileScreen() {
                 value={locality}
                 onChange={(event) => setLocality(event.target.value)}
               />
-              <Field
-                label={copy.district}
-                name="district"
-                value={district}
-                onChange={(event) => setDistrict(event.target.value)}
-              />
-              <Field
-                label={copy.state}
-                name="state"
-                value={stateName}
-                onChange={(event) => setStateName(event.target.value)}
-              />
+              <div className="panel__pair">
+                <Field
+                  label={copy.district}
+                  name="district"
+                  value={district}
+                  onChange={(event) => setDistrict(event.target.value)}
+                />
+                <Field
+                  label={copy.state}
+                  name="state"
+                  value={stateName}
+                  onChange={(event) => setStateName(event.target.value)}
+                />
+              </div>
               <Field
                 label={copy.pincode}
                 name="pincode"
@@ -199,15 +196,17 @@ export function ProfileScreen() {
                 onChange={(event) => setPincode(event.target.value.replace(/\D/g, '').slice(0, 6))}
               />
             </div>
-          </Card>
-          <Button type="submit" disabled={saving}>
+          </Panel>
+
+          <Button type="submit" className="btn--pill" disabled={saving}>
             {saving ? copy.saving : copy.saveChanges}
           </Button>
         </form>
 
-        <Button type="button" variant="ghost" onClick={() => setConfirmLogout(true)}>
+        <button type="button" className="logout-row" onClick={() => setConfirmLogout(true)}>
+          <Icon name="logout" size={20} />
           {copy.logOut}
-        </Button>
+        </button>
       </Screen>
 
       {confirmLogout ? (
