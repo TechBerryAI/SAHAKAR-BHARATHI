@@ -39,6 +39,12 @@ The value is compiled into the bundle; it is public, not a secret.
   Mitigations: a build-time Content-Security-Policy (`script-src 'self'`,
   `connect-src` limited to the API origin), `X-Frame-Options: DENY`, no
   `dangerouslySetInnerHTML`/`eval`, and API responses sent with `Cache-Control: no-store`.
+- API cold start (`src/lib/network.ts`): each attempt waits up to 75 s, GET requests
+  are retried after a network failure, timeout or 502/503/504 (2 s, then 5 s), and
+  POST/PATCH/DELETE are sent once. Any request pending over 4 s shows a "server is
+  starting up" banner (`serverWaking`, translated in all 26 languages; the Santali,
+  Manipuri, Bodo, Sanskrit, Kashmiri, Konkani, Dogri and Tulu wording should be
+  checked by a native speaker).
 - A 401 from any authenticated call clears the session. Logout clears locally and
   revokes on the server (`keepalive` request).
 - If a saved session cannot be checked at start-up (offline / server error), the app

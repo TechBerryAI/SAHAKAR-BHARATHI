@@ -174,6 +174,15 @@ object DemoPhotos {
         ref.takeIf { it.startsWith(PREFIX) }?.removePrefix(PREFIX)
 }
 
+/** Whether a request is taking long enough to show the "server is starting up" banner. */
+@Composable
+fun rememberServerSlow(): State<Boolean> {
+    val context = LocalContext.current
+    return remember {
+        (context.applicationContext as? SahakarApp)?.container?.slowRequests?.serverSlow ?: mutableStateOf(false)
+    }
+}
+
 @Composable
 fun rememberAppSession(): AppSession {
     val context = LocalContext.current

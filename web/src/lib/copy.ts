@@ -74,6 +74,7 @@ export type AppCopy = {
   otpResendWait: string
   tooManyAttempts: string
   networkError: string
+  serverWaking: string
   chooseLanguage: string
   searchLanguages: string
   noLanguages: string
@@ -227,6 +228,7 @@ const HI: AppCopy = {
   otpResendWait: 'नया ओटीपी माँगने से पहले कृपया एक मिनट प्रतीक्षा करें।',
   tooManyAttempts: 'बहुत अधिक प्रयास हो गए। कुछ देर बाद फिर कोशिश करें।',
   networkError: 'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें।',
+  serverWaking: 'सर्वर शुरू हो रहा है। इसमें एक मिनट तक लग सकता है, कृपया प्रतीक्षा करें…',
   chooseLanguage: 'भाषा चुनें',
   searchLanguages: 'भाषा खोजें',
   noLanguages: 'कोई भाषा नहीं मिली।',
@@ -381,6 +383,7 @@ const EN: AppCopy = {
   otpResendWait: 'Please wait a minute before requesting another OTP.',
   tooManyAttempts: 'Too many attempts. Try again later.',
   networkError: 'The server could not be reached. Check your connection.',
+  serverWaking: 'The server is starting up. This can take up to a minute, please wait…',
   chooseLanguage: 'Choose language',
   searchLanguages: 'Search languages',
   noLanguages: 'No languages found.',

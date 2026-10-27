@@ -86,6 +86,14 @@ Not needed and must not be set: Supabase anon key, service-role key, JWT secret.
   do **not** downgrade the database. For a bad data change, restore to a scratch
   project and repair forward.
 
+### Cold starts
+
+On 2026-10-27 the live API took 46–60 s to answer its first request after being idle
+(Render suspends idle free-tier services). Both clients now cope: long per-attempt
+timeouts, automatic retry of GET requests only, and a "server is starting up" banner
+after 4 s (see `android/README.md`, `web/README.md`). This hides the wait but does not
+remove it. To remove it, use a paid Render instance type, which does not spin down.
+
 ### Region
 
 Measured on 2026-10-22: ~270 ms per database round-trip between Render (likely
