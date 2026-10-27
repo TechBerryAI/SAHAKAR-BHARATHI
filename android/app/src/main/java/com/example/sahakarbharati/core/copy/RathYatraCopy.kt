@@ -328,6 +328,7 @@ class RathYatraCopy {
     lateinit var pinNote: String
     lateinit var comingSoon: String
     lateinit var comingSoonBody: String
+    lateinit var serverWaking: String
     lateinit var signInTitle: String
     lateinit var notificationsTitle: String
     lateinit var benefitsTitle: String
@@ -621,6 +622,7 @@ class RathYatraCopy {
             copy.pinNote = pinNote
             copy.comingSoon = comingSoon
             copy.comingSoonBody = comingSoonBody
+            copy.serverWaking = serverWaking
             copy.signInTitle = signInTitle
             copy.notificationsTitle = notificationsTitle
             copy.benefitsTitle = benefitsTitle
@@ -917,6 +919,7 @@ private val English: RathYatraCopy = RathYatraCopy().apply {
     pinNote = "PIN entry records your presence at this counter."
     comingSoon = "Opening soon"
     comingSoonBody = "This section will be available in a later update."
+    serverWaking = "The server is starting up. This can take up to a minute, please wait…"
     signInTitle = "Sign In"
     notificationsTitle = "Notifications"
     benefitsTitle = "Benefits"
@@ -1210,6 +1213,7 @@ private val Hindi: RathYatraCopy = English.cloneCopy().apply {
     pinNote = "पिन प्रविष्टि इस काउंटर पर आपकी उपस्थिति दर्ज करती है।"
     comingSoon = "जल्द उपलब्ध"
     comingSoonBody = "यह खंड अगले अद्यतन में उपलब्ध होगा।"
+    serverWaking = "सर्वर शुरू हो रहा है। इसमें एक मिनट तक लग सकता है, कृपया प्रतीक्षा करें…"
     signInTitle = "साइन इन"
     notificationsTitle = "सूचनाएँ"
     benefitsTitle = "लाभ"

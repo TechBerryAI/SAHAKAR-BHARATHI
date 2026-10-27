@@ -9,6 +9,7 @@ import {
   setAccessToken,
 } from './session.ts'
 import type { AppCopy } from './copy.ts'
+import { fetchWithColdStart } from './network.ts'
 import type {
   AdminUserDetail,
   AdminUserList,
@@ -165,7 +166,7 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
 
   let response: Response
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetchWithColdStart(`${API_BASE_URL}${path}`, {
       method: options.method ?? 'GET',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),

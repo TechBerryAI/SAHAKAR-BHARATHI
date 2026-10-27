@@ -100,6 +100,12 @@ R8 is enabled for release with optimisation scoped to `androidx`, `kotlin` and
 - Any 401 on an authenticated call (expired, revoked, account disabled) clears the
   stored session and returns to Sign in (`SessionExpiryInterceptor`).
 - Logout clears local state first, then asks the server to revoke the session.
+- API cold start (`data/remote/ColdStart.kt`): the host can take most of a minute to
+  start after being idle. Each attempt may wait 75 s (call limit 180 s). GET/HEAD are
+  retried after a network failure, timeout or 502/503/504 (backoff 2 s, 5 s); sign-in,
+  registration, profile updates and logout are sent once and never retried. Any request
+  pending over 4 s shows a "server is starting up" banner on every screen (English and
+  Hindi text; other languages show the English base, like other untranslated strings).
 - The profile photo is stored on the device only and is labelled as such; there is
   no upload API.
 - Tracking, QR attendance/pass, benefits and notifications are not connected to any
