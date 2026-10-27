@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.sahakarbharati.ui.theme.SahakarBharatiTheme
+import androidx.test.platform.app.InstrumentationRegistry
+import com.example.sahakarbharati.SahakarApp
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,6 +20,14 @@ class RathYatraScreenTest {
 
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    // The app skips the splash for a stored session, so start every test signed out
+    // instead of depending on whatever the device was last used for.
+    @Before
+    fun signOut() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as SahakarApp
+        app.container.session.clearSession()
+    }
 
     @Test
     fun splash_getStarted_opensWelcome() {
@@ -40,7 +51,7 @@ class RathYatraScreenTest {
         }
 
         composeRule.onNodeWithText("Kisan Home").assertIsDisplayed()
-        composeRule.onNodeWithText("Live Rath Movement & National Route").performClick()
+        composeRule.onNodeWithText("Rath Route & National Map").performClick()
         composeRule.onNodeWithText("Rath Track").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Navigate back").performClick()
         composeRule.onNodeWithText("Kisan Home").assertIsDisplayed()

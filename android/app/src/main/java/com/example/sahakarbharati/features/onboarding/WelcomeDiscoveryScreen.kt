@@ -1,5 +1,6 @@
 package com.example.sahakarbharati.features.onboarding
 
+import com.example.sahakarbharati.core.ui.StatusBarScrim
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -76,8 +77,9 @@ fun WelcomeDiscoveryScreen(
     ApplySystemBarIcons(lightIcons = true)
     val copy = LocalCopy.current
 
+    Box(modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(RathYatraColors.Ivory)
             .windowInsetsPadding(WindowInsets.navigationBars)
@@ -114,7 +116,7 @@ fun WelcomeDiscoveryScreen(
                             ),
                     )
                     LanguageChips(
-                        dark = false,
+                        onDarkBackground = true,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(16.dp),
@@ -363,6 +365,9 @@ fun WelcomeDiscoveryScreen(
                 color = RathYatraColors.Outline,
             )
         }
+    }
+    // Matches the hero at the top; once scrolled, keeps text from running under the status icons.
+    StatusBarScrim(RathYatraColors.NavyHero)
     }
 }
 

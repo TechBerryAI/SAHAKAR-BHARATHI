@@ -1,5 +1,6 @@
 package com.example.sahakarbharati.features.attendance
 
+import com.example.sahakarbharati.core.ui.occupationLabel
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -96,7 +97,6 @@ fun QrAttendanceScreen(
                 CitizenTopBar(
                     title = copy.attendanceTitle,
                     photoPath = session.displayPhotoPath,
-                    onRoleClick = { dialog = "role" },
                     onNotificationsClick = onOpenNotifications,
                     onProfileClick = onOpenProfile,
                 )
@@ -146,7 +146,7 @@ fun QrAttendanceScreen(
                             color = RathYatraColors.OnSurfaceVariant,
                         )
                         StatusChip(
-                            session.occupation.ifBlank { copy.verified },
+                            occupationLabel(copy, session.occupation) ?: copy.verified,
                             container = RathYatraColors.Success.copy(alpha = 0.12f),
                             content = RathYatraColors.Success,
                         )

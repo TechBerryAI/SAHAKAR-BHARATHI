@@ -1,5 +1,6 @@
 package com.example.sahakarbharati.features.profile
 
+import com.example.sahakarbharati.core.ui.occupationLabel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -190,7 +191,7 @@ fun ProfileScreen(
             ProfileRow(
                 icon = Icons.Outlined.Badge,
                 title = if (hindi) "व्यवसाय" else "Occupation",
-                subtitle = profile?.occupation ?: session.occupation.ifBlank { "—" },
+                subtitle = occupationLabel(copy, profile?.occupation ?: session.occupation) ?: "—",
             )
             ProfileRow(
                 icon = Icons.Outlined.QrCode2,
@@ -215,7 +216,7 @@ fun ProfileScreen(
                             color = RathYatraColors.OnSurfaceVariant,
                         )
                     }
-                    LanguageChips(dark = true)
+                    LanguageChips(onDarkBackground = false)
                 }
             }
             WhiteCard {
