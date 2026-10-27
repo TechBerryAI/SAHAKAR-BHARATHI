@@ -49,6 +49,12 @@ class RegistrationViewModel(
     }
 
     fun confirmOtp(code: String) {
+        // Check the format locally so the participant sees a plain message instead of the
+        // server's field-validation text. The server still validates the code.
+        if (code.length != 6 || !code.all(Char::isDigit)) {
+            otpNote = "Enter the 6-digit code from the SMS."
+            return
+        }
         val id = challengeId
         if (otpBusy || id.isNullOrBlank()) {
             if (id.isNullOrBlank()) otpNote = "Send an OTP before verifying."

@@ -16,6 +16,31 @@ module is `:app`. Application ID / namespace: `com.example.sahakarbharati`.
 Android Studio: open the `android/` folder. Command line: set `ANDROID_HOME` or
 `sdk.dir` in `android/local.properties` (gitignored).
 
+## Run on an emulator or phone
+
+From the repository root:
+
+```bash
+node start-android.js
+```
+
+It finds the Android SDK (`ANDROID_HOME`, `local.properties`, or the default install
+folder) and a JDK (`JAVA_HOME`, else Android Studio's bundled `jbr`). It uses a connected
+device, or starts the first emulator, then forwards the device's port 8000 to this computer,
+builds the debug app against `http://127.0.0.1:8000/`, installs it, and opens it. Start the
+API first with `node start.js`. Without it the app opens but cannot sign in.
+
+| Option | Effect |
+|---|---|
+| `--prod` | Use the live API (`https://sahakar-bharathi-api.onrender.com/`). Sign in only with a test account. |
+| `--avd <name>` | Emulator to start when nothing is connected (`emulator -list-avds`). |
+| `--device <serial>` | Device to use when several are connected (`adb devices`). |
+| `--logs` | Stream the app's log output after opening it (Ctrl+C stops the logs, not the app). |
+| `--reinstall` | Uninstall first. Needed only when an older build signed with a different debug key is installed; **clears the app's data on that device**. |
+
+A phone needs USB debugging turned on (Settings → Developer options). The emulator keeps
+running after the script finishes; run the command again after code changes.
+
 ## Build and test
 
 ```bash

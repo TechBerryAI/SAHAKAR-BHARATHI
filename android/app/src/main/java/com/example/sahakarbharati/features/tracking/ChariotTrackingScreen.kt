@@ -150,9 +150,10 @@ fun ChariotTrackingScreen(
                 Text(copy.chariotSection, style = MaterialTheme.typography.headlineSmall)
                 StatusChip(copy.activeCount, container = RathYatraColors.PrimaryFixed, content = RathYatraColors.BurntSaffron)
             }
-            ChariotCard(copy.rath1, copy.rath1Sub, copy.rath1Spec, copy.rath1Status, RathYatraColors.Emergency, copy.rath1Loc, copy.rath1Speed, copy.rath1Next)
-            ChariotCard(copy.rath2, copy.rath2Sub, copy.rath2Spec, copy.rath2Status, RathYatraColors.GoldDark, copy.rath2Loc, copy.rath2Speed, copy.rath2Next)
-            ChariotCard(copy.rath3, copy.rath3Sub, copy.rath3Spec, copy.rath3Status, RathYatraColors.Success, copy.rath3Loc, copy.rath3Speed, copy.rath3Next)
+            // Telemetry is not connected: every status is neutral rather than red/amber/green.
+            ChariotCard(copy.rath1, copy.rath1Sub, copy.rath1Spec, copy.rath1Status, RathYatraColors.OnSurfaceVariant, copy.rath1Loc, copy.rath1Speed, copy.rath1Next)
+            ChariotCard(copy.rath2, copy.rath2Sub, copy.rath2Spec, copy.rath2Status, RathYatraColors.OnSurfaceVariant, copy.rath2Loc, copy.rath2Speed, copy.rath2Next)
+            ChariotCard(copy.rath3, copy.rath3Sub, copy.rath3Spec, copy.rath3Status, RathYatraColors.OnSurfaceVariant, copy.rath3Loc, copy.rath3Speed, copy.rath3Next)
 
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -200,15 +201,11 @@ private fun RouteSchematic(labels: List<String>) {
             val start = 16f
             val end = size.width - 16f
             drawLine(RathYatraColors.SurfaceContainerHighest, Offset(start, y), Offset(end, y), 8f, StrokeCap.Round)
-            drawLine(RathYatraColors.SaffronBright, Offset(start, y), Offset(start, y), 8f, StrokeCap.Round)
+            // No live position: draw the stops only, without a highlighted "current" stop.
             for (i in 0 until count) {
                 val x = start + (end - start) * (i / (count - 1f))
-                val color = when (i) {
-                    0 -> RathYatraColors.Navy
-                    1 -> RathYatraColors.SaffronBright
-                    else -> RathYatraColors.OutlineCool
-                }
-                drawCircle(color, radius = if (i == 1) 10f else 7f, center = Offset(x, y))
+                val color = if (i == 0) RathYatraColors.Navy else RathYatraColors.OutlineCool
+                drawCircle(color, radius = 7f, center = Offset(x, y))
                 drawCircle(Color.White, radius = 3.5f, center = Offset(x, y))
             }
         }
@@ -237,7 +234,7 @@ private fun ChariotCard(
                     Text("($deity)", style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
                     Text(spec, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
                 }
-                StatusChip(status, container = statusColor.copy(alpha = 0.12f), content = statusColor, leadingDot = statusColor)
+                StatusChip(status, container = RathYatraColors.SurfaceContainerLow, content = statusColor)
             }
             Text("Current Location  $location", style = MaterialTheme.typography.bodySmall)
             Text("Velocity  $speed", style = MaterialTheme.typography.bodySmall)
@@ -256,6 +253,6 @@ private fun Amenity(icon: androidx.compose.ui.graphics.vector.ImageVector, title
             Text(title, style = MaterialTheme.typography.titleSmall)
             Text(body, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
         }
-        StatusChip(chip, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success)
+        StatusChip(chip, container = RathYatraColors.SurfaceContainerLow, content = RathYatraColors.OnSurfaceVariant)
     }
 }

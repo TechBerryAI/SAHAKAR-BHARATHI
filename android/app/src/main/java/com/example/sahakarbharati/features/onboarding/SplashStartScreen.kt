@@ -1,5 +1,7 @@
 package com.example.sahakarbharati.features.onboarding
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -238,34 +240,50 @@ private fun SplashStatCard(
     icon: ImageVector,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
+    BoxWithConstraints(
+        modifier
             .background(RathYatraColors.NavyDeep.copy(alpha = 0.55f), RoundedCornerShape(16.dp))
             .padding(horizontal = 12.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        IconTile(
-            icon = icon,
-            container = RathYatraColors.Ivory.copy(alpha = 0.08f),
-            tint = RathYatraColors.SaffronBright,
-        )
-        Column(Modifier.weight(1f, fill = false)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.2.sp),
-                color = RathYatraColors.Ivory,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        // On narrow tiles (small phones, large font sizes) the icon goes above the text,
+        // giving the title the full tile width so words wrap whole instead of being cut.
+        val stacked = maxWidth / LocalDensity.current.fontScale < 140.dp
+        val iconTile: @Composable () -> Unit = {
+            IconTile(
+                icon = icon,
+                container = RathYatraColors.Ivory.copy(alpha = 0.08f),
+                tint = RathYatraColors.SaffronBright,
             )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 16.sp),
-                color = RathYatraColors.SurfaceContainerHigh.copy(alpha = 0.75f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+        }
+        val texts: @Composable () -> Unit = {
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.2.sp),
+                    color = RathYatraColors.Ivory,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 16.sp),
+                    color = RathYatraColors.SurfaceContainerHigh.copy(alpha = 0.75f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (stacked) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                iconTile()
+                texts()
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                iconTile()
+                texts()
+            }
         }
     }
 }
