@@ -217,14 +217,15 @@ fun OutlinedIvoryButton(
 @Composable
 fun LanguageChips(
     modifier: Modifier = Modifier,
-    dark: Boolean = true,
+    // True on navy/hero backgrounds (light text), false on ivory/white cards (navy text).
+    onDarkBackground: Boolean = true,
 ) {
     val language = LocalLanguage.current
     val setLanguage = LocalSetLanguage.current
     val copy = LocalCopy.current
     var expanded by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    val content = if (dark) RathYatraColors.GoldPale else RathYatraColors.NavyDeep
+    val content = if (onDarkBackground) RathYatraColors.GoldPale else RathYatraColors.NavyDeep
     val filtered = remember(query) {
         val needle = query.trim()
         languagePickerOrder.filter { option ->
@@ -408,7 +409,7 @@ fun SectionHeader(
             modifier = Modifier.weight(1f, fill = false),
         )
         if (trailing != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = trailing,
                     style = MaterialTheme.typography.labelSmall,
@@ -435,12 +436,15 @@ fun WhiteCard(
     content: @Composable () -> Unit,
 ) {
     val shape = CardShape
+    // Cards span the available width (a weighted slot in a Row, or the screen column),
+    // so their edges line up whatever their content happens to measure.
+    val sized = Modifier.fillMaxWidth().then(modifier)
     val cardModifier = if (onClick != null) {
-        modifier
+        sized
             .clip(shape)
             .clickable(onClick = onClick)
     } else {
-        modifier
+        sized
     }
     Surface(
         modifier = cardModifier,

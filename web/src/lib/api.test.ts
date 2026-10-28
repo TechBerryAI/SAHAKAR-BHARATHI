@@ -101,6 +101,24 @@ describe('session lifecycle', () => {
 })
 
 describe('restoring a saved session at start-up', () => {
+  it('restores a session once the server finishes starting (502 then 200)', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const calls = scriptServer({ status: 502 }, { status: 200, body: profileBody })
+    vi.useFakeTimers()
+    const pending = restoreSession()
+    await vi.runAllTimersAsync()
+    await pending
+    vi.useRealTimers()
+    expect(calls).toHaveLength(2)
+    expect(getSnapshot()).toMatchObject({ ready: true, uid: 'SB-1234ABCD', restoreFailed: false })
+  })
+
+  it('does not retry sign-in, so a PIN attempt is never sent twice', async () => {
+    const calls = scriptServer({ status: 503 }, { status: 200, body: { ...profileBody, access_token: 'tok-1' } })
+    await expect(signIn('SB-1234ABCD', '2468')).rejects.toMatchObject({ status: 503 })
+    expect(calls).toHaveLength(1)
+  })
+
   it('restores a valid session from the server', async () => {
     localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
     scriptServer({ status: 200, body: profileBody })
@@ -110,16 +128,27 @@ describe('restoring a saved session at start-up', () => {
 
   it('keeps the token and reports failure when offline instead of looking signed out', async () => {
     localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
-    scriptServer('network-error')
-    await restoreSession()
+    // The profile load is a GET, so it is retried before giving up.
+    const calls = scriptServer('network-error', 'network-error', 'network-error')
+    vi.useFakeTimers()
+    const pending = restoreSession()
+    await vi.runAllTimersAsync()
+    await pending
+    vi.useRealTimers()
+    expect(calls).toHaveLength(3)
     expect(getSnapshot()).toMatchObject({ ready: true, uid: null, restoreFailed: true })
     expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBe('tok-1')
   })
 
   it('treats a server error like being offline', async () => {
     localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
-    scriptServer({ status: 503, body: { detail: 'unavailable' } })
-    await restoreSession()
+    const unavailable = { status: 503, body: { detail: 'unavailable' } }
+    scriptServer(unavailable, unavailable, unavailable)
+    vi.useFakeTimers()
+    const pending = restoreSession()
+    await vi.runAllTimersAsync()
+    await pending
+    vi.useRealTimers()
     expect(getSnapshot().restoreFailed).toBe(true)
   })
 

@@ -25,7 +25,8 @@ private fun parseHttpError(error: HttpException, fallback: String): String {
             detail.isJsonPrimitive -> detail.asString
             detail.isJsonArray && detail.asJsonArray.size() > 0 -> {
                 val first = detail.asJsonArray.first().asJsonObject
-                first.get("msg")?.asString ?: fallback
+                // Pydantic prefixes custom validator messages with "Value error, ".
+                first.get("msg")?.asString?.removePrefix("Value error, ") ?: fallback
             }
             else -> fallback
         }

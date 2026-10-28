@@ -16,6 +16,34 @@ module is `:app`. Application ID / namespace: `com.example.sahakarbharati`.
 Android Studio: open the `android/` folder. Command line: set `ANDROID_HOME` or
 `sdk.dir` in `android/local.properties` (gitignored).
 
+## Run on an emulator or phone
+
+From the repository root:
+
+```bash
+node start-android.js
+```
+
+It finds the Android SDK (`ANDROID_HOME`, `local.properties`, or the default install
+folder) and a JDK (`JAVA_HOME`, else Android Studio's bundled `jbr`). From WSL it also
+accepts a Windows `sdk.dir` / `ANDROID_HOME` (`C:\Users\…\Android\Sdk`), uses `adb.exe`,
+and builds with `gradlew.bat` via `cmd.exe` — Linux Gradle cannot use Windows `aapt.exe`.
+It uses a connected device, or starts the first emulator, then forwards the device's port
+8000 to this computer, builds the debug app against `http://127.0.0.1:8000/`, installs it,
+and opens it. Start the API first with `node start.js`. Without it the app opens but cannot
+sign in.
+
+| Option | Effect |
+|---|---|
+| `--prod` | Use the live API (`https://sahakar-bharathi-api.onrender.com/`). Sign in only with a test account. |
+| `--avd <name>` | Emulator to start when nothing is connected (`emulator -list-avds`). |
+| `--device <serial>` | Device to use when several are connected (`adb devices`). |
+| `--logs` | Stream the app's log output after opening it (Ctrl+C stops the logs, not the app). |
+| `--reinstall` | Uninstall first. Needed only when an older build signed with a different debug key is installed; **clears the app's data on that device**. |
+
+A phone needs USB debugging turned on (Settings → Developer options). The emulator keeps
+running after the script finishes; run the command again after code changes.
+
 ## Build and test
 
 ```bash
@@ -28,8 +56,9 @@ cd android
 
 Windows: use `gradlew.bat` with the same tasks.
 
-WSL note: Linux Gradle cannot use a Windows SDK's `build-tools` (it looks for Linux
-`aapt`). Use Android Studio / `gradlew.bat` on Windows, or a Linux SDK in WSL.
+WSL: `node start-android.js` from the repository root uses the Windows SDK and
+`gradlew.bat` automatically. Do not run `./gradlew` against a Windows SDK — Linux
+Gradle looks for `aapt`, not `aapt.exe`. A Linux SDK in WSL still uses `./gradlew`.
 
 ## API base URL
 
@@ -100,6 +129,12 @@ R8 is enabled for release with optimisation scoped to `androidx`, `kotlin` and
 - Any 401 on an authenticated call (expired, revoked, account disabled) clears the
   stored session and returns to Sign in (`SessionExpiryInterceptor`).
 - Logout clears local state first, then asks the server to revoke the session.
+- API cold start (`data/remote/ColdStart.kt`): the host can take most of a minute to
+  start after being idle. Each attempt may wait 75 s (call limit 180 s). GET/HEAD are
+  retried after a network failure, timeout or 502/503/504 (backoff 2 s, 5 s); sign-in,
+  registration, profile updates and logout are sent once and never retried. Any request
+  pending over 4 s shows a "server is starting up" banner on every screen (English and
+  Hindi text; other languages show the English base, like other untranslated strings).
 - The profile photo is stored on the device only and is labelled as such; there is
   no upload API.
 - Tracking, QR attendance/pass, benefits and notifications are not connected to any

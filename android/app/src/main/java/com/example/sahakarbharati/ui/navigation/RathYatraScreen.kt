@@ -1,7 +1,31 @@
 package com.example.sahakarbharati.ui.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import com.example.sahakarbharati.data.rememberServerSlow
+import com.example.sahakarbharati.ui.theme.RathYatraColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +63,7 @@ fun RathYatraScreen(
     initialStack: List<String> = listOf(RathYatraDestinations.startDestination),
 ) {
     val session = rememberAppSession()
+    val serverSlow by rememberServerSlow()
     val profileViewModel: ProfileViewModel = sahakarViewModel()
     val scope = rememberCoroutineScope()
     val openedOnProtectedScreen = initialStack.any { it !in RathYatraDestinations.publicAccess }
@@ -96,6 +121,7 @@ fun RathYatraScreen(
         LocalCopy provides copy,
         LocalSetLanguage provides { languageKey = it.key },
     ) {
+    Box(Modifier.fillMaxSize()) {
     when (current) {
         RathYatraDestinations.SPLASH -> SplashStartScreen(
             onGetStarted = { go(RathYatraDestinations.WELCOME) },
@@ -198,6 +224,46 @@ fun RathYatraScreen(
             }
         }
     }
+    ServerWakingBanner(
+        visible = serverSlow,
+        message = copy.serverWaking,
+        modifier = Modifier
+            .align(Alignment.TopCenter)
+            .windowInsetsPadding(WindowInsets.statusBars),
+    )
+    }
+    }
+}
+
+/**
+ * Shown while a request has been waiting more than a few seconds, typically while the
+ * API host starts after being idle, so a slow first request does not look like a hang.
+ */
+@Composable
+fun ServerWakingBanner(visible: Boolean, message: String, modifier: Modifier = Modifier) {
+    AnimatedVisibility(visible = visible, modifier = modifier, enter = fadeIn(), exit = fadeOut()) {
+        Surface(
+            color = RathYatraColors.NavyDeep,
+            contentColor = Color.White,
+            shape = RoundedCornerShape(12.dp),
+            shadowElevation = 6.dp,
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .semantics { liveRegion = LiveRegionMode.Polite },
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = RathYatraColors.SaffronBright,
+                )
+                Text(message, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }
 

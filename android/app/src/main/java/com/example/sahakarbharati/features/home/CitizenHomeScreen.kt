@@ -1,5 +1,14 @@
 package com.example.sahakarbharati.features.home
 
+import androidx.compose.foundation.layout.FlowRow
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+import com.example.sahakarbharati.core.ui.occupationLabel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -91,7 +100,8 @@ fun CitizenHomeScreen(
     val profile = (homeViewModel.state as? UiState.Success)?.data ?: session.cachedProfile()
     val displayName = profile?.fullName?.ifBlank { session.name } ?: session.name
     val displayId = profile?.loginId?.ifBlank { session.loginId } ?: session.loginId
-    val displayRole = profile?.occupation?.ifBlank { copy.roleChip } ?: session.occupation.ifBlank { copy.roleChip }
+    val displayRole = occupationLabel(copy, profile?.occupation ?: session.occupation) ?: copy.roleChip
+    val context = LocalContext.current
     val greeting = if (displayName.isBlank()) {
         copy.greeting
     } else {
@@ -112,7 +122,6 @@ fun CitizenHomeScreen(
                 CitizenTopBar(
                     title = copy.homeTitle,
                     photoPath = session.displayPhotoPath,
-                    onRoleClick = { dialog = "role" },
                     onNotificationsClick = onOpenNotifications,
                     onProfileClick = onOpenProfile,
                 )
@@ -144,17 +153,24 @@ fun CitizenHomeScreen(
                             StatusChip(displayRole, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success)
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Wraps onto a second line with a long region or large font instead of clipping.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         StatusChip(
                             if (displayId.isBlank()) copy.homeId else displayId,
                             container = RathYatraColors.SurfaceContainerLow,
                             content = RathYatraColors.Navy,
                         )
-                        StatusChip(
-                            profile?.region?.ifBlank { copy.homeZone } ?: copy.homeZone,
-                            container = RathYatraColors.SurfaceContainerLow,
-                            content = RathYatraColors.OnSurfaceVariant,
-                        )
+                        // Only show the region when the participant gave one; an empty "—" chip looks broken.
+                        profile?.region?.takeIf { it.isNotBlank() }?.let { region ->
+                            StatusChip(
+                                region,
+                                container = RathYatraColors.SurfaceContainerLow,
+                                content = RathYatraColors.OnSurfaceVariant,
+                            )
+                        }
                         StatusChip(copy.ePass, container = RathYatraColors.PrimaryFixed, content = RathYatraColors.BurntSaffron)
                     }
                     Text(
@@ -164,33 +180,6 @@ fun CitizenHomeScreen(
                     )
                 }
             }
-
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(RathYatraColors.Navy)
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text(copy.interfaceMode, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnNavyMuted)
-                    Text(copy.citizenView, style = MaterialTheme.typography.titleSmall, color = Color.White)
-                }
-                StatusChip(
-                    text = copy.adminView,
-                    container = RathYatraColors.Saffron,
-                    content = RathYatraColors.NavyDeep,
-                )
-            }
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { dialog = "admin" }
-                    .padding(top = 0.dp),
-            ) {}
 
             WhiteCard {
                 Column {
@@ -220,7 +209,7 @@ fun CitizenHomeScreen(
                                 .padding(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            StatusChip(copy.liveProcession, container = RathYatraColors.Navy.copy(alpha = 0.7f), content = Color.White, leadingDot = RathYatraColors.Emergency)
+                            StatusChip(copy.liveProcession, container = RathYatraColors.Navy.copy(alpha = 0.7f), content = Color.White)
                         }
                         StatusChip(
                             copy.locationChip,
@@ -272,7 +261,7 @@ fun CitizenHomeScreen(
 
             SectionHeader(copy.coreServices, trailing = copy.quickAccess)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ServiceTile(copy.tileTrack, copy.tileTrackBody, Icons.Outlined.Navigation, copy.tileTrackChip, RathYatraColors.Success, Modifier.weight(1f), onOpenTracking)
+                ServiceTile(copy.tileTrack, copy.tileTrackBody, Icons.Outlined.Navigation, copy.tileTrackChip, RathYatraColors.OnSurfaceVariant, Modifier.weight(1f), onOpenTracking)
                 ServiceTile(copy.tileQr, copy.tileQrBody, Icons.Outlined.QrCodeScanner, copy.tileQrChip, RathYatraColors.Navy, Modifier.weight(1f), onOpenQr)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -309,7 +298,7 @@ fun CitizenHomeScreen(
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(copy.streamTitle, style = MaterialTheme.typography.titleSmall)
-                StatusChip(copy.streamLive, container = RathYatraColors.Emergency.copy(alpha = 0.12f), content = RathYatraColors.Emergency)
+                StatusChip(copy.streamLive, container = RathYatraColors.SurfaceContainerLow, content = RathYatraColors.OnSurfaceVariant)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StreamThumb(R.drawable.img_stream_bada_danda, copy.stream1, Modifier.weight(1f))
@@ -330,8 +319,14 @@ fun CitizenHomeScreen(
                         color = RathYatraColors.OnSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EmergencyButton(copy.policeSos, Icons.Outlined.Sos, Modifier.weight(1f)) { dialog = "sos" }
-                        EmergencyButton(copy.helpline, Icons.Outlined.SupportAgent, Modifier.weight(1f)) { dialog = "help" }
+                        // Open the dialer with the number filled in; ACTION_DIAL needs no permission
+                        // and the person still confirms the call.
+                        EmergencyButton(copy.policeSos, Icons.Outlined.Sos, Modifier.weight(1f)) {
+                            dialNumber(context, EMERGENCY_NUMBER) { dialog = "sos" }
+                        }
+                        EmergencyButton(copy.helpline, Icons.Outlined.SupportAgent, Modifier.weight(1f)) {
+                            dialNumber(context, KISAN_CALL_CENTRE) { dialog = "help" }
+                        }
                     }
                 }
             }
@@ -339,18 +334,39 @@ fun CitizenHomeScreen(
     }
 
     when (dialog) {
-        "role", "admin" -> DemoAlertDialog(copy.adminTitle, copy.adminBody, { dialog = null })
         "sos", "help" -> DemoAlertDialog(copy.sosTitle, copy.sosBody, { dialog = null })
         "advisories" -> DemoAlertDialog(copy.advisories, copy.comingSoonBody, { dialog = null })
+    }
+}
+
+private const val EMERGENCY_NUMBER = "112"
+private const val KISAN_CALL_CENTRE = "18001801551"
+
+private fun dialNumber(context: Context, number: String, onUnavailable: () -> Unit) {
+    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        onUnavailable() // e.g. a tablet without a phone app: show the help text instead
     }
 }
 
 @Composable
 private fun Metric(label: String, value: String, caption: String, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     Column(modifier) {
-        if (icon != null) Icon(icon, null, tint = RathYatraColors.Saffron, modifier = Modifier.size(16.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        // Icon sits beside the label so all three metrics share one baseline.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (icon != null) Icon(icon, null, tint = RathYatraColors.Saffron, modifier = Modifier.size(14.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
+        }
+        // Shrinks instead of breaking a word across lines at large system font sizes.
+        Text(
+            value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = MaterialTheme.typography.titleSmall.fontSize),
+        )
         Text(caption, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
     }
 }
@@ -399,10 +415,8 @@ private fun Advisory(icon: ImageVector, source: String, time: String, title: Str
 @Composable
 private fun StreamThumb(res: Int, label: String, modifier: Modifier = Modifier) {
     Box(modifier.clip(RoundedCornerShape(14.dp)).height(96.dp)) {
+        // The photos carry their own place caption, so no overlay text is drawn on top of it.
         Image(painterResource(res), contentDescription = label, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(RathYatraColors.Navy.copy(alpha = 0.55f)).padding(8.dp)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
-        }
     }
 }
 

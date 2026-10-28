@@ -34,6 +34,21 @@ Web / PWA (React, Vite) ─────┘                                      
 | [`render.yaml`](render.yaml) | Render Blueprint (service `sahakar-bharati-api`) |
 | [`.github/workflows/`](.github/workflows/) | Backend, web, Android CI; Firebase Hosting deploy |
 
+## Run it locally
+
+Two commands, each in its own terminal (Node 22+):
+
+```bash
+node start.js           # database, API (http://127.0.0.1:8000) and web app (http://localhost:5174)
+node start-android.js   # builds the Android app and opens it on an emulator or USB phone
+```
+
+`start-android.js` uses the local API from `start.js` (it forwards the device's port 8000
+to this computer). From WSL it finds the Windows Android Studio SDK and builds with
+`gradlew.bat`. Add `--prod` to use the live API instead, `--logs` to follow the app's
+logs, or see the options at the top of [`start-android.js`](start-android.js) and in
+[`android/README.md`](android/README.md#run-on-an-emulator-or-phone).
+
 ## Quick start
 
 **Backend** (Python 3.12, local PostgreSQL with databases `sahakar` and `sahakar_test`):

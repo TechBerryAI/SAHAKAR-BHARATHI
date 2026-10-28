@@ -1,5 +1,6 @@
 package com.example.sahakarbharati.features.registration
 
+import com.example.sahakarbharati.core.ui.occupationLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,13 +66,13 @@ fun RegistrationSuccessScreen(
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     val participantId = session.loginId.ifBlank { copy.participantIdValue }
-    val occupation = session.occupation.ifBlank { copy.occupationValue }
+    val occupation = occupationLabel(copy, session.occupation) ?: copy.occupationValue
     val region = listOfNotNull(
         session.district.takeIf { it.isNotBlank() },
         session.state.takeIf { it.isNotBlank() },
     ).joinToString(" • ").ifBlank { copy.regionValue }
     val successBody = if (session.name.isNotBlank()) {
-        "${copy.successBody} ${session.name}."
+        "${session.name} — ${copy.successBody}"
     } else {
         copy.successBody
     }
@@ -157,11 +158,8 @@ fun RegistrationSuccessScreen(
                 CredentialRow(copy.regionLabel, region) {
                     Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = RathYatraColors.Navy)
                 }
-                CredentialRow(copy.passStatus, copy.passReady) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        PulseDot(RathYatraColors.Saffron)
-                    }
-                }
+                // The pass is not issued yet, so no "pending" pulse beside it.
+                CredentialRow(copy.passStatus, copy.passReady)
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -226,7 +224,7 @@ private fun CredentialRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(value, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.End)
             action()
         }

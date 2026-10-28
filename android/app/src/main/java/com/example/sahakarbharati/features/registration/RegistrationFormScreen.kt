@@ -1,5 +1,7 @@
 package com.example.sahakarbharati.features.registration
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -157,7 +159,20 @@ fun RegistrationFormScreen(
     }
 
     val ageYears = remember(dob) { ageYearsFromDob(dob) }
-    val ageText = if (language == AppLanguage.HI) "$ageYears वर्ष" else "$ageYears Years"
+    val ageText = when {
+        dob.isBlank() -> "—"
+        language == AppLanguage.HI -> "$ageYears वर्ष"
+        else -> "$ageYears Years"
+    }
+    val formScroll = rememberScrollState()
+
+    // A validation message describes the input it was raised for; once the participant
+    // edits that input, verifies the OTP, or moves to another step it no longer applies.
+    LaunchedEffect(step, mobile, viewModel.verificationToken, name, gender, dob, occupation, addressLine, locality, pin, confirmPin) {
+        stepError = ""
+    }
+    // Each step starts at its top, so the step indicator and first field are visible.
+    LaunchedEffect(step) { formScroll.scrollTo(0) }
     val titles = listOf(extra.contactTitle, copy.formTitle, extra.profileTitle, extra.securityTitle)
     val stepLabels = listOf(extra.contactStep, copy.stepLabel, extra.profileStep, extra.securityStep)
 
@@ -291,7 +306,7 @@ fun RegistrationFormScreen(
         Column(
             Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(formScroll)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -534,8 +549,10 @@ private fun ColumnScope.PersonalStep(
                 onValueChange = onName,
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
-                trailingIcon = {
-                    Icon(Icons.Outlined.Check, contentDescription = copy.legalName, tint = RathYatraColors.Navy)
+                trailingIcon = if (name.trim().length >= 2) {
+                    { Icon(Icons.Outlined.Check, contentDescription = null, tint = RathYatraColors.Navy) }
+                } else {
+                    null
                 },
                 colors = fieldColors(),
             )
@@ -559,10 +576,16 @@ private fun ColumnScope.PersonalStep(
         WhiteCard(Modifier.weight(1.2f)) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(copy.dob, style = MaterialTheme.typography.labelSmall)
+                // Read-only field: tapping anywhere on it opens the picker, not only the icon.
+                val dobInteraction = remember { MutableInteractionSource() }
+                LaunchedEffect(dobInteraction) {
+                    dobInteraction.interactions.collect { if (it is PressInteraction.Release) onOpenDob() }
+                }
                 OutlinedTextField(
                     value = dob,
                     onValueChange = {},
                     readOnly = true,
+                    interactionSource = dobInteraction,
                     modifier = Modifier.fillMaxWidth(),
                     shape = FieldShape,
                     trailingIcon = {
@@ -855,8 +878,15 @@ private fun BirthdayPickerDialog(
     val currentYear = remember {
         java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
     }
+    val initialSelected = parseDobToUtcMillis(initialDob)
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = parseDobToUtcMillis(initialDob),
+        initialSelectedDateMillis = initialSelected,
+        // Participants are adults: open on a plausible birth year instead of this month.
+        initialDisplayedMonthMillis = initialSelected ?: remember {
+            java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+                add(java.util.Calendar.YEAR, -25)
+            }.timeInMillis
+        },
         yearRange = IntRange(currentYear - 120, currentYear),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= today

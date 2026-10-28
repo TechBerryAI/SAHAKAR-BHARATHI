@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.example.sahakarbharati.core.copy.RathYatraCopy
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -62,6 +64,30 @@ fun ApplySystemBarIcons(lightIcons: Boolean) {
     }
 }
 
+/**
+ * Opaque band behind the status bar for edge-to-edge screens whose content scrolls
+ * under it; without it, scrolled text collides with the clock and battery icons.
+ */
+@Composable
+fun StatusBarScrim(color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .windowInsetsTopHeight(WindowInsets.statusBars)
+            .background(color),
+    )
+}
+
+/** Localised label for an occupation code stored by the API ("Farmer", "Fisherman", …). */
+fun occupationLabel(copy: RathYatraCopy, code: String?): String? = when (code) {
+    null, "" -> null
+    "Farmer" -> copy.farmer
+    "Fisherman" -> copy.fisherman
+    "Both" -> copy.both
+    "Allied" -> copy.allied
+    else -> code
+}
+
 @Composable
 fun IvoryScreenColumn(
     modifier: Modifier = Modifier,
@@ -81,7 +107,8 @@ fun CitizenTopBar(
     title: String,
     modifier: Modifier = Modifier,
     photoPath: String? = null,
-    onRoleClick: () -> Unit = {},
+    // Null hides the role switch; the organiser console is not part of the participant app.
+    onRoleClick: (() -> Unit)? = null,
     onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
 ) {
@@ -112,24 +139,17 @@ fun CitizenTopBar(
                 fontWeight = FontWeight.Bold,
             )
         }
-        IconButton(onClick = onRoleClick, modifier = Modifier.semantics { contentDescription = "Role" }) {
-            Icon(Icons.Outlined.SwapHoriz, contentDescription = null, tint = RathYatraColors.Navy)
-        }
-        Box {
-            IconButton(
-                onClick = onNotificationsClick,
-                modifier = Modifier.semantics { contentDescription = "Notifications" },
-            ) {
-                Icon(Icons.Outlined.Notifications, contentDescription = null, tint = RathYatraColors.Navy)
+        if (onRoleClick != null) {
+            IconButton(onClick = onRoleClick, modifier = Modifier.semantics { contentDescription = "Role" }) {
+                Icon(Icons.Outlined.SwapHoriz, contentDescription = null, tint = RathYatraColors.Navy)
             }
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 10.dp, end = 10.dp)
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(RathYatraColors.Emergency),
-            )
+        }
+        // No unread badge: there is no notification service yet, so nothing can be unread.
+        IconButton(
+            onClick = onNotificationsClick,
+            modifier = Modifier.semantics { contentDescription = "Notifications" },
+        ) {
+            Icon(Icons.Outlined.Notifications, contentDescription = null, tint = RathYatraColors.Navy)
         }
         IconButton(onClick = onProfileClick, modifier = Modifier.semantics { contentDescription = "Profile" }) {
             if (!photoPath.isNullOrBlank()) {

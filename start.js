@@ -222,5 +222,6 @@ console.log(`
     App:  \x1b[1m${WEB_URL}\x1b[0m
     API:  ${API_URL}
 
+  Android app: run \x1b[1mnode start-android.js\x1b[0m in another terminal.
   Press Ctrl+C to stop.
 `)

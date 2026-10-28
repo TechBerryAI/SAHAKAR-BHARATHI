@@ -14,9 +14,10 @@ feature branch ──PR──▶ development ──PR──▶ production
 
 | Workflow | Trigger | What it does | Deploys? |
 |---|---|---|---|
-| `backend-ci.yml` | push / PR touching `backend/`, `infra/supabase/`, `render.yaml` | Migrations on empty Postgres 16, full pytest (incl. fresh-DB, `schema.sql` parity, Supabase role checks), ruff, secret scan | No |
+| `backend-ci.yml` | push / PR touching `backend/`, `infra/supabase/`, `render.yaml` | Migrations on empty Postgres 16, full pytest (incl. fresh-DB, `schema.sql` parity, Supabase role checks), ruff | No |
 | `web-ci.yml` | PR, or push to any branch except `production`, touching `web/` | lint, typecheck, unit tests, production build, CSP check | No |
 | `android-ci.yml` | push / PR touching `android/`; manual | unit tests, debug build, release-URL guard check, unsigned R8 release APK + AAB. Manual `signed_release` job builds signed artifacts | No (uploads artifacts only) |
+| `secrets-ci.yml` | every push / PR | `scripts/check-secrets.sh` on tracked files | No |
 | `web-firebase-hosting.yml` | push to `production` touching `web/`; manual on `production` | same checks as web CI, then deploy to the live channel | **Yes** |
 
 Any failing step stops the job, so a failing build or test never deploys.
@@ -24,7 +25,7 @@ Any failing step stops the job, so a failing build or test never deploys.
 ### One-time GitHub settings (owner action)
 
 1. **Branch protection** on `production` and `development`: require PRs and the
-   status checks `Backend CI / test`, `Backend CI / secrets`, `Web CI / check`,
+   status checks `Backend CI / test`, `Secret scan / secrets`, `Web CI / check`,
    `Android CI / build`.
 2. **Environments**: create `production` (required reviewers) and
    `android-release` (required reviewers). Until reviewers are set, GitHub creates
@@ -85,6 +86,14 @@ Not needed and must not be set: Supabase anon key, service-role key, JWT secret.
 - Migrations 0005/0006 are additive and compatible with the previous release;
   do **not** downgrade the database. For a bad data change, restore to a scratch
   project and repair forward.
+
+### Cold starts
+
+On 2026-10-27 the live API took 46–60 s to answer its first request after being idle
+(Render suspends idle free-tier services). Both clients now cope: long per-attempt
+timeouts, automatic retry of GET requests only, and a "server is starting up" banner
+after 4 s (see `android/README.md`, `web/README.md`). This hides the wait but does not
+remove it. To remove it, use a paid Render instance type, which does not spin down.
 
 ### Region
 
