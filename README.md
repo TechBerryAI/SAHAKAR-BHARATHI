@@ -44,7 +44,8 @@ node start-android.js   # builds the Android app and opens it on an emulator or 
 ```
 
 `start-android.js` uses the local API from `start.js` (it forwards the device's port 8000
-to this computer). Add `--prod` to use the live API instead, `--logs` to follow the app's
+to this computer). From WSL it finds the Windows Android Studio SDK and builds with
+`gradlew.bat`. Add `--prod` to use the live API instead, `--logs` to follow the app's
 logs, or see the options at the top of [`start-android.js`](start-android.js) and in
 [`android/README.md`](android/README.md#run-on-an-emulator-or-phone).
 

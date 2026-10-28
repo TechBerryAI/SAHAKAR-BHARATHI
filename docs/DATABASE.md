@@ -77,9 +77,10 @@ MIGRATION_DATABASE_URL='<owner connection string, sslmode=require>' alembic upgr
    was created outside Alembic: compare it with `schema.sql`, then
    `alembic stamp <matching revision>` (for the pre-0005 snapshot that is
    `20261022_0004`) and `alembic upgrade head`.
-3. Run migrations **before** deploying code that needs them. 0005 and 0006 are
-   additive; the current API also runs against a 0004 database except when
-   `RATE_LIMIT_BACKEND=postgres`.
+3. Run migrations **before** deploying code that needs them. Head is
+   `20261026_0007`. Login, `/me`, and admin read `users.role`; a database still
+   at 0006 or earlier will 500 after this code is deployed. 0005 (RLS) and 0006
+   (rate-limit table) are additive and must also be present on production.
 4. Never run `alembic downgrade`, `alembic stamp` with a guessed revision, or any
    reset against production. 0005's downgrade is intentionally a no-op.
 

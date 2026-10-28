@@ -1,9 +1,8 @@
 # Web
 
 Vite + React 19 + TypeScript participant app, installable as a PWA, hosted on
-Firebase Hosting (`sahakarbharati-e3b04`). All data goes through the FastAPI API;
-Firebase Auth/Firestore are not used (`src/lib/firebase.ts` and `firestore.rules`
-are unused leftovers and are not deployed by CI).
+Firebase Hosting (`sahakarbharati-e3b04`). All data goes through the FastAPI API.
+Firebase Auth and Firestore are not used; `firebase.json` is hosting-only.
 
 ## Setup
 

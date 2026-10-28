@@ -2,9 +2,10 @@
 
 The PIN is passed on the command line and stored only as a hash:
 
-    python -m app.scripts.seed_super_admin --pin 1234
+    python -m app.scripts.seed_super_admin --pin <4-to-6-digit-pin>
 
 Running it again updates the same mobile row instead of inserting a second user.
+Do not use this against production with a guessable PIN.
 """
 
 from __future__ import annotations

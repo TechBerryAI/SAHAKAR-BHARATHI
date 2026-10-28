@@ -14,9 +14,10 @@ feature branch ──PR──▶ development ──PR──▶ production
 
 | Workflow | Trigger | What it does | Deploys? |
 |---|---|---|---|
-| `backend-ci.yml` | push / PR touching `backend/`, `infra/supabase/`, `render.yaml` | Migrations on empty Postgres 16, full pytest (incl. fresh-DB, `schema.sql` parity, Supabase role checks), ruff, secret scan | No |
+| `backend-ci.yml` | push / PR touching `backend/`, `infra/supabase/`, `render.yaml` | Migrations on empty Postgres 16, full pytest (incl. fresh-DB, `schema.sql` parity, Supabase role checks), ruff | No |
 | `web-ci.yml` | PR, or push to any branch except `production`, touching `web/` | lint, typecheck, unit tests, production build, CSP check | No |
 | `android-ci.yml` | push / PR touching `android/`; manual | unit tests, debug build, release-URL guard check, unsigned R8 release APK + AAB. Manual `signed_release` job builds signed artifacts | No (uploads artifacts only) |
+| `secrets-ci.yml` | every push / PR | `scripts/check-secrets.sh` on tracked files | No |
 | `web-firebase-hosting.yml` | push to `production` touching `web/`; manual on `production` | same checks as web CI, then deploy to the live channel | **Yes** |
 
 Any failing step stops the job, so a failing build or test never deploys.
@@ -24,7 +25,7 @@ Any failing step stops the job, so a failing build or test never deploys.
 ### One-time GitHub settings (owner action)
 
 1. **Branch protection** on `production` and `development`: require PRs and the
-   status checks `Backend CI / test`, `Backend CI / secrets`, `Web CI / check`,
+   status checks `Backend CI / test`, `Secret scan / secrets`, `Web CI / check`,
    `Android CI / build`.
 2. **Environments**: create `production` (required reviewers) and
    `android-release` (required reviewers). Until reviewers are set, GitHub creates

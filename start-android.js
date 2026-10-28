@@ -9,6 +9,9 @@
 // 3. Forwards the device's port 8000 to this computer, so the app reaches the local API.
 // 4. Builds the debug app, installs it, and opens it.
 //
+// From WSL, a Windows SDK (adb.exe / aapt.exe) is used as-is: adb.exe for the device
+// and gradlew.bat via cmd.exe for the build. A Linux SDK still uses ./gradlew.
+//
 // Options:
 //   --prod          Talk to https://sahakar-bharathi-api.onrender.com instead of the local API.
 //   --avd <name>    Emulator to start when no device is connected (see: emulator -list-avds).
@@ -18,7 +21,7 @@
 //                   older build signed with a different debug key is installed.
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,6 +29,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const ANDROID = path.join(ROOT, 'android')
 const IS_WINDOWS = process.platform === 'win32'
+const IS_WSL = !IS_WINDOWS && isWsl()
 
 const PACKAGE = 'com.example.sahakarbharati'
 const ACTIVITY = `${PACKAGE}/.MainActivity`
@@ -56,7 +60,76 @@ function fail(message) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-const exe = (name) => (IS_WINDOWS ? `${name}.exe` : name)
+
+function isWsl() {
+  try {
+    return /microsoft/i.test(readFileSync('/proc/version', 'utf8'))
+  } catch {
+    return false
+  }
+}
+
+function wslpath(flagName, value) {
+  const result = spawnSync('wslpath', [flagName, value], { encoding: 'utf8' })
+  if (result.status === 0) {
+    const mapped = (result.stdout || '').trim()
+    if (mapped) return mapped
+  }
+  return undefined
+}
+
+function toWslPath(value) {
+  if (!value) return value
+  if (value.startsWith('/')) return value
+  const mapped = wslpath('-u', value)
+  if (mapped) return mapped
+  const match = value.replace(/\\/g, '/').match(/^([A-Za-z]):\/(.*)$/)
+  if (match) return `/mnt/${match[1].toLowerCase()}/${match[2]}`
+  return value
+}
+
+function toWindowsPath(value) {
+  if (!value) return value
+  if (/^[A-Za-z]:[\\/]/.test(value)) return value
+  const mapped = wslpath('-w', value)
+  if (mapped) return mapped
+  const match = value.match(/^\/mnt\/([A-Za-z])\/(.*)$/)
+  if (match) return `${match[1].toUpperCase()}:\\${match[2].replace(/\//g, '\\')}`
+  return value
+}
+
+function hostPath(value) {
+  return IS_WSL ? toWslPath(value) : value
+}
+
+function sdkLooksValid(dir) {
+  if (!dir) return false
+  const root = hostPath(dir)
+  return existsSync(path.join(root, 'platform-tools', 'adb.exe')) || existsSync(path.join(root, 'platform-tools', 'adb'))
+}
+
+function isWindowsSdk(sdk) {
+  return existsSync(path.join(sdk, 'platform-tools', 'adb.exe')) && !existsSync(path.join(sdk, 'platform-tools', 'adb'))
+}
+
+function toolBin(sdk, folder, name) {
+  const win = path.join(sdk, folder, `${name}.exe`)
+  if (existsSync(win)) return win
+  return path.join(sdk, folder, name)
+}
+
+function windowsUserSdkDirs() {
+  if (!IS_WSL) return []
+  const users = '/mnt/c/Users'
+  if (!existsSync(users)) return []
+  try {
+    return readdirSync(users)
+      .filter((name) => !['All Users', 'Default', 'Default User', 'Public', 'desktop.ini'].includes(name))
+      .map((name) => path.join(users, name, 'AppData', 'Local', 'Android', 'Sdk'))
+  } catch {
+    return []
+  }
+}
 
 // --- Tools -------------------------------------------------------------------------
 
@@ -79,37 +152,85 @@ function findSdk() {
     IS_WINDOWS && process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk'),
     process.platform === 'darwin' && path.join(home, 'Library', 'Android', 'sdk'),
     path.join(home, 'Android', 'Sdk'),
+    ...windowsUserSdkDirs(),
   ].filter(Boolean)
-  const sdk = candidates.find((dir) => existsSync(path.join(dir, 'platform-tools', exe('adb'))))
+  const resolved = candidates.map((dir) => hostPath(dir))
+  const sdk = resolved.find(sdkLooksValid)
   if (!sdk) {
     fail(
       'Android SDK not found. Install Android Studio (it installs the SDK), or set ANDROID_HOME\n' +
-        `  to the SDK folder. Looked in: ${candidates.join(', ') || '(nothing configured)'}`,
+        `  to the SDK folder. Looked in: ${[...new Set(resolved)].join(', ') || '(nothing configured)'}`,
     )
   }
   return sdk
 }
 
-function javaWorks(home) {
-  return Boolean(home) && existsSync(path.join(home, 'bin', exe('java')))
+function javaExeName(windowsToolchain) {
+  return windowsToolchain ? 'java.exe' : IS_WINDOWS ? 'java.exe' : 'java'
 }
 
-function findJavaHome() {
+function javaWorks(home, windowsToolchain) {
+  return Boolean(home) && existsSync(path.join(hostPath(home), 'bin', javaExeName(windowsToolchain)))
+}
+
+function windowsStudioJbrHomes() {
+  const homes = [
+    '/mnt/c/Program Files/Android/Android Studio/jbr',
+    '/mnt/c/Program Files/Android/Android Studio1/jbr',
+    '/mnt/c/Program Files (x86)/Android/Android Studio/jbr',
+  ]
+  const users = '/mnt/c/Users'
+  if (!existsSync(users)) return homes
+  try {
+    for (const name of readdirSync(users)) {
+      homes.push(path.join(users, name, 'AppData', 'Local', 'Programs', 'Android Studio', 'jbr'))
+    }
+  } catch {
+    // ignore unreadable profile directories
+  }
+  return homes
+}
+
+function findJavaHome(windowsToolchain) {
+  if (windowsToolchain && IS_WSL) {
+    const fromEnv = process.env.JAVA_HOME && javaWorks(process.env.JAVA_HOME, true) ? process.env.JAVA_HOME : undefined
+    const home = [fromEnv, ...windowsStudioJbrHomes()].find((dir) => javaWorks(dir, true))
+    if (home) return hostPath(home)
+    fail(
+      'No Windows JDK (java.exe) found. Android Studio on this machine has an incomplete jbr, or JAVA_HOME\n' +
+        '  is a Linux path. Set JAVA_HOME to a Windows JDK 17+ (for example the Android Studio jbr folder\n' +
+        '  that contains bin\\java.exe), or run node start-android.js from Windows PowerShell.',
+    )
+  }
+
   const studioJbr = IS_WINDOWS
     ? [
         path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Android', 'Android Studio', 'jbr'),
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Android', 'Android Studio1', 'jbr'),
         process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs', 'Android Studio', 'jbr'),
       ]
     : process.platform === 'darwin'
       ? ['/Applications/Android Studio.app/Contents/jbr/Contents/Home']
       : ['/opt/android-studio/jbr', path.join(os.homedir(), 'android-studio', 'jbr')]
-  const home = [process.env.JAVA_HOME, ...studioJbr].find(javaWorks)
-  if (home) return home
+  const home = [process.env.JAVA_HOME, ...studioJbr].find((dir) => javaWorks(dir, false))
+  if (home) return hostPath(home)
   // Fall back to a `java` on PATH; Gradle finds its own way from there.
-  if (spawnSync(exe('java'), ['-version'], { stdio: 'ignore' }).status === 0) return undefined
+  if (spawnSync(IS_WINDOWS ? 'java.exe' : 'java', ['-version'], { stdio: 'ignore' }).status === 0) return undefined
   fail(
     'No Java (JDK 17 or newer) found. Either install a JDK (for example Eclipse Temurin 21)\n' +
       '  and set JAVA_HOME, or repair Android Studio so its bundled JDK (jbr) is complete.',
+  )
+}
+
+function findCmd() {
+  const probe = spawnSync('cmd.exe', ['/c', 'exit 0'])
+  if (probe.status === 0) return 'cmd.exe'
+  for (const candidate of ['/mnt/c/Windows/System32/cmd.exe', '/mnt/c/Windows/system32/cmd.exe']) {
+    if (existsSync(candidate)) return candidate
+  }
+  fail(
+    'cmd.exe is not available from WSL, so the Windows Gradle wrapper cannot run.\n' +
+      '  Enable Windows interop, or run node start-android.js from Windows PowerShell.',
   )
 }
 
@@ -117,7 +238,7 @@ function findJavaHome() {
 
 function adb(sdk, serial, adbArgs, options = {}) {
   const full = serial ? ['-s', serial, ...adbArgs] : adbArgs
-  return spawnSync(path.join(sdk, 'platform-tools', exe('adb')), full, { encoding: 'utf8', ...options })
+  return spawnSync(toolBin(sdk, 'platform-tools', 'adb'), full, { encoding: 'utf8', ...options })
 }
 
 function connectedDevices(sdk) {
@@ -152,7 +273,7 @@ async function pickDevice(sdk) {
     return devices[0]
   }
 
-  const emulator = path.join(sdk, 'emulator', exe('emulator'))
+  const emulator = toolBin(sdk, 'emulator', 'emulator')
   if (!existsSync(emulator)) {
     fail('No device connected and the Android emulator is not installed. Connect a phone with USB debugging on.')
   }
@@ -211,7 +332,32 @@ async function chooseApi(sdk, serial) {
 // --- Build, install, open ------------------------------------------------------------
 
 function gradle(javaHome, sdk, gradleArgs) {
-  const wrapper = path.join(ANDROID, IS_WINDOWS ? 'gradlew.bat' : 'gradlew')
+  const windowsToolchain = IS_WINDOWS || (IS_WSL && isWindowsSdk(sdk))
+
+  if (IS_WSL && windowsToolchain) {
+    findCmd()
+    // WSL's cmd.exe interop translates cwd and WSLENV /p paths. Do not `cd /d`
+    // a Windows path (cmd reports invalid volume syntax) or `set "JAVA_HOME=…"`
+    // (quotes are stripped and Gradle sees a broken JAVA_HOME).
+    const env = { ...process.env, ANDROID_HOME: sdk }
+    const wslEnvFlags = ['ANDROID_HOME/p']
+    if (javaHome) {
+      env.JAVA_HOME = javaHome
+      wslEnvFlags.push('JAVA_HOME/p')
+    }
+    env.WSLENV = [process.env.WSLENV, wslEnvFlags.join(':')].filter(Boolean).join(':')
+    log(`Building with Windows Gradle (SDK ${toWindowsPath(sdk)}).`)
+    return new Promise((resolve) => {
+      const child = spawn('cmd.exe', ['/c', 'gradlew.bat', ...gradleArgs], {
+        cwd: ANDROID,
+        env,
+        stdio: 'inherit',
+      })
+      child.on('exit', (code) => resolve(code ?? 1))
+    })
+  }
+
+  const wrapper = path.join(ANDROID, windowsToolchain ? 'gradlew.bat' : 'gradlew')
   return new Promise((resolve) => {
     // gradlew.bat needs a shell on Windows; our arguments contain no spaces.
     const child = IS_WINDOWS
@@ -231,7 +377,8 @@ function install(sdk, serial) {
     adb(sdk, serial, ['uninstall', PACKAGE])
   }
   log('Installing on the device…')
-  const result = adb(sdk, serial, ['install', '-r', '-t', APK])
+  const apkForAdb = IS_WSL && isWindowsSdk(sdk) ? toWindowsPath(APK) : APK
+  const result = adb(sdk, serial, ['install', '-r', '-t', apkForAdb])
   const output = `${result.stdout || ''}${result.stderr || ''}`
   if (result.status === 0 && output.includes('Success')) return
   if (output.includes('INSTALL_FAILED_UPDATE_INCOMPATIBLE')) {
@@ -251,11 +398,15 @@ function streamLogs(sdk, serial) {
   }
   log('Streaming app logs. Press Ctrl+C to stop (the app keeps running).')
   const full = ['-s', serial, 'logcat', `--pid=${pid}`]
-  spawn(path.join(sdk, 'platform-tools', exe('adb')), full, { stdio: 'inherit' })
+  spawn(toolBin(sdk, 'platform-tools', 'adb'), full, { stdio: 'inherit' })
 }
 
 const sdk = findSdk()
-const javaHome = findJavaHome()
+const windowsToolchain = IS_WINDOWS || (IS_WSL && isWindowsSdk(sdk))
+if (IS_WSL && windowsToolchain) {
+  log(`Using the Windows Android SDK at ${sdk}`)
+}
+const javaHome = findJavaHome(windowsToolchain)
 const serial = await pickDevice(sdk)
 const apiBase = await chooseApi(sdk, serial)
 
