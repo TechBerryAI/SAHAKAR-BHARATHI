@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, Card, Screen, StatusChip } from '../components/ui.tsx'
+import { useLanguage } from '../contexts/language.tsx'
+import { useSession } from '../hooks/useSession.ts'
 import { occupationLabel } from '../lib/copy.ts'
-import { useLanguage } from '../lib/language.tsx'
-import { useSession } from '../lib/session.ts'
 
 export function RegisterSuccessScreen() {
   const navigate = useNavigate()

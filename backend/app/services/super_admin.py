@@ -1,16 +1,6 @@
-"""Create or update the Jaydeep Patil super-admin account.
-
-The PIN is passed on the command line and stored only as a hash:
-
-    python -m app.scripts.seed_super_admin --pin <4-to-6-digit-pin>
-
-Running it again updates the same mobile row instead of inserting a second user.
-Do not use this against production with a guessable PIN.
-"""
+"""Create or update the Jaydeep Patil super-admin account."""
 
 from __future__ import annotations
-
-import argparse
 
 from sqlalchemy.orm import Session
 
@@ -57,18 +47,3 @@ def seed_super_admin(db: Session, pin: str) -> User:
     db.commit()
     db.refresh(user)
     return user
-
-
-def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Seed the Jaydeep Patil super-admin account.")
-    parser.add_argument("--pin", required=True, help="Sign-in PIN. Stored only as a hash.")
-    args = parser.parse_args(argv)
-    from app.db.session import SessionLocal
-
-    with SessionLocal() as db:
-        user = seed_super_admin(db, args.pin)
-    print(f"Super admin ready: {user.login_id} ({user.mobile})")
-
-
-if __name__ == "__main__":
-    main()

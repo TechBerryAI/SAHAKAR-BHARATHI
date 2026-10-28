@@ -14,11 +14,12 @@ import {
   StatusChip,
   type InfoRow,
 } from '../components/ui.tsx'
+import { useLanguage } from '../contexts/language.tsx'
+import { useSession } from '../hooks/useSession.ts'
 import { ApiError, apiErrorText, getMe, logout, updateMe } from '../lib/api.ts'
 import { occupationLabel } from '../lib/copy.ts'
 import { blankToNull, formatMobile, initials } from '../lib/format.ts'
-import { useLanguage } from '../lib/language.tsx'
-import { setProfile, useSession } from '../lib/session.ts'
+import { setProfile } from '../lib/session.ts'
 import type { Occupation } from '../lib/types.ts'
 import { OCCUPATIONS } from '../lib/types.ts'
 

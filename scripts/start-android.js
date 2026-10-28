@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Builds the Android app and opens it on an emulator or a USB-connected phone:
 //
-//   node start-android.js            # uses the local API from `node start.js`
-//   node start-android.js --prod     # uses the live API instead
+//   node scripts/start-android.js            # uses the local API from `node scripts/start.js`
+//   node scripts/start-android.js --prod     # uses the live API instead
 //
 // 1. Finds the Android SDK and a JDK (JAVA_HOME, or the one bundled with Android Studio).
 // 2. Uses a connected device, or starts an emulator (the first one, or --avd <name>).
@@ -26,7 +26,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ANDROID = path.join(ROOT, 'android')
 const IS_WINDOWS = process.platform === 'win32'
 const IS_WSL = !IS_WINDOWS && isWsl()
@@ -199,7 +199,7 @@ function findJavaHome(windowsToolchain) {
     fail(
       'No Windows JDK (java.exe) found. Android Studio on this machine has an incomplete jbr, or JAVA_HOME\n' +
         '  is a Linux path. Set JAVA_HOME to a Windows JDK 17+ (for example the Android Studio jbr folder\n' +
-        '  that contains bin\\java.exe), or run node start-android.js from Windows PowerShell.',
+        '  that contains bin\\java.exe), or run node scripts/start-android.js from Windows PowerShell.',
     )
   }
 
@@ -230,7 +230,7 @@ function findCmd() {
   }
   fail(
     'cmd.exe is not available from WSL, so the Windows Gradle wrapper cannot run.\n' +
-      '  Enable Windows interop, or run node start-android.js from Windows PowerShell.',
+      '  Enable Windows interop, or run node scripts/start-android.js from Windows PowerShell.',
   )
 }
 
@@ -319,7 +319,7 @@ async function chooseApi(sdk, serial) {
   if (!(await apiHealthy(LOCAL_API))) {
     warn(
       `The local API is not running at ${LOCAL_API}. The app will open but cannot sign in until you\n` +
-        '  run `node start.js` in another terminal (or rerun this with --prod).',
+        '  run `node scripts/start.js` in another terminal (or rerun this with --prod).',
     )
   }
   // The device's own 127.0.0.1:8000 is forwarded to this computer, for emulators and USB phones alike.
