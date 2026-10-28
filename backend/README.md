@@ -55,6 +55,13 @@ python scripts/latency_bench.py --rtt-ms 0
 python scripts/latency_bench.py --rtt-ms 270
 ```
 
+Create or update the super-admin account. The PIN is stored only as a hash. Do not use a guessable PIN against production:
+
+```bash
+cd backend
+python scripts/seed_super_admin.py --pin <4-to-6-digit-pin>
+```
+
 `tests/test_query_budget.py` fails when an endpoint exceeds its SQL statement budget or runs SQL after its commit.
 
 Android emulator debug builds use `http://10.0.2.2:8000/` by default. Release builds take the HTTPS URL from `SAHAKAR_API_BASE_URL` / `-Psahakar.apiBaseUrl` / `api.base.url` and fail without it (see `android/README.md`).

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useLanguage } from '../lib/language.tsx'
+import { useLanguage } from '../contexts/language.tsx'
 import { useServerSlow } from '../lib/network.ts'
 import { BottomNav } from './BottomNav.tsx'
 

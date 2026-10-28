@@ -30,7 +30,7 @@ Web / PWA (React, Vite) ─────┘                                      
 | [`web/`](web/) | Vite + React + TypeScript app, PWA, Firebase Hosting config |
 | [`infra/supabase/`](infra/supabase/) | `schema.sql` snapshot, optional `runtime_role.sql` |
 | [`docs/`](docs/) | Database, deployment, readiness report |
-| [`scripts/check-secrets.sh`](scripts/check-secrets.sh) | Secret scanner used by CI and the optional pre-commit hook |
+| [`scripts/`](scripts/) | `start.js`, `start-android.js`, and [`check-secrets.sh`](scripts/check-secrets.sh) |
 | [`render.yaml`](render.yaml) | Render Blueprint (service `sahakar-bharati-api`) |
 | [`.github/workflows/`](.github/workflows/) | Backend, web, Android CI; Firebase Hosting deploy |
 
@@ -39,14 +39,14 @@ Web / PWA (React, Vite) ─────┘                                      
 Two commands, each in its own terminal (Node 22+):
 
 ```bash
-node start.js           # database, API (http://127.0.0.1:8000) and web app (http://localhost:5174)
-node start-android.js   # builds the Android app and opens it on an emulator or USB phone
+node scripts/start.js           # database, API (http://127.0.0.1:8000) and web app (http://localhost:5174)
+node scripts/start-android.js   # builds the Android app and opens it on an emulator or USB phone
 ```
 
-`start-android.js` uses the local API from `start.js` (it forwards the device's port 8000
+`scripts/start-android.js` uses the local API from `scripts/start.js` (it forwards the device's port 8000
 to this computer). From WSL it finds the Windows Android Studio SDK and builds with
 `gradlew.bat`. Add `--prod` to use the live API instead, `--logs` to follow the app's
-logs, or see the options at the top of [`start-android.js`](start-android.js) and in
+logs, or see the options at the top of [`scripts/start-android.js`](scripts/start-android.js) and in
 [`android/README.md`](android/README.md#run-on-an-emulator-or-phone).
 
 ## Quick start

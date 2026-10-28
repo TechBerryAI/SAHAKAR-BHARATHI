@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from 'react'
 import type { Profile } from './types.ts'
 
 export const ACCESS_TOKEN_KEY = 'sahakar_access_token'
@@ -93,8 +92,4 @@ export function clearSession() {
   }
   snapshot = { ready: true, uid: null, profile: null, restoreFailed: false }
   emit()
-}
-
-export function useSession(): AuthSnapshot {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }

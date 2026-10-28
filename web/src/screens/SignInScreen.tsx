@@ -2,8 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Seal } from '../components/Seal.tsx'
 import { Button, ErrorBanner, Field } from '../components/ui.tsx'
+import { useLanguage } from '../contexts/language.tsx'
 import { apiErrorText, signIn } from '../lib/api.ts'
-import { useLanguage } from '../lib/language.tsx'
 
 const PIN_PATTERN = /^\d{4,6}$/
 const MOBILE_PATTERN = /^[6-9]\d{9}$/

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { copyFor, type AppCopy } from './copy.ts'
-import { LANGUAGES, isLangCode, languageByCode, type LangCode } from './languages.ts'
+import { copyFor, type AppCopy } from '../lib/copy.ts'
+import { LANGUAGES, isLangCode, languageByCode, type LangCode } from '../lib/languages.ts'
 
 const STORAGE_KEY = 'sahakar.language'
 
