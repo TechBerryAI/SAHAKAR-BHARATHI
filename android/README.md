@@ -25,10 +25,13 @@ node start-android.js
 ```
 
 It finds the Android SDK (`ANDROID_HOME`, `local.properties`, or the default install
-folder) and a JDK (`JAVA_HOME`, else Android Studio's bundled `jbr`). It uses a connected
-device, or starts the first emulator, then forwards the device's port 8000 to this computer,
-builds the debug app against `http://127.0.0.1:8000/`, installs it, and opens it. Start the
-API first with `node start.js`. Without it the app opens but cannot sign in.
+folder) and a JDK (`JAVA_HOME`, else Android Studio's bundled `jbr`). From WSL it also
+accepts a Windows `sdk.dir` / `ANDROID_HOME` (`C:\Users\…\Android\Sdk`), uses `adb.exe`,
+and builds with `gradlew.bat` via `cmd.exe` — Linux Gradle cannot use Windows `aapt.exe`.
+It uses a connected device, or starts the first emulator, then forwards the device's port
+8000 to this computer, builds the debug app against `http://127.0.0.1:8000/`, installs it,
+and opens it. Start the API first with `node start.js`. Without it the app opens but cannot
+sign in.
 
 | Option | Effect |
 |---|---|
@@ -53,8 +56,9 @@ cd android
 
 Windows: use `gradlew.bat` with the same tasks.
 
-WSL note: Linux Gradle cannot use a Windows SDK's `build-tools` (it looks for Linux
-`aapt`). Use Android Studio / `gradlew.bat` on Windows, or a Linux SDK in WSL.
+WSL: `node start-android.js` from the repository root uses the Windows SDK and
+`gradlew.bat` automatically. Do not run `./gradlew` against a Windows SDK — Linux
+Gradle looks for `aapt`, not `aapt.exe`. A Linux SDK in WSL still uses `./gradlew`.
 
 ## API base URL
 

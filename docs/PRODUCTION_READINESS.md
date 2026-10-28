@@ -1,33 +1,35 @@
 # Production readiness report
 
-Date: 2026-10-23. Branch: `abhishek` (base `cad3782`). Changes are uncommitted in the
-working tree; nothing was pushed, merged, deployed, or run against Render, Supabase,
-Firebase or Textbee.
+Date: 2026-10-27. Branch: `abhishek`. This file was first written on 2026-10-23
+and updated after the WSL Android launcher fix and a HEAD re-audit. Nothing was
+pushed, merged, deployed, or run against Render, Supabase, Firebase or Textbee
+in this session. OTP/SMS code was not changed.
 
 ## A. Executive summary
 
-**Fixed.** The Android app did not compile at HEAD (half-merged localization files)
-and its build was not reproducible (wrapper at the repo root, `settings.gradle.kts`
-in `android/`, CRLF `gradlew`). It now builds from a clean checkout, and release
-builds refuse to ship without a valid HTTPS API URL (previously they defaulted to
-`https://api.invalid/`). Alembic-created databases exposed `pin_hash` and
-`token_hash` to Supabase's public `anon` role; migration `0005` closes that, with tests that
-reproduce the exposure and prove the fix. Concurrent duplicate registrations returned
-500; they now return 409 and exactly one account is created. Both clients now handle expired or revoked
-sessions, offline start-up and partial registration failures truthfully, and Android's fake
-"live"/"verified"/notification controls were removed or disabled. Added shared
-rate limiting (opt-in), production config fail-fast, web CSP and cache headers,
-CI for web and Android, a secret scanner, and complete docs.
+**Fixed in this session.** `node start-android.js` from WSL failed even though
+Android Studio and the Windows SDK were installed: it treated
+`C:\Users\Admin\AppData\Local\Android\Sdk` as a Linux path and looked for `adb`
+instead of `adb.exe`. The launcher now finds that SDK, builds with `gradlew.bat`
+via `cmd.exe`, and installs on the emulator. Unused Firebase Auth/Firestore
+client leftovers were removed. Secret scanning runs on every PR. Docs now say
+production must be at Alembic `20261026_0007` before this code is deployed.
 
-**Readiness: NOT READY FOR PRODUCTION.** It's code-ready for a staged beta once the owner
-actions in section G are done. The deciding factors are outside the repository:
-the production database's exposure state is unknown, migrations `0005`/`0006` are not applied there,
-OTP/SMS delivery is deferred and unverified, and no live deployment was smoke-tested.
+**Earlier (2026-10-23).** Android compiles and release builds refuse a missing or
+placeholder API URL. Migration `0005` locks down Supabase `anon`/`authenticated`.
+Duplicate registration is 409. Both clients handle expired sessions and failed
+API calls truthfully. Tracking/QR/benefits/notifications are shown as unavailable.
+
+**Readiness: NOT READY FOR PRODUCTION.** Repository-side auth/profile/session
+work is in place and locally verified. Launch is still blocked by owner actions:
+live database lockdown (G1), unverified OTP/SMS (G2), and no live CI/deploy smoke
+(G3/G4). Play `applicationId` is still `com.example.sahakarbharati` (G13).
 
 **Major risks.** (1) Live `pin_hash` exposure if production was built with Alembic
 before 0005. (2) Registration depends on the untested Textbee OTP path. (3)
-`--forwarded-allow-ips='*'` weakens per-IP throttles. (4) Render↔Supabase region
-mismatch (~270 ms per query).
+`--forwarded-allow-ips='*'` weakens per-IP throttles. (4) A production database
+still at 0006 will 500 because login/`/me`/admin read `users.role`. (5)
+Render↔Supabase region mismatch (~270 ms per query).
 
 ## Findings (initial state)
 
@@ -86,7 +88,20 @@ mismatch (~270 ms per query).
 
 OTP code (`services/phone_verification.py`, `services/sms.py`, OTP routes and schemas) is untouched.
 
+### 2026-10-27 session
+
+| Files | Problem | Change | Verified by |
+|---|---|---|---|
+| `start-android.js` | WSL could not find the Windows SDK; Linux Gradle cannot use `aapt.exe` | Translate `C:\…` paths, accept `adb.exe`, build with `gradlew.bat` + `WSLENV` `/p`, pass a Windows APK path to `adb.exe` | `node start-android.js` from WSL: SDK found, emulator `emulator-5554`, debug APK installed and launched |
+| `android/README.md`, `README.md` | Docs said WSL could not use the Windows SDK at all | Document the WSL → `gradlew.bat` path | Read-through |
+| `web/src/lib/firebase.ts` (deleted), `web/firestore.rules`, `web/firestore.indexes.json`, `web/package.json`, lockfile, `web/.env.example`, `web/src/vite-env.d.ts`, `web/firebase.json`, `web/README.md` | G12 unused Firebase client; `firebase deploy` could publish leftover Firestore rules | Removed unused client and rules; hosting-only `firebase.json` | `npm run lint`, `typecheck`, 38 Vitest tests, production build |
+| `.github/workflows/secrets-ci.yml`, `backend-ci.yml` | Secret scan ran only when backend paths changed | Dedicated workflow on every push/PR; removed the backend-only copy | YAML review; `bash scripts/check-secrets.sh` locally |
+| `docs/DATABASE.md`, `docs/DEPLOYMENT.md` | Compatibility note still said the API ran on 0004; branch-protection still named `Backend CI / secrets` | Require `20261026_0007` before deploy; secret-scan job name updated | Read-through |
+| `backend/app/scripts/seed_super_admin.py` | Docstring example used `--pin 1234` | Placeholder PIN; warn against production use | Tests still use a local 4-digit PIN |
+
 ## C. Test and build results
+
+### 2026-10-23 session (historical)
 
 Environment: Windows 11 + WSL Ubuntu 24.04. Backend tests ran against a
 throwaway PostgreSQL 16.15 cluster in WSL (`127.0.0.1:55432`). Android built with
@@ -109,10 +124,36 @@ Windows SDK). Emulator: `Medium_Phone_API_37.0`.
 | `bash scripts/check-secrets.sh` | ok (248 files) |
 | GitHub Actions workflows | **not run** (no push) |
 
-Artifacts (local, gitignored): `android/app/build/outputs/apk/debug/app-debug.apk`,
-`android/app/build/outputs/apk/release/app-release-unsigned.apk` (5.9 MB),
-`android/app/build/outputs/bundle/release/app-release.aab` (unsigned, 8.0 MB).
-The production URL is in the release dex; `10.0.2.2` and `api.invalid` are absent.
+### 2026-10-27 session (this machine)
+
+Environment: Windows 11 + WSL Ubuntu. Throwaway Conda PostgreSQL on
+`127.0.0.1:55432` (database `sahakar_test` only). Android: Windows SDK +
+`gradlew.bat` from WSL, emulator `Medium_Phone_API_37.0` / `emulator-5554`.
+Web: Node 24.20.0.
+
+| Command | Result |
+|---|---|
+| `bash scripts/check-secrets.sh` | **ok (269 files)** |
+| `backend/.venv/bin/ruff check` | All checks passed |
+| `backend/.venv/bin/pytest` against `127.0.0.1:55432/sahakar_test` | **113 passed, 4 failed** |
+| Those 4 (`test_database_schema.py` Supabase-role / `schema.sql` cases) | Failed because Conda PostgreSQL has no `pgcrypto` extension. CI uses `postgres:16` (has `pgcrypto`). **Not a product regression.** |
+| `cd web && npm run lint` / `npm run typecheck` | pass |
+| `cd web && npm test` | **38 passed** |
+| `VITE_API_BASE_URL=https://sahakar-bharathi-api.onrender.com npm run build` | pass; CSP `connect-src` is the API origin; `dist/sw.js` present |
+| `VITE_API_BASE_URL=http://127.0.0.1:8000 npx vite build` | fails as intended |
+| `node start-android.js` (WSL) | **pass**: Windows SDK found, debug APK built/installed, app opened on `emulator-5554` |
+| `gradlew.bat :app:testDebugUnitTest` | BUILD SUCCESSFUL; **34** unit tests |
+| `gradlew.bat :app:validateReleaseConfig` (no URL) | fails as intended |
+| `gradlew.bat :app:assembleRelease -Psahakar.apiBaseUrl=https://sahakar-bharathi-api.onrender.com/` | BUILD SUCCESSFUL |
+| GitHub Actions / live Render / Firebase / Textbee | **not run** |
+
+Not tested this session: physical phone, real OTP/SMS, iOS Safari install,
+instrumented Android tests, live production database.
+
+Artifacts from this session (local, gitignored): `android/app/build/outputs/apk/debug/app-debug.apk`,
+`android/app/build/outputs/apk/release/app-release-unsigned.apk`.
+
+### 2026-10-23 end-to-end (not re-run this session)
 
 End-to-end (local API + throwaway DB, seeded test participant, no SMS):
 
@@ -161,8 +202,9 @@ slow-network throttling, font scaling and rotation on device, accessibility audi
 | Benefits, notifications | none | none | "Opening soon" / disabled | Unavailable (no spec) |
 | Help / SOS | — | — | static help text (112) | Static content |
 | Languages | — | 26 | 26 | Unit-tested coverage |
-| Database init + migration | ✅ | — | — | Verified on throwaway DB; **production not migrated** |
+| Database init + migration | ✅ (CI + local Alembic; 4 Supabase-sim tests need `pgcrypto`) | — | — | Verified on throwaway DB; **production not migrated** |
 | PWA install shell / update | — | ✅ | — | Verified locally; offline use not offered |
+| WSL Android launcher | — | — | ✅ | **Verified** (`node start-android.js`) |
 | Deploy (Render, Firebase, GitHub Actions) | — | — | — | **Not verified live** |
 
 ## F. Deployment instructions
@@ -171,7 +213,8 @@ Follow `docs/DEPLOYMENT.md`. Order for the first release with these changes:
 
 1. Configure GitHub branch protection, environments (`production`, `android-release`) with reviewers, and secrets.
 2. Back up the Supabase database (or confirm PITR).
-3. Run the exposure check (G1), then `MIGRATION_DATABASE_URL=… alembic upgrade head`.
+3. Run the exposure check (G1), then `MIGRATION_DATABASE_URL=… alembic upgrade head`
+   (must reach `20261026_0007` before this code is live).
 4. Merge to `development`, then to `production`, with green CI.
 5. Deploy the backend on Render; run the smoke tests in `DEPLOYMENT.md`.
 6. Web deploys automatically after approval of the `production` environment.
@@ -181,10 +224,10 @@ Follow `docs/DEPLOYMENT.md`. Order for the first release with these changes:
 
 | # | Sev | Blocker | Owner action | How to verify |
 |---|---|---|---|---|
-| G1 | P0 | Production may expose `pin_hash`/`token_hash` via the anon key (if built with Alembic before 0005). | In the Supabase SQL Editor run `select has_table_privilege('anon','public.users','SELECT');`. If `true`, apply 0005 **immediately** and treat PIN hashes as exposed (consider forcing PIN resets once a reset flow exists). | Query returns `false` for every app table; `alembic current` = `20261023_0006` |
-| G2 | P0 | OTP/SMS deferred: registration end-to-end with real SMS never verified. | Set Textbee secrets; test on a real number in staging; document delivery rates. | A new participant registers from web and Android |
+| G1 | P0 | Production may expose `pin_hash`/`token_hash` via the anon key (if built with Alembic before 0005). A database still at 0006 will also 500 because this code reads `users.role`. | In the Supabase SQL Editor run `select has_table_privilege('anon','public.users','SELECT');`. If `true`, apply 0005 **immediately** and treat PIN hashes as exposed. Then `alembic upgrade head`. | Query returns `false` for every app table; `alembic current` = `20261026_0007` |
+| G2 | P0 | OTP/SMS deferred: registration end-to-end with real SMS never verified. OTP code was not changed. | Set Textbee secrets; test on a real number in staging; document delivery rates. | A new participant registers from web and Android |
 | G3 | P1 | No live smoke test of Render, Firebase or CI. | Push branch, open PR, watch all workflows; deploy; run smoke tests. | Green checks; `/health` 200; sign-in from both clients |
-| G4 | P1 | GitHub environments/branch protection not configured (repo cannot set them). | Configure as in `DEPLOYMENT.md`. | Deploy waits for approval |
+| G4 | P1 | GitHub environments/branch protection not configured (repo cannot set them). | Configure as in `DEPLOYMENT.md`. Required check name for secrets is now `Secret scan / secrets`. | Deploy waits for approval |
 | G5 | P1 | Upload keystore and Play listing do not exist in the repo. | Create and store the upload key offline; set CI secrets; enable Play App Signing. | Signed AAB accepted by Play internal testing |
 | G6 | P1 | Proxy-header trust (`*`) weakens per-IP limits. | Obtain Render proxy ranges or set a trusted client-IP header; restrict `--forwarded-allow-ips`. | Spoofed `X-Forwarded-For` no longer changes the throttle key |
 | G7 | P2 | Render region vs Supabase `ap-south-1`. | Create the service in Singapore and switch over. | `/health` latency drops |
@@ -192,26 +235,30 @@ Follow `docs/DEPLOYMENT.md`. Order for the first release with these changes:
 | G9 | P2 | Physical-device, accessibility, slow-network and font-scale testing not done. | Manual QA pass on low-end Android and mobile Chrome/Safari. | QA sign-off |
 | G10 | P3 | Session/OTP/audit tables never pruned. | Schedule cleanup (`DATABASE.md`). | Table sizes stable |
 | G11 | P3 | Android profile edit absent (web has it). | Product decision whether Android needs it. | — |
-| G12 | P3 | Unused `firebase` dependency and `src/lib/firebase.ts` remain in web. | Remove when confirmed unneeded. | Bundle unchanged (not imported) |
+| G12 | P3 | Unused Firebase web client. | **Fixed** this session. | Client and rules removed; hosting-only config |
+| G13 | P1 | `applicationId` / namespace is still `com.example.sahakarbharati`. Play rejects `com.example.*` for a new listing; changing it later is a new app. | Choose a real id (for example `org.sahakarbharati.app`) **before** the first Play upload and update `start-android.js` `PACKAGE`. | Play Console accepts the AAB |
 
 ## H. Final recommendation
 
 **NOT READY FOR PRODUCTION.**
 
-The repository-side work is done and backed by evidence: 111 backend tests on real
-PostgreSQL (including migrations from scratch, an upgrade from the previous release, `schema.sql` parity,
-Supabase role lockdown and concurrency), 24 web tests, 23 Android unit tests plus 3
-instrumented tests on an API 37 emulator, lint-clean builds of all three components,
-guarded release configuration, and the core flows exercised end to end on both clients.
-What stops a production launch is unverified outside the repository: G1 (a possible
-live exposure of credential hashes), G2 (registration depends on an untested SMS
-path) and G3/G4 (no live deployment or CI run). Once G1–G4 are closed and a staging
-smoke test passes, the system is ready for a **staged/beta release**. A full
-production launch should also close G5 and G6.
+This session verified the WSL Android launcher, a debug install on the API 37
+emulator, 34 Android unit tests, 38 web tests, a production web build, ruff, and
+113 backend tests on a throwaway PostgreSQL. Four schema tests that need
+`pgcrypto` could not run on the Conda server used here; CI's `postgres:16`
+image still covers them. OTP behavior was not modified and was not tested with
+real SMS.
+
+What stops a production launch is still outside the repository: G1 (possible live
+hash exposure and the required 0007 migrate-before-deploy), G2 (untested SMS),
+G3/G4 (no live CI or deploy), and G13 (Play application id). Once G1–G4 are
+closed and a staging smoke test passes, the system is ready for a
+**staged/beta release**. A full production launch should also close G5, G6 and
+G13.
 
 ## Launch checklist
 
-- [ ] G1 exposure check done; production at `20261023_0006`
+- [ ] G1 exposure check done; production at `20261026_0007`
 - [ ] Backup / PITR confirmed and a restore drill performed
 - [ ] Render env vars set (section D); `/health` 200 after deploy
 - [ ] CORS origins match the live web domains
