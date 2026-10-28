@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useLanguage } from '../lib/language.tsx'
+import { useLanguage } from '../contexts/language.tsx'
 import { Emblem } from './Emblem.tsx'
 
 type AppBarProps = {
