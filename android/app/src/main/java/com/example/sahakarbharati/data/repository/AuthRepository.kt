@@ -1,6 +1,7 @@
 package com.example.sahakarbharati.data.repository
 
 import com.example.sahakarbharati.data.model.ParticipantProfile
+import com.example.sahakarbharati.data.model.knownRole
 import com.example.sahakarbharati.data.model.RegistrationResult
 import com.example.sahakarbharati.data.model.SessionResult
 import com.example.sahakarbharati.data.remote.ProfileResponseDto
@@ -95,9 +96,17 @@ fun SessionResponseDto.toResult(): SessionResult =
             loginId = loginId,
             fullName = fullName,
             mobile = mobile,
+            email = email,
+            gender = gender,
+            dateOfBirth = dateOfBirth,
             occupation = occupation,
+            addressLine = addressLine,
+            locality = locality,
             district = district,
             state = state,
+            pincode = pincode,
+            status = status,
+            role = knownRole(role),
         ),
     )
 
@@ -116,6 +125,7 @@ fun ProfileResponseDto.toProfile(): ParticipantProfile =
         state = state,
         pincode = pincode,
         status = status,
+        role = knownRole(role),
     )
 
 private fun ParticipantProfile.withRegistration(created: RegistrationResponseDto): ParticipantProfile =

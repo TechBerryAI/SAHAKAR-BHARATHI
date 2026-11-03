@@ -1,5 +1,17 @@
 package com.example.sahakarbharati.data.model
 
+const val ROLE_PARTICIPANT = "participant"
+const val ROLE_ADMIN = "admin"
+const val ROLE_SUPER_ADMIN = "super_admin"
+
+/** Matches the website: only the three known roles are kept, anything else is a participant. */
+fun knownRole(value: String?): String = when (value) {
+    ROLE_ADMIN, ROLE_SUPER_ADMIN, ROLE_PARTICIPANT -> value
+    else -> ROLE_PARTICIPANT
+}
+
+fun isStaffRole(role: String?): Boolean = role == ROLE_ADMIN || role == ROLE_SUPER_ADMIN
+
 data class ParticipantProfile(
     val loginId: String,
     val fullName: String,
@@ -14,6 +26,7 @@ data class ParticipantProfile(
     val state: String? = null,
     val pincode: String? = null,
     val status: String? = null,
+    val role: String = ROLE_PARTICIPANT,
 ) {
     val firstName: String
         get() = fullName.trim().split(Regex("\\s+")).firstOrNull().orEmpty()

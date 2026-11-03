@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
@@ -73,9 +74,9 @@ fun SaffronButton(
             .height(52.dp)
             .semantics { this.contentDescription = contentDescription },
         shape = PillShape,
-        color = RathYatraColors.SaffronBright,
-        contentColor = RathYatraColors.NavyDeep,
-        shadowElevation = 4.dp,
+        color = RathYatraColors.Saffron,
+        contentColor = Color.White,
+        shadowElevation = 0.dp,
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -86,7 +87,7 @@ fun SaffronButton(
                 text = text,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = RathYatraColors.NavyDeep,
+                color = Color.White,
             )
             if (trailingIcon != null) {
                 Spacer(Modifier.width(8.dp))
@@ -94,7 +95,7 @@ fun SaffronButton(
                     imageVector = trailingIcon,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = RathYatraColors.NavyDeep,
+                    tint = Color.White,
                 )
             }
         }
@@ -225,7 +226,7 @@ fun LanguageChips(
     val copy = LocalCopy.current
     var expanded by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    val content = if (onDarkBackground) RathYatraColors.GoldPale else RathYatraColors.NavyDeep
+    val content = if (onDarkBackground) Color(0xFFFFF8EE) else Color(0xFF163A78)
     val filtered = remember(query) {
         val needle = query.trim()
         languagePickerOrder.filter { option ->
@@ -252,7 +253,7 @@ fun LanguageChips(
             )
             Text(
                 text = language.nativeName,
-                style = MaterialTheme.typography.labelSmall,
+                fontSize = 13.sp,
                 color = content,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -450,7 +451,7 @@ fun WhiteCard(
         modifier = cardModifier,
         shape = shape,
         color = RathYatraColors.White,
-        shadowElevation = 2.dp,
+        shadowElevation = 1.dp,
         content = content,
     )
 }

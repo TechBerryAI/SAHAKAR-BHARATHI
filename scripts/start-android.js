@@ -260,6 +260,29 @@ async function waitForBoot(sdk, serial, seconds) {
   fail(`The emulator did not finish starting within ${seconds} seconds.`)
 }
 
+// The emulator home screen often freezes on first boot ("Pixel Launcher isn't responding")
+// while the app is still building. That dialog is the launcher, not this app. Close it
+// and leave our activity in front.
+function dismissFrozenDialogs(sdk, serial) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const dumped = adb(
+      sdk,
+      serial,
+      ['shell', 'uiautomator dump /sdcard/window.xml >/dev/null 2>&1; cat /sdcard/window.xml'],
+      { timeout: 20000 },
+    )
+    const xml = `${dumped.stdout || ''}`
+    if (!/isn.?t responding/i.test(xml)) return
+    const node = xml.split('<node').find((part) => part.includes('Close app'))
+    const bounds = node && node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/)
+    if (!bounds) return
+    const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2)
+    const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2)
+    log('The emulator home screen stopped responding. Closing that dialog…')
+    adb(sdk, serial, ['shell', 'input', 'tap', String(x), String(y)])
+  }
+}
+
 async function pickDevice(sdk) {
   const wanted = option('--device')
   let devices = connectedDevices(sdk)
@@ -289,13 +312,23 @@ async function pickDevice(sdk) {
 
   log(`Starting the "${avd}" emulator (the first start can take a minute)…`)
   // Detached, so the emulator keeps running after this script finishes.
-  spawn(emulator, ['-avd', avd, '-no-snapshot-save'], { detached: true, stdio: 'ignore' }).unref()
+  // -no-boot-anim avoids the extra launcher work that triggers "isn't responding" on first boot.
+  // "auto" sees Intel Vulkan 1.3.215 (needs 1.3.240) and switches to software rendering.
+  // That path is missing opengl32sw.dll, so Pixel Launcher freezes. Host GPU uses the
+  // installed Intel driver instead.
+  spawn(emulator, ['-avd', avd, '-no-snapshot-save', '-no-boot-anim', '-gpu', 'host'], {
+    detached: true,
+    stdio: 'ignore',
+  }).unref()
   for (let i = 0; i < 120 && devices.length === 0; i++) {
     await sleep(1000)
     devices = connectedDevices(sdk)
   }
   if (devices.length === 0) fail('The emulator did not appear in `adb devices` within 2 minutes.')
   await waitForBoot(sdk, devices[0], 180)
+  // Boot can report "complete" while Pixel Launcher is still frozen behind a dialog.
+  await sleep(2000)
+  dismissFrozenDialogs(sdk, devices[0])
   log(`Emulator ${devices[0]} is ready.`)
   return devices[0]
 }
@@ -415,8 +448,12 @@ const code = await gradle(javaHome, sdk, [':app:assembleDebug', `-Psahakar.debug
 if (code !== 0 || !existsSync(APK)) fail('The Android build failed. See the output above.')
 
 install(sdk, serial)
+dismissFrozenDialogs(sdk, serial)
 adb(sdk, serial, ['shell', 'am', 'force-stop', PACKAGE])
 if (adb(sdk, serial, ['shell', 'am', 'start', '-n', ACTIVITY]).status !== 0) fail('Could not open the app.')
+await sleep(1500)
+dismissFrozenDialogs(sdk, serial)
+adb(sdk, serial, ['shell', 'am', 'start', '-n', ACTIVITY])
 
 console.log(`
 \x1b[32m  Sahakar Bharati is open on ${serial}\x1b[0m
