@@ -12,6 +12,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import com.example.sahakarbharati.SahakarApp
 import com.example.sahakarbharati.data.model.ParticipantProfile
+import com.example.sahakarbharati.data.model.knownRole
 import com.example.sahakarbharati.data.repository.SessionStore
 import java.io.File
 
@@ -49,6 +50,15 @@ class AppSession(
     val state: String
         get() = securePrefs.getString(KEY_STATE, "") ?: ""
 
+    fun role(): String = knownRole(securePrefs.getString(KEY_ROLE, null))
+
+    /** Device preference. Sign-out does not clear it, matching the website. */
+    fun languageKey(): String = localPrefs.getString(KEY_LANGUAGE, null)?.takeIf { it.isNotBlank() } ?: "en"
+
+    fun setLanguageKey(key: String) {
+        localPrefs.edit().putString(KEY_LANGUAGE, key).apply()
+    }
+
     val photoPath: String
         get() = localPrefs.getString(KEY_PHOTO, "") ?: ""
 
@@ -72,37 +82,48 @@ class AppSession(
             fullName = name,
             mobile = mobile,
             email = email.ifBlank { null },
+            gender = blankToNull(KEY_GENDER),
+            dateOfBirth = blankToNull(KEY_DOB),
             occupation = occupation.ifBlank { null },
+            addressLine = blankToNull(KEY_ADDRESS),
+            locality = blankToNull(KEY_LOCALITY),
             district = district.ifBlank { null },
             state = state.ifBlank { null },
+            pincode = blankToNull(KEY_PINCODE),
+            status = blankToNull(KEY_STATUS),
+            role = role(),
         )
     }
 
     override fun saveSession(token: String, profile: ParticipantProfile) {
-        securePrefs.edit()
-            .putString(KEY_TOKEN, token)
-            .putString(KEY_LOGIN_ID, profile.loginId)
-            .putString(KEY_NAME, profile.fullName)
-            .putString(KEY_MOBILE, profile.mobile)
-            .putString(KEY_EMAIL, profile.email.orEmpty())
-            .putString(KEY_OCCUPATION, profile.occupation.orEmpty())
-            .putString(KEY_DISTRICT, profile.district.orEmpty())
-            .putString(KEY_STATE, profile.state.orEmpty())
-            .apply()
+        writeProfile(securePrefs.edit().putString(KEY_TOKEN, token), profile).apply()
         signedInState.value = true
     }
 
     override fun saveProfile(profile: ParticipantProfile) {
-        securePrefs.edit()
-            .putString(KEY_LOGIN_ID, profile.loginId)
-            .putString(KEY_NAME, profile.fullName)
-            .putString(KEY_MOBILE, profile.mobile)
-            .putString(KEY_EMAIL, profile.email.orEmpty())
-            .putString(KEY_OCCUPATION, profile.occupation.orEmpty())
-            .putString(KEY_DISTRICT, profile.district.orEmpty())
-            .putString(KEY_STATE, profile.state.orEmpty())
-            .apply()
+        writeProfile(securePrefs.edit(), profile).apply()
     }
+
+    private fun blankToNull(key: String): String? = securePrefs.getString(key, "")?.ifBlank { null }
+
+    private fun writeProfile(
+        editor: SharedPreferences.Editor,
+        profile: ParticipantProfile,
+    ): SharedPreferences.Editor = editor
+        .putString(KEY_LOGIN_ID, profile.loginId)
+        .putString(KEY_NAME, profile.fullName)
+        .putString(KEY_MOBILE, profile.mobile)
+        .putString(KEY_EMAIL, profile.email.orEmpty())
+        .putString(KEY_GENDER, profile.gender.orEmpty())
+        .putString(KEY_DOB, profile.dateOfBirth.orEmpty())
+        .putString(KEY_OCCUPATION, profile.occupation.orEmpty())
+        .putString(KEY_ADDRESS, profile.addressLine.orEmpty())
+        .putString(KEY_LOCALITY, profile.locality.orEmpty())
+        .putString(KEY_DISTRICT, profile.district.orEmpty())
+        .putString(KEY_STATE, profile.state.orEmpty())
+        .putString(KEY_PINCODE, profile.pincode.orEmpty())
+        .putString(KEY_STATUS, profile.status.orEmpty())
+        .putString(KEY_ROLE, knownRole(profile.role))
 
     override fun clearSession() {
         securePrefs.edit().clear().apply()
@@ -142,6 +163,14 @@ class AppSession(
         private const val KEY_OCCUPATION = "occupation"
         private const val KEY_DISTRICT = "district"
         private const val KEY_STATE = "state"
+        private const val KEY_GENDER = "gender"
+        private const val KEY_DOB = "date_of_birth"
+        private const val KEY_ADDRESS = "address_line"
+        private const val KEY_LOCALITY = "locality"
+        private const val KEY_PINCODE = "pincode"
+        private const val KEY_STATUS = "status"
+        private const val KEY_ROLE = "role"
+        private const val KEY_LANGUAGE = "language"
         private const val KEY_NOTIFICATIONS = "notifications"
         private const val KEY_PHOTO = "photo_path"
         private const val PHOTO_FILE = "profile_photo.jpg"

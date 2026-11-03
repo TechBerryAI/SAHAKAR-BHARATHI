@@ -2,12 +2,16 @@ package com.example.sahakarbharati.core.ui
 
 import android.app.Activity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
@@ -19,19 +23,16 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Agriculture
-import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.Verified
-import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -46,11 +47,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.ui.theme.RathYatraColors
+
+private val WebSaffron = Color(0xFFE9872A)
+private val WebSoftWhite = Color(0xFFFFF8F3)
 
 @Composable
 fun ApplySystemBarIcons(lightIcons: Boolean) {
@@ -186,6 +192,9 @@ fun StackTopBar(
     onSosClick: (() -> Unit)? = null,
     onProfileClick: (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
+    contentColor: Color = RathYatraColors.Navy,
+    titleSize: TextUnit = TextUnit.Unspecified,
+    titleWeight: FontWeight = FontWeight.Bold,
 ) {
     Row(
         modifier = modifier
@@ -200,14 +209,18 @@ fun StackTopBar(
             Icon(
                 Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = null,
-                tint = RathYatraColors.Navy,
+                tint = contentColor,
             )
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            color = RathYatraColors.Navy,
-            fontWeight = FontWeight.Bold,
+            style = if (titleSize == TextUnit.Unspecified) {
+                MaterialTheme.typography.headlineSmall
+            } else {
+                MaterialTheme.typography.titleLarge.copy(fontSize = titleSize, letterSpacing = 0.15.sp)
+            },
+            color = contentColor,
+            fontWeight = titleWeight,
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 4.dp),
@@ -259,47 +272,125 @@ fun RathBottomBar(
     selectedKey: String,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    showAdmin: Boolean = false,
 ) {
     val copy = LocalCopy.current
-    val items = listOf(
-        Triple(RathYatraDestinations.HOME, copy.tabHome, Icons.Outlined.Agriculture),
-        Triple(RathYatraDestinations.TRACKING, copy.tabYatra, Icons.Outlined.Navigation),
-        Triple(RathYatraDestinations.QR_ATTENDANCE, copy.tabAttendance, Icons.Outlined.Verified),
-        Triple(RathYatraDestinations.BENEFITS, copy.tabBenefits, Icons.Outlined.VolunteerActivism),
-        Triple(RathYatraDestinations.PROFILE, copy.tabProfile, Icons.Outlined.AccountCircle),
-    )
-    NavigationBar(
-        modifier = modifier.fillMaxWidth(),
-        containerColor = RathYatraColors.Ivory,
-        tonalElevation = 8.dp,
-        windowInsets = WindowInsets.navigationBars,
-    ) {
-        items.forEach { (key, label, icon) ->
-            val selected = selectedKey == key ||
-                (key == RathYatraDestinations.QR_ATTENDANCE && selectedKey == RathYatraDestinations.QR_PASS)
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onSelect(key) },
-                icon = {
-                    Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp))
-                },
-                label = {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = RathYatraColors.Saffron,
-                    selectedTextColor = RathYatraColors.Saffron,
-                    unselectedIconColor = RathYatraColors.OnSurfaceVariantCool,
-                    unselectedTextColor = RathYatraColors.OnSurfaceVariantCool,
-                    indicatorColor = Color.Transparent,
-                ),
-            )
+    val muted = Color(0xFF5C665F)
+    val items = buildList {
+        add(Triple(RathYatraDestinations.HOME, copy.tabHome, Icons.Filled.Home))
+        add(Triple(RathYatraDestinations.PROFILE, copy.tabProfile, Icons.Filled.Person))
+        if (showAdmin) {
+            add(Triple(RathYatraDestinations.ADMIN, "Admin", Icons.Filled.Groups))
         }
     }
+    Column(
+        modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .windowInsetsPadding(WindowInsets.navigationBars),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color(0xFFD4CFC6)),
+        )
+        Row(Modifier.fillMaxWidth().height(64.dp)) {
+            items.forEach { (key, label, icon) ->
+                val selected = selectedKey == key ||
+                    (key == RathYatraDestinations.ADMIN && selectedKey == RathYatraDestinations.ADMIN_USER)
+                val tint = if (selected) RathYatraColors.Saffron else muted
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onSelect(key) }
+                        .semantics { contentDescription = label },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        color = tint,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SignedInScaffold(
+    title: String,
+    selectedTab: String,
+    showAdmin: Boolean,
+    onSelectTab: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    showLanguage: Boolean = false,
+    onBack: (() -> Unit)? = null,
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    ApplySystemBarIcons(lightIcons = true)
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = WebSoftWhite,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {
+            Column(
+                Modifier
+                    .background(WebSaffron)
+                    .windowInsetsPadding(WindowInsets.statusBars),
+            ) {
+                if (onBack != null) {
+                    StackTopBar(
+                        title = title,
+                        onBack = onBack,
+                        contentColor = Color.White,
+                        titleSize = 18.sp,
+                        titleWeight = FontWeight.Medium,
+                    )
+                } else {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(start = 4.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                            SahakarEmblem(emblemSize = 26.dp)
+                        }
+                        Text(
+                            text = title,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 18.sp,
+                            letterSpacing = 0.15.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (showLanguage) {
+                            LanguageChips(onDarkBackground = true)
+                        }
+                    }
+                }
+            }
+        },
+        bottomBar = {
+            RathBottomBar(
+                selectedKey = selectedTab,
+                onSelect = onSelectTab,
+                showAdmin = showAdmin,
+            )
+        },
+        content = content,
+    )
 }
 
 @Composable

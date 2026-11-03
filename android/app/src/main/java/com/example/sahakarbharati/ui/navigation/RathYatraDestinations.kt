@@ -7,13 +7,10 @@ object RathYatraDestinations {
     const val REGISTRATION_FORM = "registration_form"
     const val REGISTRATION_SUCCESS = "registration_success"
     const val HOME = "home"
-    const val TRACKING = "tracking"
-    const val QR_ATTENDANCE = "qr_attendance"
-    const val QR_PASS = "qr_pass"
     const val SIGN_IN = "sign_in"
-    const val BENEFITS = "benefits"
     const val PROFILE = "profile"
-    const val NOTIFICATIONS = "notifications"
+    const val ADMIN = "admin"
+    const val ADMIN_USER = "admin_user"
 
     val all: List<String> = listOf(
         SPLASH,
@@ -22,13 +19,10 @@ object RathYatraDestinations {
         REGISTRATION_FORM,
         REGISTRATION_SUCCESS,
         HOME,
-        TRACKING,
-        QR_ATTENDANCE,
-        QR_PASS,
         SIGN_IN,
-        BENEFITS,
         PROFILE,
-        NOTIFICATIONS,
+        ADMIN,
+        ADMIN_USER,
     )
 
     val startDestination: String = SPLASH

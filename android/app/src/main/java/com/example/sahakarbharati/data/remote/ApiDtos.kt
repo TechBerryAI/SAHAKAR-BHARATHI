@@ -61,6 +61,14 @@ data class SessionResponseDto(
     val occupation: String?,
     val state: String?,
     val district: String?,
+    val email: String? = null,
+    val gender: String? = null,
+    @SerializedName("date_of_birth") val dateOfBirth: String? = null,
+    @SerializedName("address_line") val addressLine: String? = null,
+    val locality: String? = null,
+    val pincode: String? = null,
+    val status: String? = null,
+    val role: String? = null,
 )
 
 data class ProfileResponseDto(
@@ -77,6 +85,48 @@ data class ProfileResponseDto(
     val state: String?,
     val pincode: String?,
     val status: String?,
+    val role: String? = null,
+)
+
+data class AdminUserSummaryDto(
+    val id: String,
+    @SerializedName("login_id") val loginId: String,
+    @SerializedName("full_name") val fullName: String,
+    val mobile: String,
+    val district: String?,
+    val state: String?,
+    val role: String?,
+    val status: String?,
+)
+
+data class AdminUserListDto(
+    val items: List<AdminUserSummaryDto>,
+    val total: Int,
+    val limit: Int,
+    val offset: Int,
+)
+
+data class AdminUserDetailDto(
+    val id: String,
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("login_id") val loginId: String,
+    @SerializedName("full_name") val fullName: String,
+    val mobile: String,
+    val email: String?,
+    val gender: String?,
+    @SerializedName("date_of_birth") val dateOfBirth: String?,
+    val occupation: String?,
+    @SerializedName("address_line") val addressLine: String?,
+    val locality: String?,
+    val district: String?,
+    val state: String?,
+    val pincode: String?,
+    val status: String?,
+    val role: String? = null,
+)
+
+data class RoleUpdateRequest(
+    val role: String,
 )
 
 data class ProfileUpdateRequest(

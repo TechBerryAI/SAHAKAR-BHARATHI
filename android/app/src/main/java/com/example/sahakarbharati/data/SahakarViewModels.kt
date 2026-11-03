@@ -7,6 +7,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import com.example.sahakarbharati.SahakarApp
+import com.example.sahakarbharati.features.admin.AdminUserViewModel
+import com.example.sahakarbharati.features.admin.AdminUsersViewModel
 import com.example.sahakarbharati.features.home.HomeViewModel
 import com.example.sahakarbharati.features.profile.ProfileViewModel
 import com.example.sahakarbharati.features.registration.RegistrationViewModel
@@ -26,6 +28,10 @@ class SahakarViewModelFactory(
                 ProfileViewModel(container.profileRepository, container.authRepository) as T
             modelClass.isAssignableFrom(HomeViewModel::class.java) ->
                 HomeViewModel(container.profileRepository, container.session) as T
+            modelClass.isAssignableFrom(AdminUsersViewModel::class.java) ->
+                AdminUsersViewModel(container.adminRepository) as T
+            modelClass.isAssignableFrom(AdminUserViewModel::class.java) ->
+                AdminUserViewModel(container.adminRepository) as T
             else -> error("Unknown ViewModel ${modelClass.name}")
         }
     }

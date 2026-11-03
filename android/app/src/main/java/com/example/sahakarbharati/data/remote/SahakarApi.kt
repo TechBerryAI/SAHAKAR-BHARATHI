@@ -7,6 +7,7 @@ import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface SahakarApi {
     @POST("api/v1/phone-verifications")
@@ -35,4 +36,25 @@ interface SahakarApi {
         @Header("Authorization") authorization: String,
         @Body body: ProfileUpdateRequest,
     ): ProfileResponseDto
+
+    @GET("api/v1/admin/users")
+    suspend fun listAdminUsers(
+        @Header("Authorization") authorization: String,
+        @Query("q") query: String?,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+    ): AdminUserListDto
+
+    @GET("api/v1/admin/users/{userId}")
+    suspend fun getAdminUser(
+        @Header("Authorization") authorization: String,
+        @Path("userId") userId: String,
+    ): AdminUserDetailDto
+
+    @POST("api/v1/admin/users/{userId}/role")
+    suspend fun setAdminUserRole(
+        @Header("Authorization") authorization: String,
+        @Path("userId") userId: String,
+        @Body body: RoleUpdateRequest,
+    ): AdminUserDetailDto
 }

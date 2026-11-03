@@ -22,12 +22,30 @@ class RegistrationViewModel(
         private set
     var otpBusy by mutableStateOf(false)
         private set
+    var otpSent by mutableStateOf(false)
+        private set
+    var otpIsError by mutableStateOf(false)
+        private set
+    var accountExists by mutableStateOf(false)
+        private set
     private var challengeId: String? = null
 
     fun clearOtp() {
         verificationToken = null
         challengeId = null
+        otpSent = false
         otpNote = ""
+        otpIsError = false
+        accountExists = false
+    }
+
+    fun showNote(message: String, error: Boolean) {
+        otpNote = message
+        otpIsError = error
+    }
+
+    fun consumeError() {
+        if (state is UiState.Error) state = UiState.Idle
     }
 
     fun sendOtp(mobile: String) {
@@ -35,15 +53,24 @@ class RegistrationViewModel(
         viewModelScope.launch {
             otpBusy = true
             otpNote = ""
+            otpIsError = false
+            accountExists = false
             val result = authRepository.sendOtp(mobile)
             otpBusy = false
             result.fold(
                 onSuccess = {
                     challengeId = it
+                    otpSent = true
                     verificationToken = null
+                    otpIsError = false
                     otpNote = "OTP sent. It expires in 5 minutes."
                 },
-                onFailure = { otpNote = it.message ?: "Could not send the OTP." },
+                onFailure = {
+                    val message = it.message ?: "Could not send the OTP."
+                    accountExists = message.contains("already exists for this mobile", ignoreCase = true)
+                    otpIsError = true
+                    otpNote = message
+                },
             )
         }
     }
@@ -52,12 +79,16 @@ class RegistrationViewModel(
         // Check the format locally so the participant sees a plain message instead of the
         // server's field-validation text. The server still validates the code.
         if (code.length != 6 || !code.all(Char::isDigit)) {
+            otpIsError = true
             otpNote = "Enter the 6-digit code from the SMS."
             return
         }
         val id = challengeId
         if (otpBusy || id.isNullOrBlank()) {
-            if (id.isNullOrBlank()) otpNote = "Send an OTP before verifying."
+            if (id.isNullOrBlank()) {
+                otpIsError = true
+                otpNote = "Send an OTP before verifying."
+            }
             return
         }
         viewModelScope.launch {
@@ -67,11 +98,19 @@ class RegistrationViewModel(
             result.fold(
                 onSuccess = {
                     verificationToken = it
+                    otpIsError = false
                     otpNote = "Mobile number verified."
                 },
                 onFailure = {
+                    val message = it.message ?: "Could not verify the OTP."
                     verificationToken = null
-                    otpNote = it.message ?: "Could not verify the OTP."
+                    // A locked code cannot be tried again; the website returns to Send OTP.
+                    if (message.contains("Too many attempts", ignoreCase = true)) {
+                        challengeId = null
+                        otpSent = false
+                    }
+                    otpIsError = true
+                    otpNote = message
                 },
             )
         }

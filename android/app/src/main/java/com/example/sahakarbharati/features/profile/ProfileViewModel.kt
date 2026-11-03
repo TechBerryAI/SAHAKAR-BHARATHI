@@ -21,23 +21,51 @@ class ProfileViewModel(
     var logoutState by mutableStateOf<UiState<Unit>>(UiState.Idle)
         private set
 
+    var saveError by mutableStateOf<String?>(null)
+        private set
+    var saved by mutableStateOf(false)
+        private set
+    var saving by mutableStateOf(false)
+        private set
+    var refreshError by mutableStateOf<String?>(null)
+        private set
+
     fun load() {
         viewModelScope.launch {
-            state = UiState.Loading
-            state = profileRepository.me().fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message ?: "Profile could not be loaded.") },
+            val previous = state
+            if (previous !is UiState.Success) {
+                state = UiState.Loading
+            }
+            profileRepository.me().fold(
+                onSuccess = {
+                    refreshError = null
+                    state = UiState.Success(it)
+                },
+                onFailure = { error ->
+                    if (previous is UiState.Success) {
+                        refreshError = error.message
+                        state = previous
+                    } else {
+                        state = UiState.Error(error.message ?: "Profile could not be loaded.")
+                    }
+                },
             )
         }
     }
 
     fun save(request: ProfileUpdateRequest) {
         viewModelScope.launch {
-            state = UiState.Loading
-            state = profileRepository.update(request).fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message ?: "Profile could not be updated.") },
+            saving = true
+            saved = false
+            saveError = null
+            profileRepository.update(request).fold(
+                onSuccess = {
+                    state = UiState.Success(it)
+                    saved = true
+                },
+                onFailure = { saveError = it.message ?: "Profile could not be updated." },
             )
+            saving = false
         }
     }
 

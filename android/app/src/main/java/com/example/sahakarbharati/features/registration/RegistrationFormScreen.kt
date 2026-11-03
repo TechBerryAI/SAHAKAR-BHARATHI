@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -83,6 +84,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
@@ -114,6 +116,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 fun RegistrationFormScreen(
     onBack: () -> Unit,
     onContinue: () -> Unit,
+    onOpenSignIn: (mobile: String, accountReady: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ApplySystemBarIcons(lightIcons = false)
@@ -154,7 +157,24 @@ fun RegistrationFormScreen(
             onContinue()
         }
         if (current is UiState.Error) {
-            stepError = current.message
+            val message = current.message
+            viewModel.consumeError()
+            when {
+                message.contains("account was created", ignoreCase = true) -> onOpenSignIn(mobile, true)
+                message.contains("Verify this mobile", ignoreCase = true) -> {
+                    viewModel.clearOtp()
+                    viewModel.showNote(message, error = true)
+                    otp = ""
+                    step = 0
+                }
+                message.contains("already exists for this mobile", ignoreCase = true) -> {
+                    viewModel.clearOtp()
+                    viewModel.showNote(message, error = true)
+                    otp = ""
+                    step = 0
+                }
+                else -> stepError = message
+            }
         }
     }
 
@@ -173,12 +193,35 @@ fun RegistrationFormScreen(
     }
     // Each step starts at its top, so the step indicator and first field are visible.
     LaunchedEffect(step) { formScroll.scrollTo(0) }
+    LaunchedEffect(viewModel.verificationToken) {
+        if (step == 0 && !viewModel.verificationToken.isNullOrBlank()) step = 1
+    }
     val titles = listOf(extra.contactTitle, copy.formTitle, extra.profileTitle, extra.securityTitle)
     val stepLabels = listOf(extra.contactStep, copy.stepLabel, extra.profileStep, extra.securityStep)
 
+    fun restartFromMobile() {
+        stepError = ""
+        name = ""
+        gender = ""
+        dob = ""
+        occupation = ""
+        email = ""
+        addressLine = ""
+        locality = ""
+        district = ""
+        stateName = ""
+        pincode = ""
+        pin = ""
+        confirmPin = ""
+        mobile = ""
+        otp = ""
+        viewModel.clearOtp()
+        step = 0
+    }
+
     fun goBack() {
         stepError = ""
-        if (step == 0) onBack() else step -= 1
+        if (step == 0) onBack() else restartFromMobile()
     }
 
     fun fillFromLocation() {
@@ -279,177 +322,104 @@ fun RegistrationFormScreen(
 
     BackHandler(onBack = { goBack() })
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(RathYatraColors.Ivory)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .windowInsetsPadding(WindowInsets.ime),
-    ) {
-        StackTopBar(
-            title = titles[step],
+    if (step == 0) {
+        VerifyMobileScreen(
+            hindi = language == AppLanguage.HI || AppLanguage.usesHindiCopy(language),
+            mobile = mobile,
+            onMobile = {
+                val next = it.filter(Char::isDigit).take(10)
+                if (next != mobile) {
+                    otp = ""
+                    viewModel.clearOtp()
+                }
+                mobile = next
+            },
+            otp = otp,
+            onOtp = { otp = it.filter(Char::isDigit).take(6) },
+            otpSent = viewModel.otpSent,
+            otpBusy = viewModel.otpBusy,
+            note = viewModel.otpNote.ifBlank { stepError },
+            noteIsError = viewModel.otpIsError || (viewModel.otpNote.isBlank() && stepError.isNotBlank()),
+            accountExists = viewModel.accountExists ||
+                viewModel.otpNote.contains("already exists for this mobile", ignoreCase = true),
             onBack = { goBack() },
-            onSosClick = { showSos = true },
-        )
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(RathYatraColors.Saffron, RathYatraColors.Gold),
-                    ),
-                ),
-        )
-
-        Column(
-            Modifier
-                .weight(1f)
-                .verticalScroll(formScroll)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            WhiteCard {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        StatusChip(
-                            stepLabels[step],
-                            container = RathYatraColors.PrimaryFixed,
-                            content = RathYatraColors.BurntSaffron,
-                            leadingDot = RathYatraColors.Saffron,
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.VerifiedUser, null, Modifier.size(14.dp), RathYatraColors.Navy)
-                            Text(" ${copy.govtPortal}", style = MaterialTheme.typography.labelSmall, color = RathYatraColors.Navy)
-                        }
-                    }
-                    LinearProgressIndicator(
-                        progress = { (step + 1) / 4f },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                        color = RathYatraColors.Saffron,
-                        trackColor = RathYatraColors.SurfaceContainerHighest,
-                    )
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        listOf(copy.stepPersonal, copy.stepContact, copy.stepProfile, copy.stepSecurity).forEachIndexed { index, label ->
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (index == step) RathYatraColors.Saffron else RathYatraColors.Outline,
-                            )
-                        }
-                    }
+            onSignIn = { onOpenSignIn(mobile, false) },
+            onResend = { viewModel.sendOtp(mobile) },
+            onSubmit = {
+                if (!isIndianMobile(mobile)) {
+                    stepError = extra.mobileRequired
+                } else if (!viewModel.otpSent) {
+                    viewModel.sendOtp(mobile)
+                } else {
+                    viewModel.confirmOtp(otp)
                 }
+            },
+            modifier = modifier,
+        )
+    } else RegistrationDetailsScreen(
+        hindi = language == AppLanguage.HI || AppLanguage.usesHindiCopy(language),
+        name = name,
+        onName = { name = it },
+        gender = gender,
+        onGender = { gender = it },
+        dob = dob,
+        onDob = { dob = it },
+        occupation = occupation,
+        onOccupation = { occupation = it },
+        mobile = mobile,
+        email = email,
+        onEmail = { email = it },
+        addressLine = addressLine,
+        onAddressLine = { addressLine = it },
+        locality = locality,
+        onLocality = { locality = it },
+        district = district,
+        onDistrict = { district = it },
+        stateName = stateName,
+        onState = { stateName = it },
+        pincode = pincode,
+        onPincode = { pincode = it.filter(Char::isDigit).take(6) },
+        pin = pin,
+        onPin = { pin = it.filter(Char::isDigit).take(6) },
+        confirmPin = confirmPin,
+        onConfirmPin = { confirmPin = it.filter(Char::isDigit).take(6) },
+        error = stepError,
+        loading = viewModel.state is UiState.Loading,
+        onBack = { goBack() },
+        onSos = { showSos = true },
+        onCreate = {
+            stepError = when {
+                name.trim().length < 2 -> extra.nameRequired
+                gender.isBlank() -> extra.genderRequired
+                isoDob(dob) == null -> extra.dobRequired
+                ageYears in 0..17 -> extra.ageTooYoung
+                occupation.isBlank() -> extra.occupationRequired
+                district.isBlank() || stateName.isBlank() || pincode.length != 6 -> extra.addressRequired
+                pin.length < 4 -> extra.pinRequired
+                pin != confirmPin -> extra.pinMismatch
+                else -> ""
             }
-
-            when (step) {
-                0 -> PhoneStep(
-                    extra = extra,
+            if (stepError.isNotEmpty()) return@RegistrationDetailsScreen
+            viewModel.submit(
+                com.example.sahakarbharati.data.remote.RegistrationRequest(
+                    fullName = name.trim(),
+                    gender = gender.ifBlank { null },
+                    dateOfBirth = isoDob(dob),
+                    occupation = occupation.ifBlank { null },
                     mobile = mobile,
-                    onMobile = {
-                        val next = it.filter(Char::isDigit).take(10)
-                        if (next != mobile) {
-                            otp = ""
-                            viewModel.clearOtp()
-                        }
-                        mobile = next
-                    },
-                    otp = otp,
-                    onOtp = { otp = it.filter(Char::isDigit).take(6) },
-                    otpNote = viewModel.otpNote,
-                    otpVerified = !viewModel.verificationToken.isNullOrBlank(),
-                    otpBusy = viewModel.otpBusy,
-                    onSendOtp = { viewModel.sendOtp(mobile) },
-                    onConfirmOtp = { viewModel.confirmOtp(otp) },
-                )
-                1 -> PersonalStep(
-                    copy = copy,
-                    extra = extra,
-                    name = name,
-                    onName = { name = it },
-                    photoPath = photoPath,
-                    onPickPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    gender = gender,
-                    onGender = { gender = it },
-                    dob = dob,
-                    onOpenDob = { showDobPicker = true },
-                    ageText = ageText,
-                    ageYears = ageYears,
-                    occupation = occupation,
-                    onOccupation = { occupation = it },
-                    email = email,
-                    onEmail = { email = it },
-                )
-                2 -> AddressStep(
-                    extra = extra,
-                    addressLine = addressLine,
-                    onAddressLine = { addressLine = it },
-                    locality = locality,
-                    onLocality = { locality = it },
-                    district = district,
-                    onDistrict = { district = it },
-                    stateName = stateName,
-                    onState = { stateName = it },
-                    pincode = pincode,
-                    onPincode = { pincode = it.filter(Char::isDigit).take(6) },
-                    locating = locating,
-                    locationNote = locationNote,
-                    onUseLocation = { useCurrentLocation() },
-                )
-                else -> SecurityStep(
-                    extra = extra,
+                    email = email.ifBlank { null },
+                    addressLine = addressLine.ifBlank { null },
+                    locality = locality.ifBlank { null },
+                    district = district.ifBlank { null },
+                    state = stateName.ifBlank { null },
+                    pincode = pincode.ifBlank { null },
                     pin = pin,
-                    onPin = { pin = it.filter(Char::isDigit).take(6) },
-                    confirmPin = confirmPin,
-                    onConfirmPin = { confirmPin = it.filter(Char::isDigit).take(6) },
-                )
-            }
-
-            WhiteCard {
-                Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(Icons.Outlined.PrivacyTip, contentDescription = null, tint = RathYatraColors.Navy)
-                    Column {
-                        Text(copy.privacyTitle, style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            copy.privacyBody,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = RathYatraColors.OnSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-
-        Column(
-            Modifier
-                .background(RathYatraColors.Ivory.copy(alpha = 0.96f))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (stepError.isNotEmpty()) {
-                Text(
-                    stepError,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = RathYatraColors.Emergency,
-                )
-            }
-            if (viewModel.state is UiState.Loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(28.dp),
-                    color = RathYatraColors.Saffron,
-                    strokeWidth = 3.dp,
-                )
-            } else {
-                SaffronButton(
-                    text = if (step == 3) copy.createAccount else copy.continueNext,
-                    onClick = { advance() },
-                    trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = if (step == 3) copy.createAccount else copy.continueNext,
-                )
-            }
-        }
-    }
+                    verificationToken = viewModel.verificationToken.orEmpty(),
+                ),
+            )
+        },
+        modifier = modifier,
+    )
     if (showSos) {
         com.example.sahakarbharati.core.ui.DemoAlertDialog(
             title = copy.sosTitle,
@@ -659,6 +629,134 @@ private fun ColumnScope.PersonalStep(
         hint = extra.emailHint,
         keyboardType = KeyboardType.Email,
     )
+}
+
+@Composable
+private fun VerifyMobileScreen(
+    hindi: Boolean,
+    mobile: String,
+    onMobile: (String) -> Unit,
+    otp: String,
+    onOtp: (String) -> Unit,
+    otpSent: Boolean,
+    otpBusy: Boolean,
+    note: String,
+    noteIsError: Boolean,
+    accountExists: Boolean,
+    onBack: () -> Unit,
+    onSignIn: () -> Unit,
+    onResend: () -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ApplySystemBarIcons(lightIcons = false)
+    Column(
+        modifier
+            .fillMaxSize()
+            .background(androidx.compose.ui.graphics.Color(0xFFFFF8EF))
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .windowInsetsPadding(WindowInsets.ime),
+    ) {
+        StackTopBar(
+            title = if (hindi) "मोबाइल सत्यापित करें" else "Verify mobile",
+            onBack = onBack,
+        )
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            WhiteCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        if (hindi) "मोबाइल नंबर" else "MOBILE NUMBER",
+                        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.4.sp),
+                        color = Color(0xFF0F3D2E),
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, RathYatraColors.Gold, RoundedCornerShape(12.dp))
+                            .background(RathYatraColors.White)
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("+91", color = RathYatraColors.OnSurfaceVariant)
+                        BasicTextField(
+                            value = mobile,
+                            onValueChange = onMobile,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = RathYatraColors.OnSurface),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Text(
+                        if (hindi) "10 अंकों का भारतीय मोबाइल नंबर।" else "10-digit Indian mobile number.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RathYatraColors.OnSurfaceVariant,
+                    )
+                    if (otpSent) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            if (hindi) "ओटीपी" else "OTP",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = RathYatraColors.OnSurfaceVariant,
+                        )
+                        OutlinedTextField(
+                            value = otp,
+                            onValueChange = onOtp,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = FieldShape,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = fieldColors(),
+                        )
+                        Text(
+                            if (hindi) "एसएमएस से मिला 6 अंकों का कोड।" else "6-digit code from the SMS.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = RathYatraColors.OnSurfaceVariant,
+                        )
+                        TextButton(onClick = { if (!otpBusy) onResend() }, enabled = !otpBusy) {
+                            Text(if (hindi) "ओटीपी फिर भेजें" else "Resend OTP", color = RathYatraColors.Navy)
+                        }
+                    }
+                }
+            }
+            if (note.isNotBlank()) {
+                Text(
+                    note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (noteIsError) RathYatraColors.Emergency else RathYatraColors.OnSurfaceVariant,
+                )
+            }
+            if (accountExists) {
+                SaffronButton(
+                    text = if (hindi) "साइन इन" else "Sign In",
+                    onClick = onSignIn,
+                    trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
+                )
+            }
+        }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            SaffronButton(
+                text = when {
+                    otpBusy -> if (hindi) "कृपया प्रतीक्षा करें…" else "Please wait…"
+                    otpSent -> if (hindi) "ओटीपी सत्यापित करें" else "Verify OTP"
+                    else -> if (hindi) "ओटीपी भेजें" else "Send OTP"
+                },
+                onClick = { if (!otpBusy) onSubmit() },
+                trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
+            )
+        }
+    }
 }
 
 @Composable

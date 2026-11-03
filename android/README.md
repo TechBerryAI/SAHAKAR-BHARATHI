@@ -135,8 +135,6 @@ R8 is enabled for release with optimisation scoped to `androidx`, `kotlin` and
   registration, profile updates and logout are sent once and never retried. Any request
   pending over 4 s shows a "server is starting up" banner on every screen (English and
   Hindi text; other languages show the English base, like other untranslated strings).
-- The profile photo is stored on the device only and is labelled as such; there is
-  no upload API.
-- Tracking, QR attendance/pass, benefits and notifications are not connected to any
-  backend. Those screens say so; their controls are disabled or removed.
-- Android does not edit profile details; the web app does. Both read `GET /api/v1/me`.
+- The app does not collect or upload a profile photo.
+- Signed-in navigation is Home, Profile, and Admin for staff (`admin` or `super_admin`). Tracking, QR attendance, benefits, and notifications are not in the app.
+- Profile editing saves name, occupation, and address with `PATCH /api/v1/me`. Login ID, mobile, email, gender, date of birth, and PIN stay read-only.
