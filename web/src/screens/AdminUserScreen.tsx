@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { AdminSections } from '../components/AdminSections.tsx'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, ErrorBanner, InfoList, Panel, PersonHeader, Screen, StatusChip } from '../components/ui.tsx'
 import { useLanguage } from '../contexts/language.tsx'
@@ -73,6 +74,7 @@ export function AdminUserScreen() {
     <>
       <AppBar title="User details" onBack={() => navigate('/admin')} />
       <Screen withNav>
+        <AdminSections />
         <ErrorBanner message={error} />
         {!person && !error ? (
           <div className="center-state">

@@ -52,6 +52,7 @@ import com.example.sahakarbharati.ui.theme.RathYatraColors
 @Composable
 fun AdminUsersScreen(
     onOpenUser: (String) -> Unit,
+    onOpenBooths: () -> Unit,
     onSelectTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -72,6 +73,7 @@ fun AdminUsersScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            AdminSectionSwitch(places = false, onPeople = {}, onBooths = onOpenBooths)
             OutlinedTextField(
                 value = viewModel.query,
                 onValueChange = viewModel::onQueryChange,
@@ -165,6 +167,8 @@ private fun AdminUserRow(user: AdminUserSummary, onClick: () -> Unit) {
 fun AdminUserScreen(
     userId: String,
     onBack: () -> Unit,
+    onOpenPeople: () -> Unit,
+    onOpenBooths: () -> Unit,
     onSelectTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -194,6 +198,7 @@ fun AdminUserScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            AdminSectionSwitch(places = false, onPeople = onOpenPeople, onBooths = onOpenBooths)
             viewModel.error?.let { message ->
                 Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }

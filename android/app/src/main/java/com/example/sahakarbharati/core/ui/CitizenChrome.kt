@@ -298,7 +298,11 @@ fun RathBottomBar(
         Row(Modifier.fillMaxWidth().height(64.dp)) {
             items.forEach { (key, label, icon) ->
                 val selected = selectedKey == key ||
-                    (key == RathYatraDestinations.ADMIN && selectedKey == RathYatraDestinations.ADMIN_USER)
+                    (key == RathYatraDestinations.ADMIN && selectedKey in setOf(
+                        RathYatraDestinations.ADMIN_USER,
+                        RathYatraDestinations.ADMIN_PLACES,
+                        RathYatraDestinations.ADMIN_PLACE,
+                    ))
                 val tint = if (selected) RathYatraColors.Saffron else muted
                 Column(
                     Modifier

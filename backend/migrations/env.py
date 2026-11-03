@@ -7,9 +7,11 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import get_settings, normalize_database_url
 from app.db.base import Base
 from app.models import (  # noqa: F401
+    Attendance,
     AuditEvent,
     AuthSession,
     PhoneVerification,
+    Place,
     RateLimitBucket,
     Registration,
     User,

@@ -127,6 +127,14 @@ a {
   padding-bottom: calc(28px + var(--bottom-nav) + env(safe-area-inset-bottom));
 }
 
+/* A flex box that scrolls does not keep its end padding in the scroll range,
+   so the last card would sit under the bottom bar. This spacer is real content. */
+.screen-scroll--nav::after {
+  content: '';
+  flex: none;
+  height: calc(var(--bottom-nav) + 12px);
+}
+
 @keyframes screen-in {
   from {
     opacity: 0;
@@ -1742,6 +1750,9 @@ html[dir='rtl'] .lang-sheet__option {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--shadow-card);
+  /* The screen is a flex column. overflow:hidden would otherwise let this list
+     shrink to its border and hide the people in it. */
+  flex-shrink: 0;
 }
 
 .admin-row {
@@ -1868,6 +1879,98 @@ html[dir='rtl'] .lang-sheet__option {
 
 .admin-home-link {
   margin-top: 12px;
+}
+
+.admin-sections {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-section {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 600;
+}
+
+.admin-section.is-active {
+  background: var(--saffron);
+  border-color: var(--saffron);
+  color: white;
+}
+
+.print-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--white);
+  border: 1px solid var(--gold-line);
+  border-radius: 16px;
+}
+
+.print-sheet__name,
+.print-sheet__code,
+.print-sheet__hint {
+  margin: 0;
+}
+
+.print-sheet__code {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.attendance-heading {
+  margin: 4px 0 0;
+  font-size: 16px;
+}
+
+.admin-list > li.attendance-row:last-child {
+  border-bottom: 0;
+}
+
+.attendance-row {
+  cursor: default;
+}
+
+.attendance-row .admin-row__id {
+  justify-content: space-between;
+}
+
+.checkin-camera {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin-top: 12px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #111;
+}
+
+.checkin-place {
+  color: var(--saffron);
+  font-weight: 600;
+}
+
+.checkin-name {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+@media print {
+  .bottom-nav,
+  .app-bar,
+  .admin-sections,
+  .no-print {
+    display: none !important;
+  }
 }
 
 @media (max-width: 600px) {

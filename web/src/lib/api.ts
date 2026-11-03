@@ -11,8 +11,13 @@ import {
 import type { AppCopy } from './copy.ts'
 import { fetchWithColdStart } from './network.ts'
 import type {
+  AdminAttendanceList,
+  AttendanceList,
+  AttendanceRecord,
   AdminUserDetail,
   AdminUserList,
+  Place,
+  PlaceList,
   PhoneVerificationConfirmed,
   PhoneVerificationCreated,
   Profile,
@@ -291,6 +296,49 @@ export function listAdminUsers(query: string, offset = 0): Promise<AdminUserList
 export function getAdminUser(id: string): Promise<AdminUserDetail> {
   return request<AdminUserDetail>(`/api/v1/admin/users/${id}`, {
     fallback: 'Could not load this person.',
+  })
+}
+
+export function listPlaces(): Promise<PlaceList> {
+  return request<PlaceList>('/api/v1/admin/places', {
+    fallback: 'Could not load booths.',
+  })
+}
+
+export function createPlace(name: string): Promise<Place> {
+  return request<Place>('/api/v1/admin/places', {
+    method: 'POST',
+    body: { name },
+    fallback: 'Could not create this booth.',
+  })
+}
+
+export function updatePlace(id: string, body: { name?: string; active?: boolean }): Promise<Place> {
+  return request<Place>(`/api/v1/admin/places/${id}`, {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update this booth.',
+  })
+}
+
+export function checkIn(code: string, source: 'qr' | 'code'): Promise<AttendanceRecord> {
+  return request<AttendanceRecord>('/api/v1/attendance', {
+    method: 'POST',
+    body: { code, source },
+    fallback: 'Attendance could not be recorded.',
+  })
+}
+
+export function myAttendance(): Promise<AttendanceList> {
+  return request<AttendanceList>('/api/v1/attendance', {
+    fallback: 'Check-in history could not be loaded.',
+  })
+}
+
+export function listPlaceAttendance(id: string, offset = 0): Promise<AdminAttendanceList> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<AdminAttendanceList>(`/api/v1/admin/places/${id}/attendance?${params.toString()}`, {
+    fallback: 'Could not load attendance.',
   })
 }
 

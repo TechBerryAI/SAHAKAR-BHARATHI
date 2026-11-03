@@ -3,7 +3,15 @@ package com.example.sahakarbharati.data
 import com.example.sahakarbharati.data.model.ParticipantProfile
 import com.example.sahakarbharati.data.model.knownRole
 import com.example.sahakarbharati.data.model.isStaffRole
+import com.example.sahakarbharati.data.remote.AdminAttendanceListDto
 import com.example.sahakarbharati.data.remote.AdminUserDetailDto
+import com.example.sahakarbharati.data.remote.PlaceActiveRequest
+import com.example.sahakarbharati.data.remote.PlaceCreateRequest
+import com.example.sahakarbharati.data.remote.PlaceDto
+import com.example.sahakarbharati.data.remote.PlaceListDto
+import com.example.sahakarbharati.data.remote.AttendanceListDto
+import com.example.sahakarbharati.data.remote.AttendanceRecordDto
+import com.example.sahakarbharati.data.remote.CheckInRequest
 import com.example.sahakarbharati.data.remote.AdminUserListDto
 import com.example.sahakarbharati.data.remote.PhoneVerificationConfirmRequest
 import com.example.sahakarbharati.data.remote.PhoneVerificationConfirmedDto
@@ -126,4 +134,15 @@ private class RecordingAdminApi : SahakarApi {
         userId: String,
         body: RoleUpdateRequest,
     ): AdminUserDetailDto = error("unused")
+    override suspend fun checkIn(authorization: String, body: CheckInRequest): AttendanceRecordDto = error("unused")
+    override suspend fun myAttendance(authorization: String): AttendanceListDto = error("unused")
+    override suspend fun listPlaces(authorization: String): PlaceListDto = error("unused")
+    override suspend fun createPlace(authorization: String, body: PlaceCreateRequest): PlaceDto = error("unused")
+    override suspend fun updatePlace(authorization: String, placeId: String, body: PlaceActiveRequest): PlaceDto = error("unused")
+    override suspend fun listPlaceAttendance(
+        authorization: String,
+        placeId: String,
+        limit: Int,
+        offset: Int,
+    ): AdminAttendanceListDto = error("unused")
 }

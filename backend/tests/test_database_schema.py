@@ -38,6 +38,8 @@ APP_TABLES = (
     "audit_events",
     "phone_verifications",
     "rate_limit_buckets",
+    "places",
+    "attendance",
 )
 
 

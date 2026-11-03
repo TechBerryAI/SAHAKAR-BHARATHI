@@ -36,7 +36,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.sahakarbharati.features.admin.AdminPlaceScreen
+import com.example.sahakarbharati.features.admin.AdminPlacesScreen
 import com.example.sahakarbharati.features.admin.AdminUserScreen
+import com.example.sahakarbharati.features.attendance.AttendanceScreen
 import com.example.sahakarbharati.features.admin.AdminUsersScreen
 import com.example.sahakarbharati.features.home.CitizenHomeScreen
 import com.example.sahakarbharati.features.profile.ProfileScreen
@@ -69,6 +72,7 @@ fun RathYatraScreen(
     val openedOnProtectedScreen = initialStack.any { it !in RathYatraDestinations.publicAccess }
     var stack by rememberSaveable { mutableStateOf(initialStack.ifEmpty { listOf(RathYatraDestinations.SPLASH) }) }
     var adminUserId by rememberSaveable { mutableStateOf("") }
+    var adminPlaceId by rememberSaveable { mutableStateOf("") }
     var signInMobile by rememberSaveable { mutableStateOf("") }
     var accountReady by rememberSaveable { mutableStateOf(false) }
     var languageKey by rememberSaveable { mutableStateOf(session.languageKey()) }
@@ -157,6 +161,13 @@ fun RathYatraScreen(
         )
         RathYatraDestinations.HOME -> CitizenHomeScreen(
             onOpenAdmin = { go(RathYatraDestinations.ADMIN) },
+            onOpenBooths = { go(RathYatraDestinations.ADMIN_PLACES) },
+            onOpenAttendance = { go(RathYatraDestinations.ATTENDANCE) },
+            onSelectTab = { go(it) },
+            modifier = modifier.fillMaxSize(),
+        )
+        RathYatraDestinations.ATTENDANCE -> AttendanceScreen(
+            onBack = { back() },
             onSelectTab = { go(it) },
             modifier = modifier.fillMaxSize(),
         )
@@ -188,24 +199,44 @@ fun RathYatraScreen(
         )
         RathYatraDestinations.ADMIN,
         RathYatraDestinations.ADMIN_USER,
+        RathYatraDestinations.ADMIN_PLACES,
+        RathYatraDestinations.ADMIN_PLACE,
         -> {
             if (!isStaffRole(session.role())) {
                 LaunchedEffect(current) {
                     stack = listOf(RathYatraDestinations.HOME)
                 }
-            } else if (current == RathYatraDestinations.ADMIN) {
-                AdminUsersScreen(
+            } else when (current) {
+                RathYatraDestinations.ADMIN -> AdminUsersScreen(
                     onOpenUser = { id ->
                         adminUserId = id
                         go(RathYatraDestinations.ADMIN_USER)
                     },
+                    onOpenBooths = { go(RathYatraDestinations.ADMIN_PLACES) },
                     onSelectTab = { go(it) },
                     modifier = modifier.fillMaxSize(),
                 )
-            } else {
-                AdminUserScreen(
+                RathYatraDestinations.ADMIN_USER -> AdminUserScreen(
                     userId = adminUserId,
                     onBack = { back() },
+                    onOpenPeople = { go(RathYatraDestinations.ADMIN) },
+                    onOpenBooths = { go(RathYatraDestinations.ADMIN_PLACES) },
+                    onSelectTab = { go(it) },
+                    modifier = modifier.fillMaxSize(),
+                )
+                RathYatraDestinations.ADMIN_PLACES -> AdminPlacesScreen(
+                    onOpenPlace = { id ->
+                        adminPlaceId = id
+                        go(RathYatraDestinations.ADMIN_PLACE)
+                    },
+                    onOpenPeople = { go(RathYatraDestinations.ADMIN) },
+                    onSelectTab = { go(it) },
+                    modifier = modifier.fillMaxSize(),
+                )
+                else -> AdminPlaceScreen(
+                    placeId = adminPlaceId,
+                    onBack = { back() },
+                    onOpenPeople = { go(RathYatraDestinations.ADMIN) },
                     onSelectTab = { go(it) },
                     modifier = modifier.fillMaxSize(),
                 )

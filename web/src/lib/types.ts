@@ -101,3 +101,48 @@ export type AdminUserDetail = Profile & {
   id: string
   created_at: string
 }
+
+export type Place = {
+  id: string
+  name: string
+  code: string
+  active: boolean
+  created_at: string
+}
+
+export type PlaceList = {
+  items: Place[]
+}
+
+export type AttendanceRecord = {
+  id: string
+  place_id: string
+  place_name: string
+  checked_in_at: string
+  attendance_date: string
+  source: 'qr' | 'code'
+  already_recorded: boolean
+  login_id: string
+  full_name: string
+  mobile: string
+  email: string | null
+  gender: string | null
+  occupation: string | null
+  address_line: string | null
+  locality: string | null
+  district: string | null
+  state: string | null
+  pincode: string | null
+}
+
+export type AdminAttendanceList = {
+  items: AttendanceRecord[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export type AttendanceList = {
+  items: AttendanceRecord[]
+  total: number
+}
