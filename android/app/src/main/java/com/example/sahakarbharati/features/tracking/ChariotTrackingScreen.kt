@@ -69,7 +69,7 @@ fun ChariotTrackingScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(RathYatraColors.Ivory)
+            .background(RathYatraColors.CreamEnd)
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
@@ -184,7 +184,7 @@ fun ChariotTrackingScreen(
                     Text(copy.photoCaption, style = MaterialTheme.typography.labelSmall, color = Color.White)
                 }
             }
-            Text(copy.gpsNote, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.Outline)
+            Text(copy.gpsNote, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
         }
     }
     if (dialog == "sos") {

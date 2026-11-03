@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -46,18 +48,25 @@ fun ProfilePhoto(
     }
     val boxModifier = modifier
         .size(size)
-        .clip(CircleShape)
         .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
     if (bitmap != null) {
         Image(
             bitmap = bitmap,
             contentDescription = "Profile photo",
-            modifier = boxModifier,
+            modifier = boxModifier.clip(CircleShape),
             contentScale = ContentScale.Crop,
         )
     } else {
         Box(
-            modifier = boxModifier.background(RathYatraColors.Navy),
+            modifier = boxModifier
+                .border(1.5.dp, RathYatraColors.Gold.copy(alpha = 0.75f), CircleShape)
+                .padding(2.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        listOf(RathYatraColors.AvatarGreenTop, RathYatraColors.DeepGreen),
+                    ),
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Text(

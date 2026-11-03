@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -91,7 +89,7 @@ fun CitizenHomeScreen(
     onSelectTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ApplySystemBarIcons(lightIcons = false)
+    ApplySystemBarIcons(lightIcons = true)
     val copy = LocalCopy.current
     val hindi = LocalLanguage.current == AppLanguage.HI
     val session = rememberAppSession()
@@ -115,17 +113,15 @@ fun CitizenHomeScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = RathYatraColors.Ivory,
+        containerColor = RathYatraColors.CreamEnd,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            Column(Modifier.windowInsetsPadding(WindowInsets.statusBars)) {
-                CitizenTopBar(
-                    title = copy.homeTitle,
-                    photoPath = session.displayPhotoPath,
-                    onNotificationsClick = onOpenNotifications,
-                    onProfileClick = onOpenProfile,
-                )
-            }
+            CitizenTopBar(
+                title = copy.homeTitle,
+                photoPath = session.displayPhotoPath,
+                onNotificationsClick = onOpenNotifications,
+                onProfileClick = onOpenProfile,
+            )
         },
         bottomBar = {
             RathBottomBar(selectedKey = RathYatraDestinations.HOME, onSelect = onSelectTab)
@@ -140,7 +136,17 @@ fun CitizenHomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             WhiteCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    Modifier
+                        .background(
+                            Brush.verticalGradient(
+                                0f to RathYatraColors.Saffron.copy(alpha = 0.13f),
+                                0.72f to Color.Transparent,
+                            ),
+                        )
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ProfilePhoto(
                             photoPath = session.displayPhotoPath,
@@ -403,7 +409,7 @@ private fun Advisory(icon: ImageVector, source: String, time: String, title: Str
             Column {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(source, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-                    Text(time, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.Outline)
+                    Text(time, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
                 }
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(body, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)

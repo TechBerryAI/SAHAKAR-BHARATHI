@@ -642,7 +642,7 @@ class RathYatraCopy {
 
 private val English: RathYatraCopy = RathYatraCopy().apply {
     portalChip = "GOVERNMENT OF INDIA"
-    honourLine = "HONOURING INDIA'S FOOD HEROES"
+    honourLine = "Honouring India's food heroes"
     title = "Sahakar Bharati"
     subtitle = "Farmers & Fishermen Celebration"
     tagline = "A nationwide tribute to the extraordinary work of India's farmers and fishermen."

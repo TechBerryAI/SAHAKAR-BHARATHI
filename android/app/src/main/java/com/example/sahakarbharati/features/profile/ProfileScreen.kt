@@ -47,6 +47,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -105,7 +107,7 @@ fun ProfileScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = RathYatraColors.Ivory,
+        containerColor = RathYatraColors.CreamEnd,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column(Modifier.windowInsetsPadding(WindowInsets.statusBars)) {
@@ -125,7 +127,14 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             WhiteCard {
-                Column {
+                Column(
+                    Modifier.background(
+                        Brush.verticalGradient(
+                            0f to RathYatraColors.Saffron.copy(alpha = 0.13f),
+                            0.75f to Color.Transparent,
+                        ),
+                    ),
+                ) {
                 Row(
                     Modifier.padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -335,7 +344,7 @@ private fun ProfileRow(
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
             }
             if (onClick != null) {
-                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = RathYatraColors.Outline)
+                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = RathYatraColors.OnSurfaceVariant)
             }
         }
     }

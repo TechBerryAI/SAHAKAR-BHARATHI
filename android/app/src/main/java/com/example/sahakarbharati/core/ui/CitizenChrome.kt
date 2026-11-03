@@ -2,14 +2,11 @@ package com.example.sahakarbharati.core.ui
 
 import android.app.Activity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,7 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Agriculture
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.SwapHoriz
@@ -39,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.core.copy.RathYatraCopy
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
@@ -96,7 +94,7 @@ fun IvoryScreenColumn(
     ApplySystemBarIcons(lightIcons = false)
     Column(
         modifier = modifier
-            .background(RathYatraColors.Ivory)
+            .background(RathYatraColors.CreamEnd)
             .windowInsetsPadding(WindowInsets.statusBars),
         content = content,
     )
@@ -112,66 +110,67 @@ fun CitizenTopBar(
     onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(RathYatraColors.Ivory)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .background(RathYatraColors.AppBarBrush)
+            .windowInsetsPadding(WindowInsets.statusBars),
     ) {
-        SacredWheelSeal(size = 40.dp)
-        Column(
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 10.dp),
+                .fillMaxWidth()
+                .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = LocalCopy.current.topBarKicker,
-                style = MaterialTheme.typography.labelSmall,
-                color = RathYatraColors.GoldDark,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            SacredWheelSeal(size = 28.dp)
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = RathYatraColors.Navy,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.1.sp,
+                ),
+                color = RathYatraColors.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 10.dp),
             )
-        }
-        if (onRoleClick != null) {
-            IconButton(onClick = onRoleClick, modifier = Modifier.semantics { contentDescription = "Role" }) {
-                Icon(Icons.Outlined.SwapHoriz, contentDescription = null, tint = RathYatraColors.Navy)
+            LanguageChips(contentColor = RathYatraColors.White)
+            if (onRoleClick != null) {
+                IconButton(onClick = onRoleClick, modifier = Modifier.semantics { contentDescription = "Role" }) {
+                    Icon(Icons.Outlined.SwapHoriz, contentDescription = null, tint = RathYatraColors.White)
+                }
             }
-        }
-        // No unread badge: there is no notification service yet, so nothing can be unread.
-        IconButton(
-            onClick = onNotificationsClick,
-            modifier = Modifier.semantics { contentDescription = "Notifications" },
-        ) {
-            Icon(Icons.Outlined.Notifications, contentDescription = null, tint = RathYatraColors.Navy)
-        }
-        IconButton(onClick = onProfileClick, modifier = Modifier.semantics { contentDescription = "Profile" }) {
-            if (!photoPath.isNullOrBlank()) {
-                ProfilePhoto(
-                    photoPath = photoPath,
-                    initials = "SB",
-                    size = 32.dp,
-                )
-            } else {
-                Box(
-                    Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(RathYatraColors.Navy),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.AccountCircle,
-                        contentDescription = null,
-                        tint = RathYatraColors.Ivory,
-                        modifier = Modifier.size(22.dp),
+            IconButton(
+                onClick = onNotificationsClick,
+                modifier = Modifier.semantics { contentDescription = "Notifications" },
+            ) {
+                Icon(Icons.Outlined.Notifications, contentDescription = null, tint = RathYatraColors.White)
+            }
+            IconButton(onClick = onProfileClick, modifier = Modifier.semantics { contentDescription = "Profile" }) {
+                if (!photoPath.isNullOrBlank()) {
+                    ProfilePhoto(
+                        photoPath = photoPath,
+                        initials = "SB",
+                        size = 32.dp,
                     )
+                } else {
+                    Box(
+                        Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(RathYatraColors.DeepGreen),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.AccountCircle,
+                            contentDescription = null,
+                            tint = RathYatraColors.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
         }
@@ -206,8 +205,8 @@ fun StackTopBar(
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
-            color = RathYatraColors.Navy,
-            fontWeight = FontWeight.Bold,
+            color = RathYatraColors.TitleNavy,
+            fontWeight = FontWeight.SemiBold,
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 4.dp),
@@ -262,7 +261,7 @@ fun RathBottomBar(
 ) {
     val copy = LocalCopy.current
     val items = listOf(
-        Triple(RathYatraDestinations.HOME, copy.tabHome, Icons.Outlined.Agriculture),
+        Triple(RathYatraDestinations.HOME, copy.tabHome, Icons.Outlined.Home),
         Triple(RathYatraDestinations.TRACKING, copy.tabYatra, Icons.Outlined.Navigation),
         Triple(RathYatraDestinations.QR_ATTENDANCE, copy.tabAttendance, Icons.Outlined.Verified),
         Triple(RathYatraDestinations.BENEFITS, copy.tabBenefits, Icons.Outlined.VolunteerActivism),
@@ -270,8 +269,8 @@ fun RathBottomBar(
     )
     NavigationBar(
         modifier = modifier.fillMaxWidth(),
-        containerColor = RathYatraColors.Ivory,
-        tonalElevation = 8.dp,
+        containerColor = RathYatraColors.Paper,
+        tonalElevation = 0.dp,
         windowInsets = WindowInsets.navigationBars,
     ) {
         items.forEach { (key, label, icon) ->
@@ -281,21 +280,21 @@ fun RathBottomBar(
                 selected = selected,
                 onClick = { onSelect(key) },
                 icon = {
-                    Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = label, modifier = Modifier.size(24.dp))
                 },
                 label = {
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = RathYatraColors.Saffron,
-                    selectedTextColor = RathYatraColors.Saffron,
-                    unselectedIconColor = RathYatraColors.OnSurfaceVariantCool,
-                    unselectedTextColor = RathYatraColors.OnSurfaceVariantCool,
-                    indicatorColor = Color.Transparent,
+                    selectedIconColor = RathYatraColors.SaffronPressed,
+                    selectedTextColor = RathYatraColors.SaffronPressed,
+                    unselectedIconColor = RathYatraColors.OnSurfaceVariant,
+                    unselectedTextColor = RathYatraColors.OnSurfaceVariant,
+                    indicatorColor = RathYatraColors.Saffron.copy(alpha = 0.16f),
                 ),
             )
         }

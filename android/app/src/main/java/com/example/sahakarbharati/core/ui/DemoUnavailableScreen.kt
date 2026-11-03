@@ -34,7 +34,7 @@ fun DemoUnavailableScreen(
     val copy = LocalCopy.current
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = RathYatraColors.Ivory,
+        containerColor = RathYatraColors.CreamEnd,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column(Modifier.windowInsetsPadding(WindowInsets.statusBars)) {

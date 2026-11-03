@@ -80,7 +80,7 @@ fun RegistrationSuccessScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(RathYatraColors.Ivory)
+            .background(RathYatraColors.CreamEnd)
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .verticalScroll(rememberScrollState())
@@ -193,7 +193,7 @@ fun RegistrationSuccessScreen(
             Modifier.padding(top = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Outlined.Info, contentDescription = null, tint = RathYatraColors.Outline)
+            Icon(Icons.Outlined.Info, contentDescription = null, tint = RathYatraColors.OnSurfaceVariant)
             Text(
                 copy.successNote,
                 style = MaterialTheme.typography.bodySmall,
@@ -204,7 +204,7 @@ fun RegistrationSuccessScreen(
         Text(
             copy.successFooter,
             style = MaterialTheme.typography.labelSmall,
-            color = RathYatraColors.Outline,
+            color = RathYatraColors.OnSurfaceVariant,
             textAlign = TextAlign.Center,
         )
     }

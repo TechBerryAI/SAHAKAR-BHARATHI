@@ -1,7 +1,6 @@
 package com.example.sahakarbharati.features.onboarding
 
 import com.example.sahakarbharati.core.ui.StatusBarScrim
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Agriculture
 import androidx.compose.material.icons.outlined.Badge
@@ -46,25 +44,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.sahakarbharati.R
+import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.IconTile
 import com.example.sahakarbharati.core.ui.LanguageChips
 import com.example.sahakarbharati.core.ui.PulseDot
-import com.example.sahakarbharati.core.ui.SacredWheelSeal
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SectionHeader
+import com.example.sahakarbharati.core.ui.StartSeal
 import com.example.sahakarbharati.core.ui.StatusChip
-import com.example.sahakarbharati.core.ui.WhiteActionButton
 import com.example.sahakarbharati.core.ui.WhiteCard
 import com.example.sahakarbharati.ui.theme.RathYatraColors
 
@@ -74,107 +68,70 @@ fun WelcomeDiscoveryScreen(
     onSignIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ApplySystemBarIcons(lightIcons = true)
+    ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
 
     Box(modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(RathYatraColors.Ivory)
+            .background(RathYatraColors.ScreenBrush)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .verticalScroll(rememberScrollState()),
     ) {
-        Box(
+        Column(
             Modifier
                 .fillMaxWidth()
-                .background(RathYatraColors.NavyHero),
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 22.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(Modifier.windowInsetsPadding(WindowInsets.statusBars)) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(320.dp),
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.img_welcome_hero),
-                        contentDescription = copy.heroTitle,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        RathYatraColors.NavyHero.copy(alpha = 0.45f),
-                                        RathYatraColors.NavyHero.copy(alpha = 0.82f),
-                                        RathYatraColors.NavyHero,
-                                    ),
-                                ),
-                            ),
-                    )
-                    LanguageChips(
-                        onDarkBackground = true,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(16.dp),
-                    )
-                    Column(
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(horizontal = 20.dp, vertical = 16.dp),
-                    ) {
-                        SacredWheelSeal(size = 56.dp)
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            StatusChip(
-                                text = copy.nationalPortal,
-                                container = RathYatraColors.Gold.copy(alpha = 0.2f),
-                                content = RathYatraColors.GoldPale,
-                            )
-                            PulseDot(RathYatraColors.Saffron)
-                            Text(
-                                copy.nationwide,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = RathYatraColors.GoldMuted,
-                            )
-                        }
-                        Text(
-                            text = copy.platformTitle,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = Color.White,
-                        )
-                        Text(
-                            text = copy.platformAgency,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = RathYatraColors.SecondaryPale,
-                        )
-                        Text(
-                            text = copy.platformBody,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.padding(top = 10.dp),
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        WhiteActionButton(
-                            text = copy.createAccount,
-                            onClick = onGetStarted,
-                            trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
-                            filled = true,
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        WhiteActionButton(
-                            text = copy.signIn,
-                            onClick = onSignIn,
-                            leadingIcon = Icons.AutoMirrored.Outlined.Login,
-                        )
-                    }
-                }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                LanguageChips(onDarkBackground = false)
+            }
+            Spacer(Modifier.height(12.dp))
+            StartSeal(size = 112.dp)
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = copy.honourLine,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    letterSpacing = 0.4.sp,
+                    fontWeight = FontWeight.SemiBold,
+                ),
+                color = RathYatraColors.HonourGold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = copy.platformTitle,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = RathYatraColors.TitleNavy,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = copy.platformAgency,
+                style = MaterialTheme.typography.titleSmall,
+                color = RathYatraColors.SubtitleBurnt,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Text(
+                text = copy.platformBody,
+                style = MaterialTheme.typography.bodyMedium,
+                color = RathYatraColors.OnSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 10.dp, bottom = 16.dp),
+            )
+            SaffronButton(
+                text = copy.createAccount,
+                onClick = onGetStarted,
+                trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
+            )
+            TextButton(onClick = onSignIn) {
+                Text(copy.alreadyRegistered, color = RathYatraColors.TitleNavy, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -362,12 +319,11 @@ fun WelcomeDiscoveryScreen(
             Text(
                 copy.footerSub,
                 style = MaterialTheme.typography.bodySmall,
-                color = RathYatraColors.Outline,
+                color = RathYatraColors.OnSurfaceVariant,
             )
         }
     }
-    // Matches the hero at the top; once scrolled, keeps text from running under the status icons.
-    StatusBarScrim(RathYatraColors.NavyHero)
+    StatusBarScrim(RathYatraColors.Cream)
     }
 }
 

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -243,9 +244,10 @@ fun RathYatraScreen(
 fun ServerWakingBanner(visible: Boolean, message: String, modifier: Modifier = Modifier) {
     AnimatedVisibility(visible = visible, modifier = modifier, enter = fadeIn(), exit = fadeOut()) {
         Surface(
-            color = RathYatraColors.NavyDeep,
+            color = RathYatraColors.DeepGreen.copy(alpha = 0.94f),
             contentColor = Color.White,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, RathYatraColors.GoldLine),
             shadowElevation = 6.dp,
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 8.dp)

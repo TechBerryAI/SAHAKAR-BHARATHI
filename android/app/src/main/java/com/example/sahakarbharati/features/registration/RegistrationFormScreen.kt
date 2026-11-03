@@ -282,7 +282,7 @@ fun RegistrationFormScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(RathYatraColors.Ivory)
+            .background(RathYatraColors.CreamEnd)
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .windowInsetsPadding(WindowInsets.ime),
@@ -295,10 +295,10 @@ fun RegistrationFormScreen(
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(6.dp)
+                .height(3.dp)
                 .background(
                     Brush.horizontalGradient(
-                        listOf(RathYatraColors.Saffron, RathYatraColors.Gold),
+                        listOf(RathYatraColors.SaffronPressed, RathYatraColors.Saffron, Color(0xFFF0C56A)),
                     ),
                 ),
         )
@@ -335,7 +335,7 @@ fun RegistrationFormScreen(
                             Text(
                                 label,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (index == step) RathYatraColors.Saffron else RathYatraColors.Outline,
+                                color = if (index == step) RathYatraColors.Saffron else RathYatraColors.OnSurfaceVariant,
                             )
                         }
                     }
@@ -422,7 +422,7 @@ fun RegistrationFormScreen(
 
         Column(
             Modifier
-                .background(RathYatraColors.Ivory.copy(alpha = 0.96f))
+                .background(RathYatraColors.CreamEnd.copy(alpha = 0.96f))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
