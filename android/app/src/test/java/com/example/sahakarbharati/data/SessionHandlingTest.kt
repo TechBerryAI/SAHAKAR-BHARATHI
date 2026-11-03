@@ -3,7 +3,10 @@ package com.example.sahakarbharati.data
 import android.content.SharedPreferences
 import com.example.sahakarbharati.core.ui.UiState
 import com.example.sahakarbharati.data.model.ParticipantProfile
+import com.example.sahakarbharati.data.remote.AdminUserDetailDto
+import com.example.sahakarbharati.data.remote.AdminUserListDto
 import com.example.sahakarbharati.data.remote.PhoneVerificationConfirmRequest
+import com.example.sahakarbharati.data.remote.RoleUpdateRequest
 import com.example.sahakarbharati.data.remote.PhoneVerificationConfirmedDto
 import com.example.sahakarbharati.data.remote.PhoneVerificationCreatedDto
 import com.example.sahakarbharati.data.remote.PhoneVerificationRequest
@@ -77,6 +80,19 @@ class SessionHandlingTest {
 
         assertTrue(session.signedIn.value)
         assertEquals("new-token", session.accessToken())
+    }
+
+    @Test
+    fun languageSurvivesSignOutAndRoleIsStored() {
+        val session = newSession()
+        session.setLanguageKey("hi")
+        session.saveSession("token-1", profile.copy(role = "admin", addressLine = "12 Lane"))
+        assertEquals("admin", session.role())
+        assertEquals("admin", session.cachedProfile()?.role)
+        assertEquals("12 Lane", session.cachedProfile()?.addressLine)
+        session.clearSession()
+        assertEquals("hi", session.languageKey())
+        assertNull(session.cachedProfile())
     }
 
     @Test
@@ -222,6 +238,21 @@ private class FakeApi(private val sessionFails: Boolean) : SahakarApi {
     override suspend fun me(authorization: String): ProfileResponseDto = error("unused")
 
     override suspend fun updateMe(authorization: String, body: ProfileUpdateRequest): ProfileResponseDto = error("unused")
+
+    override suspend fun listAdminUsers(
+        authorization: String,
+        query: String?,
+        limit: Int,
+        offset: Int,
+    ): AdminUserListDto = error("unused")
+
+    override suspend fun getAdminUser(authorization: String, userId: String): AdminUserDetailDto = error("unused")
+
+    override suspend fun setAdminUserRole(
+        authorization: String,
+        userId: String,
+        body: RoleUpdateRequest,
+    ): AdminUserDetailDto = error("unused")
 }
 
 private class InMemoryPreferences : SharedPreferences {

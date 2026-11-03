@@ -36,22 +36,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.sahakarbharati.core.ui.DemoUnavailableScreen
-import com.example.sahakarbharati.features.tracking.ChariotTrackingScreen
+import com.example.sahakarbharati.features.admin.AdminUserScreen
+import com.example.sahakarbharati.features.admin.AdminUsersScreen
 import com.example.sahakarbharati.features.home.CitizenHomeScreen
 import com.example.sahakarbharati.features.profile.ProfileScreen
-import com.example.sahakarbharati.features.attendance.QrAttendanceScreen
 import com.example.sahakarbharati.features.registration.RegistrationFormScreen
 import com.example.sahakarbharati.features.registration.RegistrationSuccessScreen
 import com.example.sahakarbharati.features.registration.SignInScreen
 import com.example.sahakarbharati.features.onboarding.SplashStartScreen
-import com.example.sahakarbharati.features.onboarding.WelcomeDiscoveryScreen
 import com.example.sahakarbharati.ui.theme.SahakarBharatiTheme
 import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.LocalSetLanguage
 import com.example.sahakarbharati.core.copy.copyFor
+import com.example.sahakarbharati.data.model.isStaffRole
 import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.features.profile.ProfileViewModel
@@ -69,7 +68,10 @@ fun RathYatraScreen(
     val scope = rememberCoroutineScope()
     val openedOnProtectedScreen = initialStack.any { it !in RathYatraDestinations.publicAccess }
     var stack by rememberSaveable { mutableStateOf(initialStack.ifEmpty { listOf(RathYatraDestinations.SPLASH) }) }
-    var languageKey by rememberSaveable { mutableStateOf(AppLanguage.EN.key) }
+    var adminUserId by rememberSaveable { mutableStateOf("") }
+    var signInMobile by rememberSaveable { mutableStateOf("") }
+    var accountReady by rememberSaveable { mutableStateOf(false) }
+    var languageKey by rememberSaveable { mutableStateOf(session.languageKey()) }
     var loggedIn by rememberSaveable { mutableStateOf(session.isLoggedIn() || openedOnProtectedScreen) }
     val language = AppLanguage.fromKey(languageKey)
     val copy = copyFor(language)
@@ -120,18 +122,14 @@ fun RathYatraScreen(
     CompositionLocalProvider(
         LocalLanguage provides language,
         LocalCopy provides copy,
-        LocalSetLanguage provides { languageKey = it.key },
+        LocalSetLanguage provides { selected ->
+            languageKey = selected.key
+            session.setLanguageKey(selected.key)
+        },
     ) {
     Box(Modifier.fillMaxSize()) {
     when (current) {
         RathYatraDestinations.SPLASH -> SplashStartScreen(
-            onGetStarted = { go(RathYatraDestinations.WELCOME) },
-            onSignIn = { go(RathYatraDestinations.SIGN_IN) },
-            modifier = modifier.fillMaxSize(),
-        )
-        RathYatraDestinations.WELCOME,
-        RathYatraDestinations.REGISTRATION_INTRO,
-        -> WelcomeDiscoveryScreen(
             onGetStarted = { go(RathYatraDestinations.REGISTRATION_FORM) },
             onSignIn = { go(RathYatraDestinations.SIGN_IN) },
             modifier = modifier.fillMaxSize(),
@@ -140,81 +138,79 @@ fun RathYatraScreen(
             onBack = { back() },
             onContinue = {
                 loggedIn = true
-                go(RathYatraDestinations.REGISTRATION_SUCCESS)
+                stack = listOf(RathYatraDestinations.REGISTRATION_SUCCESS)
+            },
+            onOpenSignIn = { mobile, ready ->
+                signInMobile = mobile
+                accountReady = ready
+                loggedIn = false
+                stack = listOf(RathYatraDestinations.SPLASH, RathYatraDestinations.SIGN_IN)
             },
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.REGISTRATION_SUCCESS -> RegistrationSuccessScreen(
             onGoHome = {
                 loggedIn = true
-                go(RathYatraDestinations.HOME, replaceRoot = true)
-            },
-            onViewPass = {
-                loggedIn = true
-                stack = listOf(RathYatraDestinations.HOME, RathYatraDestinations.QR_PASS)
+                stack = listOf(RathYatraDestinations.HOME)
             },
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.HOME -> CitizenHomeScreen(
-            onOpenTracking = { go(RathYatraDestinations.TRACKING) },
-            onOpenQr = { go(RathYatraDestinations.QR_ATTENDANCE) },
-            onOpenPass = { go(RathYatraDestinations.QR_PASS) },
-            onOpenBenefits = { go(RathYatraDestinations.BENEFITS) },
-            onOpenProfile = { go(RathYatraDestinations.PROFILE) },
-            onOpenNotifications = { go(RathYatraDestinations.NOTIFICATIONS) },
+            onOpenAdmin = { go(RathYatraDestinations.ADMIN) },
             onSelectTab = { go(it) },
-            modifier = modifier.fillMaxSize(),
-        )
-        RathYatraDestinations.TRACKING -> ChariotTrackingScreen(
-            onBack = { back() },
-            onProfile = { go(RathYatraDestinations.PROFILE) },
-            modifier = modifier.fillMaxSize(),
-        )
-        RathYatraDestinations.QR_ATTENDANCE,
-        RathYatraDestinations.QR_PASS,
-        -> QrAttendanceScreen(
-            showPassInitially = current == RathYatraDestinations.QR_PASS,
-            onSelectTab = { go(it) },
-            onOpenNotifications = { go(RathYatraDestinations.NOTIFICATIONS) },
-            onOpenProfile = { go(RathYatraDestinations.PROFILE) },
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.SIGN_IN -> SignInScreen(
             onBack = { back() },
+            presetMobile = signInMobile,
+            accountReady = accountReady,
             onSignedIn = {
                 loggedIn = true
+                signInMobile = ""
+                accountReady = false
                 go(RathYatraDestinations.HOME, replaceRoot = true)
             },
             onCreateAccount = { go(RathYatraDestinations.REGISTRATION_FORM) },
             modifier = modifier.fillMaxSize(),
         )
-        RathYatraDestinations.NOTIFICATIONS -> DemoUnavailableScreen(
-            title = copy.notificationsTitle,
-            onBack = { back() },
-            modifier = modifier.fillMaxSize(),
-        )
-        RathYatraDestinations.BENEFITS -> DemoUnavailableScreen(
-            title = copy.benefitsTitle,
-            onBack = { back() },
-            showBottomBar = true,
-            selectedTab = RathYatraDestinations.BENEFITS,
-            onSelectTab = { go(it) },
-            modifier = modifier.fillMaxSize(),
-        )
         RathYatraDestinations.PROFILE -> ProfileScreen(
-            session = session,
-            onBack = { back() },
             onLogout = {
                 scope.launch {
                     profileViewModel.logout()
                     loggedIn = false
-                    stack = listOf(RathYatraDestinations.SPLASH)
+                    signInMobile = ""
+                    accountReady = false
+                    stack = listOf(RathYatraDestinations.SPLASH, RathYatraDestinations.SIGN_IN)
                 }
             },
-            onOpenPass = { go(RathYatraDestinations.QR_PASS) },
             onSelectTab = { go(it) },
             modifier = modifier.fillMaxSize(),
         )
+        RathYatraDestinations.ADMIN,
+        RathYatraDestinations.ADMIN_USER,
+        -> {
+            if (!isStaffRole(session.role())) {
+                LaunchedEffect(current) {
+                    stack = listOf(RathYatraDestinations.HOME)
+                }
+            } else if (current == RathYatraDestinations.ADMIN) {
+                AdminUsersScreen(
+                    onOpenUser = { id ->
+                        adminUserId = id
+                        go(RathYatraDestinations.ADMIN_USER)
+                    },
+                    onSelectTab = { go(it) },
+                    modifier = modifier.fillMaxSize(),
+                )
+            } else {
+                AdminUserScreen(
+                    userId = adminUserId,
+                    onBack = { back() },
+                    onSelectTab = { go(it) },
+                    modifier = modifier.fillMaxSize(),
+                )
+            }
+        }
         else -> {
             LaunchedEffect(current) {
                 stack = if (loggedIn || session.isLoggedIn()) {

@@ -1,12 +1,11 @@
 package com.example.sahakarbharati.features.registration
 
-import com.example.sahakarbharati.core.ui.occupationLabel
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,218 +14,124 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.Badge
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.QrCode2
-import androidx.compose.material.icons.outlined.VerifiedUser
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
+import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
-import com.example.sahakarbharati.data.rememberAppSession
-import com.example.sahakarbharati.core.ui.OutlinedIvoryButton
-import com.example.sahakarbharati.core.ui.PulseDot
 import com.example.sahakarbharati.core.ui.SaffronButton
+import com.example.sahakarbharati.core.ui.SahakarEmblem
 import com.example.sahakarbharati.core.ui.StatusChip
 import com.example.sahakarbharati.core.ui.WhiteCard
-import com.example.sahakarbharati.ui.theme.RathYatraColors
+import com.example.sahakarbharati.core.ui.occupationLabel
+import com.example.sahakarbharati.data.rememberAppSession
 
+/**
+ * Same stop as the website's /register/success: show the new participant ID, then Home.
+ */
 @Composable
 fun RegistrationSuccessScreen(
     onGoHome: () -> Unit,
-    onViewPass: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ApplySystemBarIcons(lightIcons = false)
+    ApplySystemBarIcons(lightIcons = true)
+    BackHandler(onBack = onGoHome)
     val copy = LocalCopy.current
+    val hindi = AppLanguage.usesHindiCopy(LocalLanguage.current)
     val session = rememberAppSession()
-    val clipboard = LocalClipboardManager.current
-    var copied by remember { mutableStateOf(false) }
-    val participantId = session.loginId.ifBlank { copy.participantIdValue }
-    val occupation = occupationLabel(copy, session.occupation) ?: copy.occupationValue
-    val region = listOfNotNull(
-        session.district.takeIf { it.isNotBlank() },
-        session.state.takeIf { it.isNotBlank() },
-    ).joinToString(" • ").ifBlank { copy.regionValue }
-    val successBody = if (session.name.isNotBlank()) {
-        "${session.name} — ${copy.successBody}"
-    } else {
-        copy.successBody
-    }
+    val loginId = session.loginId.ifBlank { "—" }
+    val occupation = occupationLabel(copy, session.occupation)
 
     Column(
-        modifier = modifier
+        modifier
             .fillMaxSize()
-            .background(RathYatraColors.CreamEnd)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .background(Color(0xFFFFF8F3))
+            .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Box(Modifier.size(112.dp).background(RathYatraColors.Success.copy(alpha = 0.12f), CircleShape))
-            Box(
-                Modifier
-                    .size(72.dp)
-                    .background(RathYatraColors.Success, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.Check, contentDescription = copy.successTitle, tint = RathYatraColors.White, modifier = Modifier.size(36.dp))
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        StatusChip(
-            text = copy.govLine,
-            container = RathYatraColors.GoldPale.copy(alpha = 0.45f),
-            content = RathYatraColors.GoldDark,
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            copy.successTitle,
-            style = MaterialTheme.typography.headlineLarge,
-            color = RathYatraColors.OnSurface,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            successBody,
-            style = MaterialTheme.typography.bodyMedium,
-            color = RathYatraColors.OnSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
-        )
-
-        WhiteCard(Modifier.fillMaxWidth()) {
-            Column {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(RathYatraColors.SurfaceContainerLow)
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Outlined.Badge, contentDescription = null, tint = RathYatraColors.Navy)
-                        Column {
-                            Text(copy.docket, style = MaterialTheme.typography.labelSmall, color = RathYatraColors.OnSurfaceVariant)
-                            Text(copy.docketSub, style = MaterialTheme.typography.titleSmall)
-                        }
-                    }
-                    StatusChip(copy.active, container = RathYatraColors.Success.copy(alpha = 0.12f), content = RathYatraColors.Success, leadingDot = RathYatraColors.Success)
-                }
-                CredentialRow(copy.participantId, participantId, action = {
-                    IconButton(
-                        onClick = {
-                            clipboard.setText(AnnotatedString(participantId))
-                            copied = true
-                        },
-                    ) {
-                        Icon(
-                            if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
-                            contentDescription = copy.participantId,
-                        )
-                    }
-                })
-                CredentialRow(copy.occupationLabel, occupation) {
-                    Icon(Icons.Outlined.VerifiedUser, contentDescription = null, tint = RathYatraColors.Success)
-                }
-                CredentialRow(copy.regionLabel, region) {
-                    Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = RathYatraColors.Navy)
-                }
-                // The pass is not issued yet, so no "pending" pulse beside it.
-                CredentialRow(copy.passStatus, copy.passReady)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(RathYatraColors.SurfaceContainerLow)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Icon(Icons.Outlined.QrCode2, contentDescription = copy.barcodeTitle, modifier = Modifier.size(36.dp))
-                    Column {
-                        Text(copy.barcodeTitle, style = MaterialTheme.typography.titleSmall)
-                        Text(copy.barcodeBody, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-        SaffronButton(
-            text = copy.goHome,
-            onClick = onGoHome,
-            trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
-        )
-        Spacer(Modifier.height(10.dp))
-        OutlinedIvoryButton(
-            text = copy.viewPass,
-            onClick = onViewPass,
-            leadingIcon = Icons.Outlined.Badge,
-        )
         Row(
-            Modifier.padding(top = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFE9872A))
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .height(56.dp)
+                .padding(start = 4.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Info, contentDescription = null, tint = RathYatraColors.OnSurfaceVariant)
+            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                SahakarEmblem(emblemSize = 26.dp)
+            }
             Text(
-                copy.successNote,
-                style = MaterialTheme.typography.bodySmall,
-                color = RathYatraColors.OnSurfaceVariant,
+                if (hindi) "पंजीकृत" else "Registered",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
             )
         }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            copy.successFooter,
-            style = MaterialTheme.typography.labelSmall,
-            color = RathYatraColors.OnSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun CredentialRow(
-    label: String,
-    value: String,
-    action: @Composable () -> Unit = {},
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = RathYatraColors.OnSurfaceVariant)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(value, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.End)
-            action()
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            WhiteCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        if (hindi) "खाता तैयार" else "ACCOUNT READY",
+                        color = Color(0xFF1B5A44),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.4.sp,
+                    )
+                    Text(
+                        if (hindi) "यह प्रतिभागी आईडी रखें" else "Keep this participant ID",
+                        color = Color(0xFF1A1C19),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        if (hindi) {
+                            "यह आईडी संभालकर रखें। साइन इन पंजीकरण वाले मोबाइल नंबर और पिन से होगा।"
+                        } else {
+                            "Keep this ID for your records. Sign in with the mobile number and PIN from registration."
+                        },
+                        color = Color(0xFF5C665F),
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+            WhiteCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column {
+                        Text(copy.participantId, color = Color(0xFF5C665F), fontSize = 12.sp)
+                        Text(loginId, color = Color(0xFF1A1C19), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    }
+                    if (occupation != null || session.name.isNotBlank()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (occupation != null) {
+                                StatusChip(occupation, container = Color(0x1A0F3D2E), content = Color(0xFF0F3D2E))
+                            }
+                            if (session.name.isNotBlank()) {
+                                StatusChip(session.name, container = Color(0x29E9872A), content = Color(0xFFC9741F))
+                            }
+                        }
+                    }
+                }
+            }
+            SaffronButton(
+                text = if (hindi) "होम पर जाएँ" else "Go to Home",
+                onClick = onGoHome,
+            )
         }
     }
 }

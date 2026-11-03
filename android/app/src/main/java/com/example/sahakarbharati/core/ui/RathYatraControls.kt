@@ -1,6 +1,5 @@
 package com.example.sahakarbharati.core.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -69,38 +67,37 @@ fun SaffronButton(
     trailingIcon: ImageVector? = null,
     contentDescription: String = text,
 ) {
-    Row(
+    Surface(
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(54.dp)
-            .shadow(
-                elevation = 10.dp,
-                shape = PillShape,
-                ambientColor = RathYatraColors.ButtonShadow,
-                spotColor = RathYatraColors.ButtonShadow,
-            )
-            .clip(PillShape)
-            .background(RathYatraColors.SaffronButtonBrush)
-            .clickable(role = Role.Button, onClick = onClick)
+            .height(52.dp)
             .semantics { this.contentDescription = contentDescription },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+        shape = PillShape,
+        color = RathYatraColors.Saffron,
+        contentColor = Color.White,
+        shadowElevation = 0.dp,
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            color = RathYatraColors.White,
-        )
-        if (trailingIcon != null) {
-            Spacer(Modifier.width(8.dp))
-            Icon(
-                imageVector = trailingIcon,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = RathYatraColors.White,
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
             )
+            if (trailingIcon != null) {
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    imageVector = trailingIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = Color.White,
+                )
+            }
         }
     }
 }
@@ -157,43 +154,30 @@ fun WhiteActionButton(
     trailingIcon: ImageVector? = null,
     filled: Boolean = false,
 ) {
-    val shape = if (filled) PillShape else RoundedCornerShape(14.dp)
-    val rowModifier = if (filled) {
-        modifier
+    Surface(
+        onClick = onClick,
+        modifier = modifier
             .fillMaxWidth()
-            .height(54.dp)
-            .shadow(
-                elevation = 10.dp,
-                shape = shape,
-                ambientColor = RathYatraColors.ButtonShadow,
-                spotColor = RathYatraColors.ButtonShadow,
-            )
-            .clip(shape)
-            .background(RathYatraColors.SaffronButtonBrush)
-            .clickable(role = Role.Button, onClick = onClick)
-    } else {
-        modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .clip(shape)
-            .border(1.dp, RathYatraColors.Outline, shape)
-            .background(RathYatraColors.White)
-            .clickable(role = Role.Button, onClick = onClick)
-    }
-    val content = if (filled) RathYatraColors.White else RathYatraColors.Navy
-    Row(
-        rowModifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+            .height(52.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = if (filled) RathYatraColors.Saffron else RathYatraColors.White,
+        contentColor = if (filled) RathYatraColors.NavyDeep else RathYatraColors.NavyHero,
+        shadowElevation = 2.dp,
     ) {
-        if (leadingIcon != null) {
-            Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(18.dp), tint = content)
-            Spacer(Modifier.width(8.dp))
-        }
-        Text(text = text, style = MaterialTheme.typography.labelLarge, color = content, fontWeight = FontWeight.SemiBold)
-        if (trailingIcon != null) {
-            Spacer(Modifier.width(8.dp))
-            Icon(trailingIcon, contentDescription = null, modifier = Modifier.size(18.dp), tint = content)
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (leadingIcon != null) {
+                Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(text = text, style = MaterialTheme.typography.labelLarge)
+            if (trailingIcon != null) {
+                Spacer(Modifier.width(8.dp))
+                Icon(trailingIcon, contentDescription = null, modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
@@ -210,7 +194,7 @@ fun OutlinedIvoryButton(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
-            .border(1.dp, RathYatraColors.Outline, RoundedCornerShape(14.dp)),
+            .border(1.dp, RathYatraColors.SurfaceContainerHighest, RoundedCornerShape(14.dp)),
         shape = RoundedCornerShape(14.dp),
         color = RathYatraColors.White,
         contentColor = RathYatraColors.Navy,
@@ -236,15 +220,13 @@ fun LanguageChips(
     modifier: Modifier = Modifier,
     // True on navy/hero backgrounds (light text), false on ivory/white cards (navy text).
     onDarkBackground: Boolean = true,
-    contentColor: Color? = null,
 ) {
     val language = LocalLanguage.current
     val setLanguage = LocalSetLanguage.current
     val copy = LocalCopy.current
     var expanded by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    val content = contentColor
-        ?: if (onDarkBackground) RathYatraColors.GoldPale else RathYatraColors.TitleNavy
+    val content = if (onDarkBackground) Color(0xFFFFF8EE) else Color(0xFF163A78)
     val filtered = remember(query) {
         val needle = query.trim()
         languagePickerOrder.filter { option ->
@@ -271,7 +253,7 @@ fun LanguageChips(
             )
             Text(
                 text = language.nativeName,
-                style = MaterialTheme.typography.labelSmall,
+                fontSize = 13.sp,
                 color = content,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -468,9 +450,8 @@ fun WhiteCard(
     Surface(
         modifier = cardModifier,
         shape = shape,
-        color = RathYatraColors.Paper,
+        color = RathYatraColors.White,
         shadowElevation = 1.dp,
-        border = BorderStroke(1.dp, RathYatraColors.GoldLine),
         content = content,
     )
 }
@@ -506,7 +487,7 @@ fun DemoDisclaimer(
     Text(
         text = text,
         style = MaterialTheme.typography.bodySmall,
-        color = RathYatraColors.OnSurfaceVariant,
+        color = RathYatraColors.Outline,
         modifier = modifier.fillMaxWidth(),
     )
 }
