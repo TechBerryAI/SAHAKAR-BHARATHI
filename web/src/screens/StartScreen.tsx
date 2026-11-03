@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { LanguageSelect } from '../components/LanguageSelect.tsx'
 import { Seal } from '../components/Seal.tsx'
-import { useLanguage } from '../lib/language.tsx'
+import { useLanguage } from '../contexts/language.tsx'
 
 export function StartScreen() {
   const { copy } = useLanguage()
@@ -39,7 +39,9 @@ export function StartScreen() {
         </header>
 
         <div className="start__hero">
-          <Seal className="start__emblem" />
+          <div className="start__seal">
+            <Seal className="start__emblem" />
+          </div>
           <p className="start__honour">{copy.honour}</p>
           <h1 ref={titleRef} className="start__title">
             {copy.welcomeTitle}

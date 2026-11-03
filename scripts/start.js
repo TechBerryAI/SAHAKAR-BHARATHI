@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Starts the whole app locally with one command:
 //
-//   node start.js
+//   node scripts/start.js
 //
 // 1. Starts the local PostgreSQL container (sahakar-postgres) if Docker has it.
 // 2. Applies database migrations (alembic upgrade head).
@@ -17,7 +17,7 @@ import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BACKEND = path.join(ROOT, 'backend')
 const WEB = path.join(ROOT, 'web')
 const IS_WINDOWS = process.platform === 'win32'
@@ -222,6 +222,6 @@ console.log(`
     App:  \x1b[1m${WEB_URL}\x1b[0m
     API:  ${API_URL}
 
-  Android app: run \x1b[1mnode start-android.js\x1b[0m in another terminal.
+  Android app: run \x1b[1mnode scripts/start-android.js\x1b[0m in another terminal.
   Press Ctrl+C to stop.
 `)

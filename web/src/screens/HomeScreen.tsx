@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { LanguageSelect } from '../components/LanguageSelect.tsx'
 import { Card, ErrorBanner, Screen, StatusChip } from '../components/ui.tsx'
+import { useLanguage } from '../contexts/language.tsx'
+import { useSession } from '../hooks/useSession.ts'
 import { ApiError, apiErrorText, getMe, isStaffRole } from '../lib/api.ts'
 import { occupationLabel, statusLabel } from '../lib/copy.ts'
 import { firstName, initials, regionLabel } from '../lib/format.ts'
-import { useLanguage } from '../lib/language.tsx'
-import { getSnapshot, setProfile, useSession } from '../lib/session.ts'
+import { getSnapshot, setProfile } from '../lib/session.ts'
 
 export function HomeScreen() {
   const { copy } = useLanguage()

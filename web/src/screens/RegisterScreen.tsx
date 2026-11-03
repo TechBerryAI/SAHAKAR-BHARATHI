@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, ErrorBanner, Field, RequiredMark } from '../components/ui.tsx'
+import { useLanguage } from '../contexts/language.tsx'
+import { useSession } from '../hooks/useSession.ts'
 import {
   ApiError,
   apiErrorKey,
@@ -10,10 +12,8 @@ import {
   RegisteredButSignInFailedError,
   sendPhoneVerification,
 } from '../lib/api.ts'
-import { blankToNull } from '../lib/format.ts'
 import type { AppCopy } from '../lib/copy.ts'
-import { useLanguage } from '../lib/language.tsx'
-import { useSession } from '../lib/session.ts'
+import { blankToNull } from '../lib/format.ts'
 import type { Gender, Occupation, RegistrationCreate } from '../lib/types.ts'
 import { GENDERS, OCCUPATIONS } from '../lib/types.ts'
 

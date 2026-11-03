@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
+import { useLanguage } from '../contexts/language.tsx'
+import { useSession } from '../hooks/useSession.ts'
 import { isStaffRole } from '../lib/api.ts'
-import { useLanguage } from '../lib/language.tsx'
-import { useSession } from '../lib/session.ts'
 
 export function BottomNav() {
   const { copy } = useLanguage()

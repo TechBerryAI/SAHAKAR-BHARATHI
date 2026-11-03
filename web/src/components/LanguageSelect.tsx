@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useLanguage } from '../lib/language.tsx'
+import { useLanguage } from '../contexts/language.tsx'
 import type { LanguageOption } from '../lib/languages.ts'
 
 type LanguageSelectProps = {

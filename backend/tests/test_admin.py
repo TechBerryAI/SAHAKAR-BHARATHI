@@ -6,7 +6,7 @@ from sqlalchemy.engine import Engine
 
 from app.core.security import verify_pin
 from app.db.session import SessionLocal
-from app.scripts.seed_super_admin import SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_MOBILE, seed_super_admin
+from app.services.super_admin import SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_MOBILE, seed_super_admin
 from tests.conftest import register_and_login
 
 

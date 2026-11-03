@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, ErrorBanner, InfoList, Panel, PersonHeader, Screen, StatusChip } from '../components/ui.tsx'
+import { useLanguage } from '../contexts/language.tsx'
+import { useSession } from '../hooks/useSession.ts'
 import { ApiError, apiErrorText, getAdminUser, setAdminUserRole } from '../lib/api.ts'
 import { formatMobile, initials } from '../lib/format.ts'
-import { useLanguage } from '../lib/language.tsx'
-import { useSession } from '../lib/session.ts'
 import type { AdminUserDetail } from '../lib/types.ts'
 
 function roleLabel(role: string): string {

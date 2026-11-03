@@ -2,9 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, ErrorBanner, Screen } from '../components/ui.tsx'
+import { useLanguage } from '../contexts/language.tsx'
 import { ApiError, apiErrorText, listAdminUsers } from '../lib/api.ts'
 import { formatMobile, initials, regionLabel } from '../lib/format.ts'
-import { useLanguage } from '../lib/language.tsx'
 import type { AdminUserSummary } from '../lib/types.ts'
 
 function roleLabel(role: string): string {
