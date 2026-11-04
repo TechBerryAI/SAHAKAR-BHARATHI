@@ -58,7 +58,8 @@ export function AdminPlacesScreen() {
       <AppBar title="Booths" showEmblem />
       <Screen withNav>
         <AdminSections />
-        <form className="stack" onSubmit={(event) => void onCreate(event)}>
+        <form className="card stack" onSubmit={(event) => void onCreate(event)}>
+          <h2 className="card__title">New booth</h2>
           <Field
             label="Booth name"
             name="place-name"
@@ -87,10 +88,22 @@ export function AdminPlacesScreen() {
             {places.map((place) => (
               <li key={place.id}>
                 <Link className="admin-row" to={`/admin/places/${place.id}`}>
+                  <span className="avatar admin-row__avatar" aria-hidden="true">
+                    {place.name
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((part) => part.charAt(0).toUpperCase())
+                      .join('')}
+                  </span>
                   <span className="admin-row__body">
                     <span className="admin-row__name">{place.name}</span>
-                    <span className="admin-row__meta">Code {place.code}</span>
-                    <span className="admin-row__id">{place.active ? 'Accepting visits' : 'Not accepting visits'}</span>
+                    <span className="admin-row__meta">
+                      <span className="place-code">{place.code}</span>
+                      <span className={`place-status${place.active ? ' is-open' : ''}`}>
+                        {place.active ? 'Accepting visits' : 'Not accepting visits'}
+                      </span>
+                    </span>
                   </span>
                   <svg className="admin-row__chevron" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="currentColor" d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />

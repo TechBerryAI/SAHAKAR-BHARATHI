@@ -117,7 +117,7 @@ export function AdminPlaceScreen() {
             <section className="print-sheet">
               <h2 className="print-sheet__name">{place.name}</h2>
               {qrUrl ? (
-                <img className="print-qr" src={qrUrl} width={280} height={280} alt="" />
+                <img className="print-qr" src={qrUrl} width={240} height={240} alt="" />
               ) : null}
               <p className="print-sheet__code">{place.code}</p>
               <p className="muted print-sheet__hint">Scan this QR, or enter the code under it.</p>

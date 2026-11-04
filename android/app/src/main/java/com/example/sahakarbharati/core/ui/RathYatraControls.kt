@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -48,6 +49,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.core.copy.AppLanguage
@@ -239,8 +242,13 @@ fun LanguageChips(
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (onDarkBackground) Color.White.copy(alpha = 0.12f) else Color.Transparent)
                 .clickable(role = Role.Button) { expanded = true }
-                .padding(horizontal = 4.dp, vertical = 8.dp)
+                .padding(
+                    horizontal = if (onDarkBackground) 10.dp else 4.dp,
+                    vertical = if (onDarkBackground) 6.dp else 8.dp,
+                )
                 .semantics { contentDescription = "Language ${language.englishName}" },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -356,6 +364,28 @@ fun LanguageChips(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun InitialAvatar(
+    initials: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    fontSize: TextUnit = 16.sp,
+) {
+    Box(
+        modifier
+            .size(size)
+            .border(2.dp, RathYatraColors.Gold.copy(alpha = 0.75f), CircleShape)
+            .padding(2.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.linearGradient(listOf(Color(0xFF1D6248), Color(0xFF0E3328))),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(initials, color = Color.White, fontSize = fontSize, fontWeight = FontWeight.SemiBold)
     }
 }
 

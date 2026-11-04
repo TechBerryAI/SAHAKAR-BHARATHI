@@ -36,7 +36,10 @@ function visitTime(iso: string): string {
 function VisitCard({ visit, already }: { visit: AttendanceRecord; already: boolean }) {
   const place = regionLabel(visit.district, visit.state)
   return (
-    <Card title={already ? 'Already marked present' : 'You are marked present'}>
+    <Card
+      className={already ? 'card--note' : 'card--success'}
+      title={already ? 'Already marked present' : 'You are marked present'}
+    >
       <p className="card__body checkin-place">{visit.place_name}</p>
       <p className="muted">{visitTime(visit.checked_in_at)}</p>
       <p className="muted">Recorded from your profile</p>
@@ -205,7 +208,7 @@ export function CheckInScreen() {
           {cameraNote ? <p className="muted">{cameraNote}</p> : null}
         </Card>
         <form
-          className="stack"
+          className="card stack"
           onSubmit={(event) => {
             event.preventDefault()
             void submit(code, 'code')

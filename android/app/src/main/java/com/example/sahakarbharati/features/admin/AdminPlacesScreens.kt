@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +24,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,8 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.print.PrintHelper
 import com.example.sahakarbharati.core.copy.formatMobile
+import com.example.sahakarbharati.core.copy.personInitials
 import com.example.sahakarbharati.core.copy.regionLabel
 import com.example.sahakarbharati.core.ui.GhostNavyButton
+import com.example.sahakarbharati.core.ui.InitialAvatar
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.WhiteCard
@@ -57,6 +59,7 @@ import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.remote.PlaceDto
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
+import com.example.sahakarbharati.ui.theme.PillShape
 import com.example.sahakarbharati.ui.theme.RathYatraColors
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
@@ -76,7 +79,15 @@ internal fun AdminSectionSwitch(
     onPeople: () -> Unit,
     onBooths: () -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(999.dp))
+            .background(Color(0xB8FFFCF8))
+            .border(1.dp, RathYatraColors.GoldLine, RoundedCornerShape(999.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         SectionPill("People", selected = !places, onClick = onPeople, modifier = Modifier.weight(1f))
         SectionPill("Booths", selected = places, onClick = onBooths, modifier = Modifier.weight(1f))
     }
@@ -89,18 +100,18 @@ private fun SectionPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(999.dp)
-    Surface(
-        modifier = modifier.clip(shape).clickable(onClick = onClick),
-        color = if (selected) RathYatraColors.Saffron else Color.White,
-        shape = shape,
+    Box(
+        modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) Color(0xFF163A78) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-            textAlign = TextAlign.Center,
             fontWeight = FontWeight.SemiBold,
-            color = if (selected) Color.White else RathYatraColors.Navy,
+            color = if (selected) Color(0xFFFFF8EE) else RathYatraColors.OnSurfaceVariant,
         )
     }
 }
@@ -175,17 +186,30 @@ private fun PlaceRow(place: PlaceDto, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            InitialAvatar(personInitials(place.name), size = 40.dp, fontSize = 13.sp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(place.name, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Code ${place.code}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = RathYatraColors.OnSurfaceVariant,
-                )
-                Text(
-                    if (place.active) "Accepting visits" else "Not accepting visits",
-                    style = MaterialTheme.typography.labelMedium,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        place.code,
+                        modifier = Modifier
+                            .background(Color(0x14163A78), PillShape)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        color = Color(0xFF163A78),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                    )
+                    Text(
+                        if (place.active) "Accepting visits" else "Not accepting visits",
+                        color = if (place.active) RathYatraColors.DeepGreen else RathYatraColors.OnSurfaceVariant,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
             Icon(
                 Icons.AutoMirrored.Outlined.KeyboardArrowRight,

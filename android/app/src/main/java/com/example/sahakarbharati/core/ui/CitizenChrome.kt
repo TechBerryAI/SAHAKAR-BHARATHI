@@ -1,6 +1,7 @@
 package com.example.sahakarbharati.core.ui
 
 import android.app.Activity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Groups
@@ -33,12 +34,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.example.sahakarbharati.core.copy.RathYatraCopy
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -55,8 +58,9 @@ import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.ui.theme.RathYatraColors
 
-private val WebSaffron = Color(0xFFE9872A)
-private val WebSoftWhite = Color(0xFFFFF8F3)
+private val WebSoftWhite = RathYatraColors.SoftWhite
+private val NavMuted = Color(0xFF6A6258)
+private val ActiveNavy = Color(0xFF163A78)
 
 @Composable
 fun ApplySystemBarIcons(lightIcons: Boolean) {
@@ -275,7 +279,6 @@ fun RathBottomBar(
     showAdmin: Boolean = false,
 ) {
     val copy = LocalCopy.current
-    val muted = Color(0xFF5C665F)
     val items = buildList {
         add(Triple(RathYatraDestinations.HOME, copy.tabHome, Icons.Filled.Home))
         add(Triple(RathYatraDestinations.PROFILE, copy.tabProfile, Icons.Filled.Person))
@@ -286,42 +289,63 @@ fun RathBottomBar(
     Column(
         modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color(0xFFD4CFC6)),
-        )
-        Row(Modifier.fillMaxWidth().height(64.dp)) {
-            items.forEach { (key, label, icon) ->
-                val selected = selectedKey == key ||
-                    (key == RathYatraDestinations.ADMIN && selectedKey in setOf(
-                        RathYatraDestinations.ADMIN_USER,
-                        RathYatraDestinations.ADMIN_PLACES,
-                        RathYatraDestinations.ADMIN_PLACE,
-                    ))
-                val tint = if (selected) RathYatraColors.Saffron else muted
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable { onSelect(key) }
-                        .semantics { contentDescription = label },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = label,
-                        color = tint,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                    )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            color = Color(0xF0FFFCF8),
+            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, RathYatraColors.Gold.copy(alpha = 0.32f)),
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
+            ) {
+                items.forEach { (key, label, icon) ->
+                    val selected = selectedKey == key ||
+                        (key == RathYatraDestinations.ADMIN && selectedKey in setOf(
+                            RathYatraDestinations.ADMIN_USER,
+                            RathYatraDestinations.ADMIN_PLACES,
+                            RathYatraDestinations.ADMIN_PLACE,
+                        ))
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable { onSelect(key) }
+                            .semantics { contentDescription = label },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Box(
+                            Modifier
+                                .size(width = 48.dp, height = 28.dp)
+                                .background(
+                                    if (selected) RathYatraColors.Saffron.copy(alpha = 0.2f) else Color.Transparent,
+                                    CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                icon,
+                                contentDescription = null,
+                                tint = if (selected) RathYatraColors.SaffronPressed else NavMuted,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                        Text(
+                            text = label,
+                            color = if (selected) ActiveNavy else NavMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
@@ -347,7 +371,7 @@ fun SignedInScaffold(
         topBar = {
             Column(
                 Modifier
-                    .background(WebSaffron)
+                    .background(Brush.verticalGradient(listOf(RathYatraColors.AppBarTop, RathYatraColors.AppBarBottom)))
                     .windowInsetsPadding(WindowInsets.statusBars),
             ) {
                 if (onBack != null) {
@@ -355,27 +379,26 @@ fun SignedInScaffold(
                         title = title,
                         onBack = onBack,
                         contentColor = Color.White,
-                        titleSize = 18.sp,
-                        titleWeight = FontWeight.Medium,
+                        titleSize = 20.sp,
+                        titleWeight = FontWeight.SemiBold,
                     )
                 } else {
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .height(56.dp)
-                            .padding(start = 4.dp, end = 8.dp),
+                            .padding(start = 6.dp, end = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                            SahakarEmblem(emblemSize = 26.dp)
+                            SahakarEmblem(emblemSize = 30.dp)
                         }
                         Text(
                             text = title,
                             modifier = Modifier.weight(1f),
-                            fontSize = 18.sp,
-                            letterSpacing = 0.15.sp,
+                            fontSize = 20.sp,
                             color = Color.White,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -384,6 +407,12 @@ fun SignedInScaffold(
                         }
                     }
                 }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(RathYatraColors.AppBarGold),
+                )
             }
         },
         bottomBar = {
