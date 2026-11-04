@@ -30,7 +30,9 @@ GRANT SELECT, INSERT, UPDATE ON TABLE
     public.sessions,
     public.audit_events,
     public.phone_verifications,
-    public.rate_limit_buckets
+    public.rate_limit_buckets,
+    public.places,
+    public.attendance
 TO sahakar_api;
 -- Undelivered OTP challenges are discarded, and stale throttle buckets pruned.
 GRANT DELETE ON TABLE public.phone_verifications, public.rate_limit_buckets TO sahakar_api;
@@ -42,7 +44,8 @@ DECLARE
     table_name text;
 BEGIN
     FOREACH table_name IN ARRAY ARRAY[
-        'users', 'registrations', 'sessions', 'audit_events', 'phone_verifications', 'rate_limit_buckets'
+        'users', 'registrations', 'sessions', 'audit_events', 'phone_verifications', 'rate_limit_buckets',
+        'places', 'attendance'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS sahakar_api_access ON public.%I', table_name);

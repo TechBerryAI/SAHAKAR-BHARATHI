@@ -106,6 +106,64 @@ data class AdminUserListDto(
     val offset: Int,
 )
 
+data class CheckInRequest(
+    val code: String,
+    val source: String,
+)
+
+data class AttendanceRecordDto(
+    val id: String,
+    @SerializedName("place_id") val placeId: String,
+    @SerializedName("place_name") val placeName: String,
+    @SerializedName("checked_in_at") val checkedInAt: String,
+    @SerializedName("attendance_date") val attendanceDate: String,
+    val source: String,
+    @SerializedName("already_recorded") val alreadyRecorded: Boolean = false,
+    @SerializedName("login_id") val loginId: String,
+    @SerializedName("full_name") val fullName: String,
+    val mobile: String,
+    val email: String?,
+    val gender: String?,
+    val occupation: String?,
+    @SerializedName("address_line") val addressLine: String?,
+    val locality: String?,
+    val district: String?,
+    val state: String?,
+    val pincode: String?,
+)
+
+data class AttendanceListDto(
+    val items: List<AttendanceRecordDto>,
+    val total: Int,
+)
+
+data class PlaceDto(
+    val id: String,
+    val name: String,
+    val code: String,
+    val active: Boolean,
+    @SerializedName("created_at") val createdAt: String,
+)
+
+data class PlaceListDto(
+    val items: List<PlaceDto>,
+)
+
+data class PlaceCreateRequest(
+    val name: String,
+)
+
+data class PlaceActiveRequest(
+    val active: Boolean,
+)
+
+data class AdminAttendanceListDto(
+    val items: List<AttendanceRecordDto>,
+    val total: Int,
+    val limit: Int,
+    val offset: Int,
+)
+
 data class AdminUserDetailDto(
     val id: String,
     @SerializedName("created_at") val createdAt: String? = null,

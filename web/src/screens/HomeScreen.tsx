@@ -79,11 +79,25 @@ export function HomeScreen() {
                 </div>
               ) : null}
             </Card>
+            <Card title="Scan booth QR">
+              <p className="card__body">Scan the booth QR, or enter the 6-digit code printed under it.</p>
+              <Link className="btn btn--primary admin-home-link" to="/check-in">
+                Scan booth QR
+              </Link>
+            </Card>
             {isStaffRole(profile?.role) ? (
               <Card kicker="Admin" title="Registered users">
                 <p className="card__body">Open the directory to read registration details.</p>
                 <Link className="btn btn--primary admin-home-link" to="/admin">
                   View users
+                </Link>
+              </Card>
+            ) : null}
+            {isStaffRole(profile?.role) ? (
+              <Card kicker="Admin" title="Booths">
+                <p className="card__body">Create a booth, print its QR, and see who checked in.</p>
+                <Link className="btn btn--primary admin-home-link" to="/admin/places">
+                  Booths
                 </Link>
               </Card>
             ) : null}

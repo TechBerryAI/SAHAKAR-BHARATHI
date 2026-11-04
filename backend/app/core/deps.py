@@ -13,8 +13,10 @@ from app.db.session import get_db
 from app.models.session import AuthSession
 from app.models.user import User
 from app.services.admin import AdminService
+from app.services.attendance import AttendanceService
 from app.services.auth import AuthService
 from app.services.phone_verification import PhoneVerificationService
+from app.services.places import PlaceService
 from app.services.profile import ProfileService
 from app.services.registration import RegistrationService
 from app.services.sms import SmsGateway, TextbeeGateway
@@ -83,6 +85,14 @@ def get_profile_service(db: Session = Depends(get_db)) -> ProfileService:
 
 def get_admin_service(db: Session = Depends(get_db)) -> AdminService:
     return AdminService(db)
+
+
+def get_place_service(db: Session = Depends(get_db)) -> PlaceService:
+    return PlaceService(db)
+
+
+def get_attendance_service(db: Session = Depends(get_db)) -> AttendanceService:
+    return AttendanceService(db)
 
 
 def get_current_user(

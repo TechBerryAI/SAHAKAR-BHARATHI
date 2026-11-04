@@ -89,7 +89,8 @@ def clean_tables(request: pytest.FixtureRequest) -> Iterator[None]:
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE audit_events, sessions, registrations, users, phone_verifications, rate_limit_buckets "
+                "TRUNCATE attendance, places, audit_events, sessions, registrations, users, "
+                "phone_verifications, rate_limit_buckets "
                 "RESTART IDENTITY CASCADE"
             )
         )

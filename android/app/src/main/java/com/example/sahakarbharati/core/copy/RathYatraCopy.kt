@@ -326,6 +326,14 @@ class RathYatraCopy {
     lateinit var pinLabel: String
     lateinit var submitPin: String
     lateinit var pinNote: String
+    lateinit var markedHere: String
+    lateinit var alreadyHere: String
+    lateinit var recordedDetails: String
+    lateinit var allowCamera: String
+    lateinit var cameraOff: String
+    lateinit var scanQr: String
+    lateinit var scanMiss: String
+    lateinit var noVisitsYet: String
     lateinit var comingSoon: String
     lateinit var comingSoonBody: String
     lateinit var serverWaking: String
@@ -620,6 +628,14 @@ class RathYatraCopy {
             copy.pinLabel = pinLabel
             copy.submitPin = submitPin
             copy.pinNote = pinNote
+            copy.markedHere = markedHere
+            copy.alreadyHere = alreadyHere
+            copy.recordedDetails = recordedDetails
+            copy.allowCamera = allowCamera
+            copy.cameraOff = cameraOff
+            copy.scanQr = scanQr
+            copy.scanMiss = scanMiss
+            copy.noVisitsYet = noVisitsYet
             copy.comingSoon = comingSoon
             copy.comingSoonBody = comingSoonBody
             copy.serverWaking = serverWaking
@@ -642,7 +658,7 @@ class RathYatraCopy {
 
 private val English: RathYatraCopy = RathYatraCopy().apply {
     portalChip = "GOVERNMENT OF INDIA"
-    honourLine = "HONOURING INDIA'S FOOD HEROES"
+    honourLine = "Honouring India's food heroes"
     title = "Sahakar Bharati"
     subtitle = "Farmers & Fishermen Celebration"
     tagline = "A nationwide tribute to the extraordinary work of India's farmers and fishermen."
@@ -889,34 +905,42 @@ private val English: RathYatraCopy = RathYatraCopy().apply {
     photoCaption = "Celebration gathering • National route"
     gpsNote = "Live GPS tracking is not connected."
     attendanceTitle = "Event Check-in"
-    scannerActive = "Scanner unavailable"
-    scanTab = "Scan Counter QR"
+    scannerActive = "Point at the booth QR"
+    scanTab = "Scan booth QR"
     passTab = "Show My Pass"
-    counterChip = "QR check-in is not connected"
-    reticleHint = "A live camera scanner is not available in this release."
+    counterChip = "One visit per booth each day"
+    reticleHint = "Hold the booth QR inside the frame."
     pilgrimName = "Participant"
     pilgrimReg = "Participant ID unavailable"
     verified = "Registered"
-    passHint = "A live QR pass is not issued until attendance is connected."
+    passHint = "Your profile is sent with the visit."
     lastRegistered = "No check-in records"
-    recorded = "Unavailable"
-    lastPlace = "Attendance history is not connected."
+    recorded = "Recorded"
+    lastPlace = "Visits you record appear here."
     lastChip = "Unavailable"
     historyTitle = "Check-in history"
     historyCount = "0 records"
     hist1 = "No attendance records"
-    hist1Sub = "QR attendance is not operational."
+    hist1Sub = "Scan a booth QR to mark that you were there."
     hist2 = "No attendance records"
-    hist2Sub = "QR attendance is not operational."
+    hist2Sub = "Scan a booth QR to mark that you were there."
     scanHelp = "Trouble scanning?"
     scanHelpBody = "If sunlight or network delays the scan, enter the 6-digit counter code from the placard."
     enterPin = "Enter 6-digit PIN"
     report = "Report"
-    pinTitle = "Manual check-in"
-    pinBody = "Enter the 6-digit number printed under the counter QR."
-    pinLabel = "6-digit PIN"
-    submitPin = "Submit PIN"
-    pinNote = "PIN entry records your presence at this counter."
+    pinTitle = "Booth code"
+    pinBody = "Enter the 6-digit number printed under the booth QR."
+    pinLabel = "6-digit code"
+    submitPin = "Mark attendance"
+    pinNote = "This sends your profile and marks that you were here."
+    markedHere = "You are marked present"
+    alreadyHere = "Already marked present today"
+    recordedDetails = "Recorded as"
+    allowCamera = "Allow camera"
+    cameraOff = "Camera is off. You can still enter the booth code."
+    scanQr = "Scan QR"
+    scanMiss = "No booth QR in the frame. Move closer and tap Scan QR."
+    noVisitsYet = "No visits yet"
     comingSoon = "Opening soon"
     comingSoonBody = "This section will be available in a later update."
     serverWaking = "The server is starting up. This can take up to a minute, please wait…"
@@ -1183,34 +1207,42 @@ private val Hindi: RathYatraCopy = English.cloneCopy().apply {
     photoCaption = "उत्सव सभा • राष्ट्रीय मार्ग"
     gpsNote = "लाइव GPS ट्रैकिंग जुड़ी नहीं है।"
     attendanceTitle = "कार्यक्रम चेक-इन"
-    scannerActive = "स्कैनर अनुपलब्ध"
-    scanTab = "काउंटर QR स्कैन करें"
+    scannerActive = "बूथ QR की ओर कैमरा रखें"
+    scanTab = "बूथ QR स्कैन करें"
     passTab = "मेरा पास दिखाएँ"
-    counterChip = "QR चेक-इन जुड़ा नहीं है"
-    reticleHint = "इस संस्करण में लाइव कैमरा स्कैनर उपलब्ध नहीं है।"
+    counterChip = "हर बूथ पर दिन में एक उपस्थिति"
+    reticleHint = "बूथ QR को फ्रेम के अंदर रखें।"
     pilgrimName = "प्रतिभागी"
     pilgrimReg = "प्रतिभागी आईडी अनुपलब्ध"
     verified = "पंजीकृत"
-    passHint = "उपस्थिति जुड़ने तक लाइव QR पास जारी नहीं होता।"
+    passHint = "आपकी प्रोफ़ाइल इस उपस्थिति के साथ भेजी जाती है।"
     lastRegistered = "कोई चेक-इन रिकॉर्ड नहीं"
-    recorded = "अनुपलब्ध"
-    lastPlace = "उपस्थिति इतिहास जुड़ा नहीं है।"
+    recorded = "दर्ज"
+    lastPlace = "आपकी उपस्थिति यहाँ दिखेगी।"
     lastChip = "अनुपलब्ध"
     historyTitle = "चेक-इन इतिहास"
     historyCount = "0 रिकॉर्ड"
     hist1 = "कोई उपस्थिति रिकॉर्ड नहीं"
-    hist1Sub = "QR उपस्थिति चालू नहीं है।"
+    hist1Sub = "उपस्थिति दर्ज करने के लिए बूथ QR स्कैन करें।"
     hist2 = "कोई उपस्थिति रिकॉर्ड नहीं"
-    hist2Sub = "QR उपस्थिति चालू नहीं है।"
+    hist2Sub = "उपस्थिति दर्ज करने के लिए बूथ QR स्कैन करें।"
     scanHelp = "स्कैन में समस्या?"
     scanHelpBody = "धूप या नेटवर्क से स्कैन रुकने पर तख्ती पर लिखा 6 अंकों का कोड दर्ज करें।"
     enterPin = "6 अंकों का पिन दर्ज करें"
     report = "रिपोर्ट"
-    pinTitle = "मैन्युअल चेक-इन"
-    pinBody = "काउंटर QR के नीचे छपा 6 अंकों का नंबर दर्ज करें।"
-    pinLabel = "6 अंकों का पिन"
-    submitPin = "पिन जमा करें"
-    pinNote = "पिन प्रविष्टि इस काउंटर पर आपकी उपस्थिति दर्ज करती है।"
+    pinTitle = "बूथ कोड"
+    pinBody = "बूथ QR के नीचे छपा 6 अंकों का नंबर दर्ज करें।"
+    pinLabel = "6 अंकों का कोड"
+    submitPin = "उपस्थिति दर्ज करें"
+    pinNote = "इससे आपकी प्रोफ़ाइल भेजी जाती है और उपस्थिति दर्ज होती है।"
+    markedHere = "आपकी उपस्थिति दर्ज हो गई"
+    alreadyHere = "आज की उपस्थिति पहले से दर्ज है"
+    recordedDetails = "इस नाम से दर्ज"
+    allowCamera = "कैमरा अनुमति दें"
+    cameraOff = "कैमरा बंद है। बूथ कोड फिर भी दर्ज कर सकते हैं।"
+    scanQr = "QR स्कैन करें"
+    scanMiss = "फ्रेम में बूथ QR नहीं है। पास जाकर QR स्कैन करें दबाएँ।"
+    noVisitsYet = "अभी कोई उपस्थिति नहीं"
     comingSoon = "जल्द उपलब्ध"
     comingSoonBody = "यह खंड अगले अद्यतन में उपलब्ध होगा।"
     serverWaking = "सर्वर शुरू हो रहा है। इसमें एक मिनट तक लग सकता है, कृपया प्रतीक्षा करें…"

@@ -5,8 +5,11 @@ import { Button, Card, Screen } from './components/ui.tsx'
 import { useLanguage } from './contexts/language.tsx'
 import { useSession } from './hooks/useSession.ts'
 import { isStaffRole, logout, restoreSession } from './lib/api.ts'
+import { AdminPlaceScreen } from './screens/AdminPlaceScreen.tsx'
+import { AdminPlacesScreen } from './screens/AdminPlacesScreen.tsx'
 import { AdminUserScreen } from './screens/AdminUserScreen.tsx'
 import { AdminUsersScreen } from './screens/AdminUsersScreen.tsx'
+import { CheckInScreen } from './screens/CheckInScreen.tsx'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { ProfileScreen } from './screens/ProfileScreen.tsx'
 import { RegisterScreen } from './screens/RegisterScreen.tsx'
@@ -98,6 +101,14 @@ function AppRoutes() {
         />
         <Route path="/" element={<HomeOrStart />} />
         <Route
+          path="/check-in"
+          element={
+            <ProtectedRoute>
+              <CheckInScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/profile"
           element={
             <ProtectedRoute>
@@ -121,6 +132,22 @@ function AppRoutes() {
             </AdminRoute>
           }
         />
+        <Route
+          path="/admin/places"
+          element={
+            <AdminRoute>
+              <AdminPlacesScreen />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/places/:placeId"
+          element={
+            <AdminRoute>
+              <AdminPlaceScreen />
+            </AdminRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
@@ -132,7 +159,10 @@ export default function App() {
   const { uid } = useSession()
   const showNav =
     Boolean(uid) &&
-    (location.pathname === '/' || location.pathname === '/profile' || location.pathname.startsWith('/admin'))
+    (location.pathname === '/' ||
+      location.pathname === '/profile' ||
+      location.pathname === '/check-in' ||
+      location.pathname.startsWith('/admin'))
 
   return (
     <AppShell showNav={showNav}>

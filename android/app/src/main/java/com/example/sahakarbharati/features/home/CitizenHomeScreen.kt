@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +49,8 @@ import com.example.sahakarbharati.ui.theme.RathYatraColors
 @Composable
 fun CitizenHomeScreen(
     onOpenAdmin: () -> Unit,
+    onOpenBooths: () -> Unit,
+    onOpenAttendance: () -> Unit,
     onSelectTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -124,6 +129,14 @@ fun CitizenHomeScreen(
                         }
                     }
                 }
+                WhiteCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, tint = RathYatraColors.Saffron)
+                        Text(copy.scanTab, color = Color(0xFF1A1C19), fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                        Text(copy.pinNote, fontSize = 14.sp, color = Color(0xFF5C665F))
+                        SaffronButton(text = copy.scanTab, onClick = onOpenAttendance)
+                    }
+                }
                 if (staff) {
                     WhiteCard {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -141,6 +154,24 @@ fun CitizenHomeScreen(
                                 color = Color(0xFF5C665F),
                             )
                             SaffronButton(text = "View users", onClick = onOpenAdmin)
+                        }
+                    }
+                    WhiteCard {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                "ADMIN",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.4.sp,
+                                color = Color(0xFF1B5A44),
+                            )
+                            Text("Booths", color = Color(0xFF1A1C19), fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                "Create a booth, print its QR, and see who checked in.",
+                                fontSize = 14.sp,
+                                color = Color(0xFF5C665F),
+                            )
+                            SaffronButton(text = "Booths", onClick = onOpenBooths)
                         }
                     }
                 }

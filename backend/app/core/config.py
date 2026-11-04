@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     session_ttl_seconds: int = 7 * 24 * 60 * 60
     login_rate_limit: int = 5
     login_rate_window_seconds: int = 15 * 60
+    attendance_code_rate_limit: int = 10
+    attendance_code_rate_window_seconds: int = 10 * 60
     register_rate_limit: int = 10
     register_rate_window_seconds: int = 60 * 60
     login_lockout_failures: int = 5
