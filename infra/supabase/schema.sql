@@ -1,5 +1,5 @@
 -- Sahakar Bharati participant schema for Supabase (PostgreSQL).
--- Matches Alembic head 20261026_0007 (verification_challenges is not created).
+-- Matches Alembic head 20261103_0008 (verification_challenges is not created).
 -- backend/tests/test_database_schema.py fails if this file drifts from the models.
 --
 -- USE ONLY ON AN EMPTY DATABASE. The preferred path is `alembic upgrade head`
@@ -7,7 +7,7 @@
 -- Editor when Alembic cannot reach the database. Apply it with:
 --   psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/supabase/schema.sql
 --
--- It records Alembic revision 20261026_0007, so `alembic upgrade head` works
+-- It records Alembic revision 20261103_0008, so `alembic upgrade head` works
 -- afterwards. If alembic_version already has a row the script stops with an
 -- error instead of creating a second version row.
 --
@@ -128,6 +128,53 @@ COMMENT ON COLUMN public.users.pin_hash IS 'Argon2id hash. Never store a raw PIN
 COMMENT ON COLUMN public.sessions.token_hash IS 'SHA-256 of the bearer token. The raw token is returned once.';
 COMMENT ON TABLE public.rate_limit_buckets IS 'Shared fixed-window throttle counters (RATE_LIMIT_BACKEND=postgres). Keys are SHA-256 hashed.';
 
+CREATE TABLE IF NOT EXISTS public.places (
+    id uuid PRIMARY KEY,
+    name varchar(120) NOT NULL,
+    code varchar(6) NOT NULL,
+    active boolean NOT NULL DEFAULT true,
+    created_by uuid,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT places_code_key UNIQUE (code),
+    CONSTRAINT ck_places_code CHECK (code ~ '^[0-9]{6}$'),
+    CONSTRAINT places_created_by_fkey
+        FOREIGN KEY (created_by) REFERENCES public.users (id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_places_created_by ON public.places (created_by);
+
+CREATE TABLE IF NOT EXISTS public.attendance (
+    id uuid PRIMARY KEY,
+    user_id uuid NOT NULL,
+    place_id uuid NOT NULL,
+    checked_in_at timestamptz NOT NULL,
+    attendance_date date NOT NULL,
+    source varchar(8) NOT NULL,
+    login_id varchar(32) NOT NULL,
+    full_name varchar(120) NOT NULL,
+    mobile varchar(10) NOT NULL,
+    email varchar(254),
+    gender varchar(16),
+    occupation varchar(32),
+    address_line varchar(255),
+    locality varchar(120),
+    district varchar(120),
+    state varchar(120),
+    pincode varchar(6),
+    CONSTRAINT ck_attendance_source CHECK (source IN ('qr', 'code')),
+    CONSTRAINT attendance_user_id_fkey
+        FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE,
+    CONSTRAINT attendance_place_id_fkey
+        FOREIGN KEY (place_id) REFERENCES public.places (id),
+    CONSTRAINT uq_attendance_user_place_day UNIQUE (user_id, place_id, attendance_date)
+);
+
+CREATE INDEX IF NOT EXISTS ix_attendance_user_id ON public.attendance (user_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_place_id ON public.attendance (place_id);
+
+COMMENT ON TABLE public.places IS 'Booths and other places. The QR encodes SB-PLACE: plus the 6-digit code.';
+COMMENT ON TABLE public.attendance IS 'Check-ins. Profile columns are a snapshot from the moment of the visit.';
+
 CREATE TABLE IF NOT EXISTS public.alembic_version (
     version_num varchar(32) NOT NULL,
     CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
@@ -139,6 +186,8 @@ ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.phone_verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rate_limit_buckets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.places ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alembic_version ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.users FROM anon, authenticated;
@@ -147,6 +196,8 @@ REVOKE ALL ON TABLE public.sessions FROM anon, authenticated;
 REVOKE ALL ON TABLE public.audit_events FROM anon, authenticated;
 REVOKE ALL ON TABLE public.phone_verifications FROM anon, authenticated;
 REVOKE ALL ON TABLE public.rate_limit_buckets FROM anon, authenticated;
+REVOKE ALL ON TABLE public.places FROM anon, authenticated;
+REVOKE ALL ON TABLE public.attendance FROM anon, authenticated;
 REVOKE ALL ON TABLE public.alembic_version FROM anon, authenticated;
 
 DO $$
@@ -154,6 +205,6 @@ BEGIN
     IF EXISTS (SELECT 1 FROM public.alembic_version) THEN
         RAISE EXCEPTION 'alembic_version is not empty: run alembic upgrade head instead of schema.sql';
     END IF;
-    INSERT INTO public.alembic_version (version_num) VALUES ('20261026_0007');
+    INSERT INTO public.alembic_version (version_num) VALUES ('20261103_0008');
 END
 $$;

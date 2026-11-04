@@ -28,7 +28,7 @@ function ServerWakingBanner() {
 export function AppShell({ children, showNav = false }: AppShellProps) {
   return (
     <div className="app-canvas">
-      <div className="app-frame" data-app-frame>
+      <div className={`app-frame${showNav ? ' app-frame--app' : ''}`} data-app-frame>
         <ServerWakingBanner />
         <div className="app-body">{children}</div>
         {showNav ? <BottomNav /> : null}

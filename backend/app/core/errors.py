@@ -55,6 +55,16 @@ class NotFoundError(AppError):
         super().__init__(status.HTTP_404_NOT_FOUND, detail)
 
 
+class UnknownPlaceError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_404_NOT_FOUND, "That booth was not found.")
+
+
+class InactivePlaceError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_400_BAD_REQUEST, "This booth is not accepting check-ins.")
+
+
 class UnauthorizedError(AppError):
     def __init__(self, detail: str = "Authentication required.") -> None:
         super().__init__(

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { AdminSections } from '../components/AdminSections.tsx'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, ErrorBanner, Screen } from '../components/ui.tsx'
 import { useLanguage } from '../contexts/language.tsx'
@@ -78,6 +79,7 @@ export function AdminUsersScreen() {
     <>
       <AppBar title="Registered users" showEmblem />
       <Screen withNav>
+        <AdminSections />
         <form className="admin-search" onSubmit={onSearch}>
           <label className="admin-search__field" htmlFor="admin-search">
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">

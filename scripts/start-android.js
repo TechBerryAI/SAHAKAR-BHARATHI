@@ -21,7 +21,7 @@
 //                   older build signed with a different debug key is installed.
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, openSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -260,6 +260,104 @@ async function waitForBoot(sdk, serial, seconds) {
   fail(`The emulator did not finish starting within ${seconds} seconds.`)
 }
 
+// The emulator's own message (disk full, bad snapshot, missing hypervisor) is the
+// reason it never shows up in `adb devices`. The log is written by launchEmulator.
+const EMULATOR_LOG = IS_WSL
+  ? '/mnt/c/Users/Admin/AppData/Local/Temp/sahakar-emulator.log'
+  : path.join(os.tmpdir(), 'sahakar-emulator.log')
+
+function emulatorFatal(logFile) {
+  if (!existsSync(logFile)) return undefined
+  const line = readFileSync(logFile, 'utf8')
+    .split(/\r?\n/)
+    .findLast((entry) => /FATAL\s*\|/.test(entry))
+  return line?.replace(/^\s*FATAL\s*\|\s*/, '').trim()
+}
+
+function windowsEmulatorRunning() {
+  const result = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-Command', '@(Get-Process qemu-system-x86_64,emulator -ErrorAction SilentlyContinue).Count'],
+    { encoding: 'utf8' },
+  )
+  return Number((result.stdout || '').trim()) > 0
+}
+
+function launchEmulator(emulator, avd) {
+  const args = ['-avd', avd, '-no-snapshot-save', '-no-boot-anim', '-gpu', 'host']
+  writeFileSync(EMULATOR_LOG, '')
+  if ((IS_WSL || IS_WINDOWS) && emulator.endsWith('.exe')) {
+    // `start` detaches the Windows process. A direct spawn from WSL is stopped
+    // when this script exits, and its console output would otherwise be discarded.
+    const bat = IS_WSL ? '/mnt/c/Users/Admin/AppData/Local/Temp/sahakar-emulator.bat' : path.join(os.tmpdir(), 'sahakar-emulator.bat')
+    const emuWin = toWindowsPath(emulator)
+    const logWin = toWindowsPath(EMULATOR_LOG)
+    writeFileSync(bat, `@echo off\r\n"${emuWin}" ${args.join(' ')} > "${logWin}" 2>&1\r\n`)
+    const batWin = toWindowsPath(bat)
+    spawnSync(
+      'powershell.exe',
+      ['-NoProfile', '-Command', `Start-Process -FilePath '${batWin.replace(/'/g, "''")}' -WindowStyle Minimized`],
+      { encoding: 'utf8' },
+    )
+    return
+  }
+  const fd = openSync(EMULATOR_LOG, 'w')
+  const child = spawn(emulator, args, { detached: true, stdio: ['ignore', fd, fd] })
+  child.unref()
+}
+
+async function waitForEmulator(sdk) {
+  const deadline = Date.now() + 180_000
+  let restartedAdb = false
+  let sawProcess = false
+  while (Date.now() < deadline) {
+    const devices = connectedDevices(sdk)
+    if (devices.length > 0) return devices[0]
+    const fatal = emulatorFatal(EMULATOR_LOG)
+    const running = IS_WINDOWS || IS_WSL ? windowsEmulatorRunning() : true
+    if (running) sawProcess = true
+    if (fatal && !running) {
+      fail(`The emulator stopped: ${fatal}\n  Log: ${EMULATOR_LOG}`)
+    }
+    // A Windows emulator started from WSL often never appears until adb is restarted.
+    if (running && !restartedAdb) {
+      adb(sdk, undefined, ['kill-server'])
+      adb(sdk, undefined, ['start-server'])
+      restartedAdb = true
+    }
+    await sleep(1000)
+  }
+  const fatal = emulatorFatal(EMULATOR_LOG)
+  if (fatal) fail(`The emulator stopped: ${fatal}\n  Log: ${EMULATOR_LOG}`)
+  if (!sawProcess) {
+    fail(`The emulator did not start. See ${EMULATOR_LOG}`)
+  }
+  fail('The emulator did not appear in `adb devices` within 3 minutes.')
+}
+
+// The emulator home screen often freezes on first boot ("Pixel Launcher isn't responding")
+// while the app is still building. That dialog is the launcher, not this app. Close it
+// and leave our activity in front.
+function dismissFrozenDialogs(sdk, serial) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const dumped = adb(
+      sdk,
+      serial,
+      ['shell', 'uiautomator dump /sdcard/window.xml >/dev/null 2>&1; cat /sdcard/window.xml'],
+      { timeout: 20000 },
+    )
+    const xml = `${dumped.stdout || ''}`
+    if (!/isn.?t responding/i.test(xml)) return
+    const node = xml.split('<node').find((part) => part.includes('Close app'))
+    const bounds = node && node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/)
+    if (!bounds) return
+    const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2)
+    const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2)
+    log('The emulator home screen stopped responding. Closing that dialog…')
+    adb(sdk, serial, ['shell', 'input', 'tap', String(x), String(y)])
+  }
+}
+
 async function pickDevice(sdk) {
   const wanted = option('--device')
   let devices = connectedDevices(sdk)
@@ -288,16 +386,18 @@ async function pickDevice(sdk) {
   if (!avds.includes(avd)) fail(`Emulator "${avd}" not found. Available: ${avds.join(', ')}`)
 
   log(`Starting the "${avd}" emulator (the first start can take a minute)…`)
-  // Detached, so the emulator keeps running after this script finishes.
-  spawn(emulator, ['-avd', avd, '-no-snapshot-save'], { detached: true, stdio: 'ignore' }).unref()
-  for (let i = 0; i < 120 && devices.length === 0; i++) {
-    await sleep(1000)
-    devices = connectedDevices(sdk)
-  }
-  if (devices.length === 0) fail('The emulator did not appear in `adb devices` within 2 minutes.')
-  await waitForBoot(sdk, devices[0], 180)
-  log(`Emulator ${devices[0]} is ready.`)
-  return devices[0]
+  // -no-boot-anim avoids the extra launcher work that triggers "isn't responding" on first boot.
+  // "auto" sees Intel Vulkan 1.3.215 (needs 1.3.240) and switches to software rendering.
+  // That path is missing opengl32sw.dll, so Pixel Launcher freezes. Host GPU uses the
+  // installed Intel driver instead.
+  launchEmulator(emulator, avd)
+  const serial = await waitForEmulator(sdk)
+  await waitForBoot(sdk, serial, 180)
+  // Boot can report "complete" while Pixel Launcher is still frozen behind a dialog.
+  await sleep(2000)
+  dismissFrozenDialogs(sdk, serial)
+  log(`Emulator ${serial} is ready.`)
+  return serial
 }
 
 // --- API ---------------------------------------------------------------------------
@@ -322,7 +422,9 @@ async function chooseApi(sdk, serial) {
         '  run `node scripts/start.js` in another terminal (or rerun this with --prod).',
     )
   }
-  // The device's own 127.0.0.1:8000 is forwarded to this computer, for emulators and USB phones alike.
+  // The device reaches this computer through adb reverse. The emulator's 10.0.2.2
+  // address does not reach an API that is running inside WSL, so both emulators and
+  // phones use 127.0.0.1 on the device plus this forward.
   if (adb(sdk, serial, ['reverse', `tcp:${API_PORT}`, `tcp:${API_PORT}`]).status !== 0) {
     fail('Could not forward port 8000 to the device (adb reverse failed).')
   }
@@ -415,8 +517,12 @@ const code = await gradle(javaHome, sdk, [':app:assembleDebug', `-Psahakar.debug
 if (code !== 0 || !existsSync(APK)) fail('The Android build failed. See the output above.')
 
 install(sdk, serial)
+dismissFrozenDialogs(sdk, serial)
 adb(sdk, serial, ['shell', 'am', 'force-stop', PACKAGE])
 if (adb(sdk, serial, ['shell', 'am', 'start', '-n', ACTIVITY]).status !== 0) fail('Could not open the app.')
+await sleep(1500)
+dismissFrozenDialogs(sdk, serial)
+adb(sdk, serial, ['shell', 'am', 'start', '-n', ACTIVITY])
 
 console.log(`
 \x1b[32m  Sahakar Bharati is open on ${serial}\x1b[0m

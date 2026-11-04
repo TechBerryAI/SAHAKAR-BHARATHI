@@ -24,7 +24,7 @@ export function AppBar({ title, onBack, showEmblem = false, trailing }: AppBarPr
             </svg>
           </button>
         ) : showEmblem ? (
-          <Emblem size={26} />
+          <Emblem size={30} />
         ) : null}
       </div>
       <h1 className="app-bar__title">{title}</h1>

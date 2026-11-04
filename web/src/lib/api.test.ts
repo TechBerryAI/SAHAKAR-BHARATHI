@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
   apiErrorText,
+  checkIn,
   getMe,
   logout,
+  myAttendance,
   registerAndSignIn,
   RegisteredButSignInFailedError,
   restoreSession,
@@ -190,6 +192,41 @@ describe('registration and profile', () => {
     await getMe({ fresh: true })
     await expect(updateMe({ pincode: '12' })).rejects.toMatchObject({ status: 422 })
     expect(getSnapshot().profile?.full_name).toBe('Anita Desai')
+  })
+
+  it('sends the booth code without a profile, and reads this person’s visits', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const visit = {
+      id: 'visit-1',
+      place_id: 'place-1',
+      place_name: 'Pune stall',
+      checked_in_at: '2026-11-03T10:13:00Z',
+      attendance_date: '2026-11-03',
+      source: 'code',
+      already_recorded: false,
+      login_id: 'SB-1234ABCD',
+      full_name: 'Anita Desai',
+      mobile: '9876543210',
+      email: null,
+      gender: null,
+      occupation: null,
+      address_line: null,
+      locality: null,
+      district: 'Nashik',
+      state: 'Maharashtra',
+      pincode: null,
+    }
+    const calls = scriptServer({ status: 200, body: visit }, { status: 200, body: { items: [visit], total: 1 } })
+    const recorded = await checkIn('004218', 'code')
+    const history = await myAttendance()
+    expect(recorded.place_name).toBe('Pune stall')
+    expect(history.total).toBe(1)
+    expect(calls[0].url).toBe(`${API}/api/v1/attendance`)
+    expect(calls[0].init.method).toBe('POST')
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ code: '004218', source: 'code' })
+    expect(JSON.parse(String(calls[0].init.body))).not.toHaveProperty('full_name')
+    expect(calls[1].url).toBe(`${API}/api/v1/attendance`)
+    expect(calls[1].init.method).toBe('GET')
   })
 
   it('a network failure is reported as such', () => {

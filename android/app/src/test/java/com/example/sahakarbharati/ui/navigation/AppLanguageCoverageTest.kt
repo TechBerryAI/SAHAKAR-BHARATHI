@@ -15,7 +15,7 @@ class AppLanguageCoverageTest {
         assertEquals(AppLanguage.EN, AppLanguage.fromKey(""))
         assertEquals(AppLanguage.EN, AppLanguage.fromKey("hi-IN"))
         assertEquals(AppLanguage.EN, AppLanguage.fromKey("xx"))
-        assertEquals("Get Started", copyFor(AppLanguage.EN).getStarted)
+        assertEquals("Register Now", copyFor(AppLanguage.EN).getStarted)
     }
 
     @Test

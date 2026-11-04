@@ -10,7 +10,7 @@ import com.example.sahakarbharati.core.copy.copyFor
 class RathYatraNavigationTest {
 
     @Test
-    fun destinations_areUniqueAndIncludeEightStitchScreens() {
+    fun destinations_matchTheWebsite() {
         val ids = RathYatraDestinations.all
         assertEquals(ids.size, ids.toSet().size)
         assertTrue(ids.contains(RathYatraDestinations.SPLASH))
@@ -19,8 +19,16 @@ class RathYatraNavigationTest {
         assertTrue(ids.contains(RathYatraDestinations.REGISTRATION_FORM))
         assertTrue(ids.contains(RathYatraDestinations.REGISTRATION_SUCCESS))
         assertTrue(ids.contains(RathYatraDestinations.HOME))
-        assertTrue(ids.contains(RathYatraDestinations.TRACKING))
-        assertTrue(ids.contains(RathYatraDestinations.QR_ATTENDANCE))
+        assertTrue(ids.contains(RathYatraDestinations.PROFILE))
+        assertTrue(ids.contains(RathYatraDestinations.ADMIN))
+        assertTrue(ids.contains(RathYatraDestinations.ADMIN_USER))
+        assertTrue(ids.contains(RathYatraDestinations.ADMIN_PLACES))
+        assertTrue(ids.contains(RathYatraDestinations.ADMIN_PLACE))
+        assertTrue(ids.contains(RathYatraDestinations.ATTENDANCE))
+        assertFalse(ids.contains("tracking"))
+        assertFalse(ids.contains("qr_attendance"))
+        assertFalse(ids.contains("benefits"))
+        assertFalse(ids.contains("notifications"))
     }
 
     @Test

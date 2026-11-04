@@ -6,8 +6,12 @@ import com.example.sahakarbharati.data.remote.ColdStartRetryInterceptor
 import com.example.sahakarbharati.data.remote.SahakarApi
 import com.example.sahakarbharati.data.remote.SessionExpiryInterceptor
 import com.example.sahakarbharati.data.remote.SlowRequestTracker
+import com.example.sahakarbharati.data.repository.AdminRepository
+import com.example.sahakarbharati.data.repository.AttendanceRepository
 import com.example.sahakarbharati.data.repository.AuthRepository
 import com.example.sahakarbharati.data.repository.ProfileRepository
+import com.example.sahakarbharati.data.repository.RemoteAdminRepository
+import com.example.sahakarbharati.data.repository.RemoteAttendanceRepository
 import com.example.sahakarbharati.data.repository.RemoteAuthRepository
 import com.example.sahakarbharati.data.repository.RemoteProfileRepository
 import okhttp3.OkHttpClient
@@ -42,4 +46,6 @@ class AppContainer(context: Context) {
     val api: SahakarApi = retrofit.create(SahakarApi::class.java)
     val authRepository: AuthRepository = RemoteAuthRepository(api, session)
     val profileRepository: ProfileRepository = RemoteProfileRepository(api, session)
+    val adminRepository: AdminRepository = RemoteAdminRepository(api, session)
+    val attendanceRepository: AttendanceRepository = RemoteAttendanceRepository(api, session)
 }

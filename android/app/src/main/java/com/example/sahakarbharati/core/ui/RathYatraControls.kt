@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -48,7 +49,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
@@ -73,9 +77,9 @@ fun SaffronButton(
             .height(52.dp)
             .semantics { this.contentDescription = contentDescription },
         shape = PillShape,
-        color = RathYatraColors.SaffronBright,
-        contentColor = RathYatraColors.NavyDeep,
-        shadowElevation = 4.dp,
+        color = RathYatraColors.Saffron,
+        contentColor = Color.White,
+        shadowElevation = 0.dp,
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -86,7 +90,7 @@ fun SaffronButton(
                 text = text,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = RathYatraColors.NavyDeep,
+                color = Color.White,
             )
             if (trailingIcon != null) {
                 Spacer(Modifier.width(8.dp))
@@ -94,7 +98,7 @@ fun SaffronButton(
                     imageVector = trailingIcon,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = RathYatraColors.NavyDeep,
+                    tint = Color.White,
                 )
             }
         }
@@ -225,7 +229,7 @@ fun LanguageChips(
     val copy = LocalCopy.current
     var expanded by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    val content = if (onDarkBackground) RathYatraColors.GoldPale else RathYatraColors.NavyDeep
+    val content = if (onDarkBackground) Color(0xFFFFF8EE) else Color(0xFF163A78)
     val filtered = remember(query) {
         val needle = query.trim()
         languagePickerOrder.filter { option ->
@@ -238,8 +242,13 @@ fun LanguageChips(
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (onDarkBackground) Color.White.copy(alpha = 0.12f) else Color.Transparent)
                 .clickable(role = Role.Button) { expanded = true }
-                .padding(horizontal = 4.dp, vertical = 8.dp)
+                .padding(
+                    horizontal = if (onDarkBackground) 10.dp else 4.dp,
+                    vertical = if (onDarkBackground) 6.dp else 8.dp,
+                )
                 .semantics { contentDescription = "Language ${language.englishName}" },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -252,7 +261,7 @@ fun LanguageChips(
             )
             Text(
                 text = language.nativeName,
-                style = MaterialTheme.typography.labelSmall,
+                fontSize = 13.sp,
                 color = content,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -359,6 +368,28 @@ fun LanguageChips(
 }
 
 @Composable
+fun InitialAvatar(
+    initials: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    fontSize: TextUnit = 16.sp,
+) {
+    Box(
+        modifier
+            .size(size)
+            .border(2.dp, RathYatraColors.Gold.copy(alpha = 0.75f), CircleShape)
+            .padding(2.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.linearGradient(listOf(Color(0xFF1D6248), Color(0xFF0E3328))),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(initials, color = Color.White, fontSize = fontSize, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
 fun StatusChip(
     text: String,
     modifier: Modifier = Modifier,
@@ -450,7 +481,7 @@ fun WhiteCard(
         modifier = cardModifier,
         shape = shape,
         color = RathYatraColors.White,
-        shadowElevation = 2.dp,
+        shadowElevation = 1.dp,
         content = content,
     )
 }

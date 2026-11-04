@@ -7,6 +7,7 @@ import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface SahakarApi {
     @POST("api/v1/phone-verifications")
@@ -35,4 +36,62 @@ interface SahakarApi {
         @Header("Authorization") authorization: String,
         @Body body: ProfileUpdateRequest,
     ): ProfileResponseDto
+
+    @GET("api/v1/admin/users")
+    suspend fun listAdminUsers(
+        @Header("Authorization") authorization: String,
+        @Query("q") query: String?,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+    ): AdminUserListDto
+
+    @GET("api/v1/admin/users/{userId}")
+    suspend fun getAdminUser(
+        @Header("Authorization") authorization: String,
+        @Path("userId") userId: String,
+    ): AdminUserDetailDto
+
+    @POST("api/v1/attendance")
+    suspend fun checkIn(
+        @Header("Authorization") authorization: String,
+        @Body body: CheckInRequest,
+    ): AttendanceRecordDto
+
+    @GET("api/v1/attendance")
+    suspend fun myAttendance(
+        @Header("Authorization") authorization: String,
+    ): AttendanceListDto
+
+    @POST("api/v1/admin/users/{userId}/role")
+    suspend fun setAdminUserRole(
+        @Header("Authorization") authorization: String,
+        @Path("userId") userId: String,
+        @Body body: RoleUpdateRequest,
+    ): AdminUserDetailDto
+
+    @GET("api/v1/admin/places")
+    suspend fun listPlaces(
+        @Header("Authorization") authorization: String,
+    ): PlaceListDto
+
+    @POST("api/v1/admin/places")
+    suspend fun createPlace(
+        @Header("Authorization") authorization: String,
+        @Body body: PlaceCreateRequest,
+    ): PlaceDto
+
+    @PATCH("api/v1/admin/places/{placeId}")
+    suspend fun updatePlace(
+        @Header("Authorization") authorization: String,
+        @Path("placeId") placeId: String,
+        @Body body: PlaceActiveRequest,
+    ): PlaceDto
+
+    @GET("api/v1/admin/places/{placeId}/attendance")
+    suspend fun listPlaceAttendance(
+        @Header("Authorization") authorization: String,
+        @Path("placeId") placeId: String,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+    ): AdminAttendanceListDto
 }
