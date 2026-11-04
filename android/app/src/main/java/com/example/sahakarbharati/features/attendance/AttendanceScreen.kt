@@ -42,6 +42,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlin.coroutines.resume
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.regionLabel
@@ -228,6 +232,7 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit) {
     val executor = remember { Executors.newSingleThreadExecutor() }
     val scanner = remember { BarcodeScanning.getClient() }
     val tapScanner = remember { BarcodeScanning.getClient() }
+    val autoScanner = remember { BarcodeScanning.getClient() }
     val provider = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
     var scanning by remember { mutableStateOf(false) }
@@ -238,6 +243,30 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit) {
             executor.shutdown()
             scanner.close()
             tapScanner.close()
+            autoScanner.close()
+        }
+    }
+    val scanningNow = rememberUpdatedState(scanning)
+    LaunchedEffect(autoScanner) {
+        while (isActive) {
+            delay(400)
+            if (!enabledState || scanningNow.value) continue
+            val bitmap = previewView?.bitmap ?: continue
+            val raw = suspendCancellableCoroutine { continuation ->
+                autoScanner.process(InputImage.fromBitmap(bitmap, 0))
+                    .addOnSuccessListener { codes ->
+                        if (continuation.isActive) {
+                            continuation.resume(codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }?.rawValue)
+                        }
+                    }
+                    .addOnFailureListener {
+                        if (continuation.isActive) continuation.resume(null)
+                    }
+            }
+            if (!raw.isNullOrBlank() && BoothCode.fromQr(raw) != null) {
+                hint = null
+                currentOnCode(raw)
+            }
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -265,7 +294,10 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit) {
                             scanner.process(input)
                                 .addOnSuccessListener(mainExecutor) { codes ->
                                     val raw = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }?.rawValue
-                                    if (!raw.isNullOrBlank()) currentOnCode(raw)
+                                    if (!raw.isNullOrBlank() && BoothCode.fromQr(raw) != null) {
+                                        hint = null
+                                        currentOnCode(raw)
+                                    }
                                 }
                                 .addOnCompleteListener { image.close() }
                         }
