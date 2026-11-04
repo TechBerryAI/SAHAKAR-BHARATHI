@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,6 +62,7 @@ import com.example.sahakarbharati.data.model.isStaffRole
 import com.example.sahakarbharati.data.remote.ProfileUpdateRequest
 import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.data.sahakarViewModel
+import com.example.sahakarbharati.core.ui.InitialAvatar
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.StatusChip
@@ -283,14 +283,9 @@ private fun PersonHeader(profile: ParticipantProfile?, roleLine: String, copy: c
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier.size(72.dp).clip(CircleShape).background(DeepGreen),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(personInitials(name), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-            }
+            InitialAvatar(personInitials(name), size = 72.dp, fontSize = 22.sp)
             Column {
-                Text(name.ifBlank { roleLine }, color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                Text(name.ifBlank { roleLine }, color = Color(0xFF17263F), fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                 Text(roleLine, color = Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
                 occupationLabel(copy, profile?.occupation)?.let { label ->
                     Box(Modifier.padding(top = 8.dp)) {
@@ -316,9 +311,16 @@ private fun AccountPanel(text: com.example.sahakarbharati.core.copy.ParticipantC
 
 @Composable
 private fun PanelTitle(title: String, icon: ImageVector) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(icon, contentDescription = null, tint = DeepGreen, modifier = Modifier.size(18.dp))
-        Text(title, color = DeepGreen, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            Modifier
+                .size(32.dp)
+                .background(ChipSaffron, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = SaffronPressed, modifier = Modifier.size(18.dp))
+        }
+        Text(title, color = Color(0xFF17263F), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

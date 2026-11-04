@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppBar } from '../components/AppBar.tsx'
 import { LanguageSelect } from '../components/LanguageSelect.tsx'
-import { Card, ErrorBanner, Screen, StatusChip } from '../components/ui.tsx'
+import { ErrorBanner, Screen, StatusChip } from '../components/ui.tsx'
 import { useLanguage } from '../contexts/language.tsx'
 import { useSession } from '../hooks/useSession.ts'
 import { ApiError, apiErrorText, getMe, isStaffRole } from '../lib/api.ts'
@@ -47,9 +47,11 @@ export function HomeScreen() {
   const greeting = name ? `${copy.jaiKisan}, ${firstName(name)}` : copy.jaiKisan
   const region = regionLabel(profile?.district ?? null, profile?.state ?? null)
 
+  const staff = isStaffRole(profile?.role)
+
   return (
     <>
-      <AppBar title={copy.home} showEmblem trailing={<LanguageSelect variant="bar" />} />
+      <AppBar title={copy.brandName} showEmblem trailing={<LanguageSelect variant="bar" />} />
       <Screen withNav>
         <ErrorBanner message={error} />
         {loading && !profile ? (
@@ -58,57 +60,81 @@ export function HomeScreen() {
           </div>
         ) : (
           <>
-            <Card>
+            <section className="home-hero">
               <div className="identity">
                 <div className="avatar" aria-hidden="true">
                   {initials(name)}
                 </div>
                 <div>
-                  <h2 className="card__title" style={{ marginBottom: 4 }}>
-                    {greeting}
-                  </h2>
-                  <p className="muted">{copy.registeredParticipant}</p>
+                  <p className="home-hero__hello">{copy.registeredParticipant}</p>
+                  <h2 className="card__title">{greeting}</h2>
                 </div>
               </div>
               {profile?.occupation || region ? (
-                <div className="chips" style={{ marginTop: 12 }}>
+                <div className="chips home-hero__chips">
                   {profile?.occupation ? (
                     <StatusChip>{occupationLabel(copy, profile.occupation)}</StatusChip>
                   ) : null}
                   {region ? <StatusChip tone="saffron">{region}</StatusChip> : null}
                 </div>
               ) : null}
-            </Card>
-            <Card title="Scan booth QR">
-              <p className="card__body">Scan the booth QR, or enter the 6-digit code printed under it.</p>
-              <Link className="btn btn--primary admin-home-link" to="/check-in">
-                Scan booth QR
-              </Link>
-            </Card>
-            {isStaffRole(profile?.role) ? (
-              <Card kicker="Admin" title="Registered users">
-                <p className="card__body">Open the directory to read registration details.</p>
-                <Link className="btn btn--primary admin-home-link" to="/admin">
-                  View users
+            </section>
+
+            <Link className="home-action" to="/check-in">
+              <span className="home-action__icon" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M3 11h8V3H3zm2-6h4v4H5zM3 21h8v-8H3zm2-6h4v4H5zM13 3v8h8V3zm6 6h-4V5h4zM13 13h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm4-4h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2z"
+                  />
+                </svg>
+              </span>
+              <span className="home-action__copy">
+                <span className="home-action__title">Scan booth QR</span>
+                <span className="home-action__body">
+                  Scan the booth QR, or enter the 6-digit code printed under it.
+                </span>
+              </span>
+              <svg className="home-action__chevron" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+              </svg>
+            </Link>
+
+            {staff ? (
+              <div className="home-shortcuts">
+                <Link className="home-shortcut" to="/admin">
+                  <span className="home-shortcut__kicker">Admin</span>
+                  <span className="home-shortcut__title">Registered users</span>
+                  <span className="home-shortcut__body">Open the directory to read registration details.</span>
                 </Link>
-              </Card>
-            ) : null}
-            {isStaffRole(profile?.role) ? (
-              <Card kicker="Admin" title="Booths">
-                <p className="card__body">Create a booth, print its QR, and see who checked in.</p>
-                <Link className="btn btn--primary admin-home-link" to="/admin/places">
-                  Booths
+                <Link className="home-shortcut" to="/admin/places">
+                  <span className="home-shortcut__kicker">Admin</span>
+                  <span className="home-shortcut__title">Booths</span>
+                  <span className="home-shortcut__body">Create a booth, print its QR, and see who checked in.</span>
                 </Link>
-              </Card>
+              </div>
             ) : null}
-            <Card kicker={copy.account} title={copy.yourProfile}>
-              <p className="card__body">
-                {copy.profileStatus.replace('{status}', statusLabel(copy, profile?.status || 'active'))}
+
+            <Link className="home-fact home-fact--link" to="/profile">
+              <span className="home-fact__copy">
+                <span className="card__kicker">{copy.account}</span>
+                <span className="home-fact__title">{copy.yourProfile}</span>
+                <span className="card__body">
+                  {copy.profileStatus.replace('{status}', statusLabel(copy, profile?.status || 'active'))}
+                </span>
+              </span>
+              <svg className="home-action__chevron" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+              </svg>
+            </Link>
+
+            <section className="home-fact">
+              <p className="card__kicker">{copy.mobile}</p>
+              <p className="home-fact__value">
+                {profile?.mobile ? `+91 ${profile.mobile}` : copy.mobileOnFile}
               </p>
-            </Card>
-            <Card kicker={copy.mobile} title={profile?.mobile ? `+91 ${profile.mobile}` : copy.mobileOnFile}>
               <p className="card__body">{copy.mobileOnFileBody}</p>
-            </Card>
+            </section>
           </>
         )}
       </Screen>

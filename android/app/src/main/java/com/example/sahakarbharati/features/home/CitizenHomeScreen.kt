@@ -1,32 +1,37 @@
 package com.example.sahakarbharati.features.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.formatMobile
@@ -34,7 +39,7 @@ import com.example.sahakarbharati.core.copy.participantCopy
 import com.example.sahakarbharati.core.copy.personInitials
 import com.example.sahakarbharati.core.copy.regionLabel
 import com.example.sahakarbharati.core.copy.statusLabel
-import com.example.sahakarbharati.core.ui.SaffronButton
+import com.example.sahakarbharati.core.ui.InitialAvatar
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.StatusChip
 import com.example.sahakarbharati.core.ui.UiState
@@ -72,7 +77,7 @@ fun CitizenHomeScreen(
     val loading = homeViewModel.state is UiState.Loading && profile == null
 
     SignedInScaffold(
-        title = copy.tabHome,
+        title = copy.title,
         selectedTab = RathYatraDestinations.HOME,
         showAdmin = staff,
         onSelectTab = onSelectTab,
@@ -85,7 +90,7 @@ fun CitizenHomeScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (!error.isNullOrBlank() && profile == null) {
                 Text(error, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
@@ -96,24 +101,23 @@ fun CitizenHomeScreen(
                 }
             } else {
                 WhiteCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Box(
-                                Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF0F3D2E)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(personInitials(name), color = Color.White, fontWeight = FontWeight.Medium)
-                            }
+                            InitialAvatar(personInitials(name), size = 56.dp, fontSize = 18.sp)
                             Column {
-                                Text(greeting, color = Color(0xFF1A1C19), fontSize = 20.sp, fontWeight = FontWeight.Medium)
                                 Text(
-                                    text.registeredParticipant,
-                                    color = Color(0xFF5C665F),
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.padding(top = 4.dp),
+                                    text.registeredParticipant.uppercase(),
+                                    color = RathYatraColors.SaffronPressed,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 0.4.sp,
+                                )
+                                Text(
+                                    greeting,
+                                    color = Color(0xFF17263F),
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    lineHeight = 30.sp,
                                 )
                             }
                         }
@@ -123,94 +127,144 @@ fun CitizenHomeScreen(
                                     StatusChip(occupation, container = Color(0x1A0F3D2E), content = Color(0xFF0F3D2E))
                                 }
                                 if (region.isNotBlank()) {
-                                    StatusChip(region, container = Color(0x29E9872A), content = Color(0xFFC9741F))
+                                    StatusChip(region, container = Color(0x24E9872A), content = RathYatraColors.SaffronPressed)
                                 }
                             }
                         }
                     }
                 }
-                WhiteCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, tint = RathYatraColors.Saffron)
-                        Text(copy.scanTab, color = Color(0xFF1A1C19), fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                        Text(copy.pinNote, fontSize = 14.sp, color = Color(0xFF5C665F))
-                        SaffronButton(text = copy.scanTab, onClick = onOpenAttendance)
+                Surface(
+                    onClick = onOpenAttendance,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.Transparent,
+                    shadowElevation = 6.dp,
+                ) {
+                    Row(
+                        Modifier
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF1D4D8F), Color(0xFF163A78), Color(0xFF102A58)),
+                                ),
+                            )
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .size(48.dp)
+                                .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.QrCodeScanner,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD89A),
+                                modifier = Modifier.size(26.dp),
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(copy.scanTab, color = Color(0xFFFFF8EE), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                            Text(copy.pinBody, color = Color(0xD1FFF8EE), fontSize = 13.sp, lineHeight = 18.sp)
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                        )
                     }
                 }
                 if (staff) {
-                    WhiteCard {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                "ADMIN",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.4.sp,
-                                color = Color(0xFF1B5A44),
-                            )
-                            Text("Registered users", color = Color(0xFF1A1C19), fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                            Text(
-                                "Open the directory to read registration details.",
-                                fontSize = 14.sp,
-                                color = Color(0xFF5C665F),
-                            )
-                            SaffronButton(text = "View users", onClick = onOpenAdmin)
-                        }
-                    }
-                    WhiteCard {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                "ADMIN",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.4.sp,
-                                color = Color(0xFF1B5A44),
-                            )
-                            Text("Booths", color = Color(0xFF1A1C19), fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                            Text(
-                                "Create a booth, print its QR, and see who checked in.",
-                                fontSize = 14.sp,
-                                color = Color(0xFF5C665F),
-                            )
-                            SaffronButton(text = "Booths", onClick = onOpenBooths)
-                        }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        HomeShortcut(
+                            title = "Registered users",
+                            body = "Open the directory to read registration details.",
+                            onClick = onOpenAdmin,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                        HomeShortcut(
+                            title = "Booths",
+                            body = "Create a booth, print its QR, and see who checked in.",
+                            onClick = onOpenBooths,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
                     }
                 }
-                WhiteCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text.account.uppercase(),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 0.4.sp,
-                            color = Color(0xFF1B5A44),
-                        )
-                        Text(text.yourProfile, color = Color(0xFF1A1C19), fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                        Text(
-                            text.profileStatus.replace("{status}", statusLabel(text, profile?.status)),
-                            fontSize = 14.sp,
-                            color = Color(0xFF5C665F),
+                WhiteCard(onClick = { onSelectTab(RathYatraDestinations.PROFILE) }) {
+                    Row(
+                        Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text.account.uppercase(),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.4.sp,
+                                color = RathYatraColors.DeepGreenSoft,
+                            )
+                            Text(text.yourProfile, color = Color(0xFF17263F), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text.profileStatus.replace("{status}", statusLabel(text, profile?.status)),
+                                fontSize = 14.sp,
+                                color = RathYatraColors.OnSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFFB7A48A),
                         )
                     }
                 }
                 WhiteCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             text.mobile.uppercase(),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             letterSpacing = 0.4.sp,
-                            color = Color(0xFF1B5A44),
+                            color = RathYatraColors.DeepGreenSoft,
                         )
                         Text(
                             if (mobile.isBlank()) text.mobileOnFile else formatMobile(mobile),
-                            color = Color(0xFF1A1C19),
+                            color = Color(0xFF17263F),
                             fontSize = 20.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.SemiBold,
                         )
-                        Text(text.mobileOnFileBody, fontSize = 14.sp, color = Color(0xFF5C665F))
+                        Text(text.mobileOnFileBody, fontSize = 14.sp, color = RathYatraColors.OnSurfaceVariant)
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HomeShortcut(
+    title: String,
+    body: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    WhiteCard(modifier = modifier, onClick = onClick) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "ADMIN",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.6.sp,
+                color = RathYatraColors.SaffronPressed,
+            )
+            Text(title, color = Color(0xFF17263F), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp)
+            Text(body, fontSize = 12.sp, lineHeight = 16.sp, color = RathYatraColors.OnSurfaceVariant)
         }
     }
 }

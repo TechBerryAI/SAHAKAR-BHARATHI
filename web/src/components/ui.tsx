@@ -105,11 +105,12 @@ type CardProps = {
   children?: ReactNode
   kicker?: string
   title?: string
+  className?: string
 }
 
-export function Card({ children, kicker, title }: CardProps) {
+export function Card({ children, kicker, title, className }: CardProps) {
   return (
-    <section className="card">
+    <section className={`card${className ? ` ${className}` : ''}`}>
       {kicker ? <p className="card__kicker">{kicker}</p> : null}
       {title ? <h2 className="card__title">{title}</h2> : null}
       {children}
@@ -212,7 +213,11 @@ export function Panel({
   return (
     <section className="panel">
       <h2 className="panel__title">
-        {icon ? <Icon name={icon} size={18} /> : null}
+        {icon ? (
+          <span className="panel__mark">
+            <Icon name={icon} size={18} />
+          </span>
+        ) : null}
         {title}
       </h2>
       {children}

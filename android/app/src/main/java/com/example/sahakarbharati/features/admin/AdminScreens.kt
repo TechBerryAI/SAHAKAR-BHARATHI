@@ -1,6 +1,5 @@
 package com.example.sahakarbharati.features.admin
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -26,15 +24,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
+import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.personInitials
 import com.example.sahakarbharati.core.copy.regionLabel
 import com.example.sahakarbharati.core.copy.titleCase
+import com.example.sahakarbharati.core.ui.InitialAvatar
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.StatusChip
@@ -137,12 +135,7 @@ private fun AdminUserRow(user: AdminUserSummary, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier.size(44.dp).clip(CircleShape).background(RathYatraColors.Navy),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(personInitials(user.fullName), color = RathYatraColors.Ivory, fontWeight = FontWeight.Bold)
-            }
+            InitialAvatar(personInitials(user.fullName), size = 40.dp, fontSize = 13.sp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(titleCase(user.fullName), fontWeight = FontWeight.SemiBold)
                 Text(
