@@ -73,11 +73,31 @@ function productionGuards(apiBaseUrl: string | undefined): Plugin {
   }
 }
 
+function devProxyTarget(apiBaseUrl: string | undefined): string {
+  const fallback = 'http://127.0.0.1:8000'
+  if (!apiBaseUrl?.trim()) return fallback
+  try {
+    const url = new URL(apiBaseUrl.trim())
+    if (LOCAL_HOSTS.has(url.hostname.toLowerCase())) return url.origin
+  } catch {
+    return fallback
+  }
+  return fallback
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   const apiBaseUrl = process.env.VITE_API_BASE_URL ?? env.VITE_API_BASE_URL
 
   return {
+    server: {
+      // The browser calls this dev server; Vite forwards /api to the local API.
+      // That stays on the machine where the API is running (WSL), so Windows
+      // Chrome does not have to reach port 8000 itself.
+      proxy: {
+        '/api': { target: devProxyTarget(apiBaseUrl), changeOrigin: true },
+      },
+    },
     plugins: [
       productionGuards(apiBaseUrl),
       react(),

@@ -6,8 +6,11 @@
 //
 // 1. Finds the Android SDK and a JDK (JAVA_HOME, or the one bundled with Android Studio).
 // 2. Uses a connected device, or starts an emulator (the first one, or --avd <name>).
-// 3. Forwards the device's port 8000 to this computer, so the app reaches the local API.
-// 4. Builds the debug app, installs it, and opens it.
+// 3. Starts the local API if it is not already running. From WSL, an emulator reaches
+//    that API at http://10.0.2.2:<port>/ (Windows localhost:8000 is often already taken).
+//    A USB phone uses adb reverse instead.
+// 4. Builds the debug app, installs it, and opens it. The script stops if the device
+//    still cannot read a health response.
 //
 // From WSL, a Windows SDK (adb.exe / aapt.exe) is used as-is: adb.exe for the device
 // and gradlew.bat via cmd.exe for the build. A Linux SDK still uses ./gradlew.
@@ -25,6 +28,8 @@ import { existsSync, openSync, readdirSync, readFileSync, writeFileSync } from '
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { publishLocalApi } from './api-bridge.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ANDROID = path.join(ROOT, 'android')
@@ -404,11 +409,66 @@ async function pickDevice(sdk) {
 
 async function apiHealthy(url) {
   try {
-    const response = await fetch(`${url}/health/live`, { signal: AbortSignal.timeout(3000) })
+    const response = await fetch(`${url}/health`, { signal: AbortSignal.timeout(10000) })
     return response.ok
   } catch {
     return false
   }
+}
+
+function scrubSecrets(text) {
+  return text.replace(/postgres(?:ql)?(?:\+\w+)?:\/\/\S+/gi, 'postgresql://***')
+}
+
+// start.js stays running after this script exits, so sign-in keeps working.
+async function ensureLocalApi() {
+  if (await apiHealthy(LOCAL_API)) return
+  log('The local API is not running. Starting it…')
+  const logFile = path.join(os.tmpdir(), 'sahakar-start.log')
+  const output = openSync(logFile, 'a')
+  const child = spawn(process.execPath, [path.join(ROOT, 'scripts', 'start.js')], {
+    cwd: ROOT,
+    detached: true,
+    stdio: ['ignore', output, output],
+  })
+  let exited = null
+  child.on('exit', (code) => {
+    exited = code ?? 1
+  })
+  const deadline = Date.now() + 120_000
+  while (Date.now() < deadline) {
+    if (await apiHealthy(LOCAL_API)) {
+      child.unref()
+      log(`API is up at ${LOCAL_API}.`)
+      return
+    }
+    if (exited !== null) break
+    await sleep(1000)
+  }
+  child.unref()
+  let tail = ''
+  try {
+    const lines = readFileSync(logFile, 'utf8').trim().split(/\r?\n/)
+    tail = scrubSecrets(lines.slice(-25).join('\n'))
+  } catch {
+    tail = ''
+  }
+  fail(
+    `The local API did not become ready at ${LOCAL_API}.\n` +
+      (tail ? `\n${tail}\n` : '') +
+      `\n  Full log: ${logFile}`,
+  )
+}
+
+function deviceReachesApi(sdk, serial, baseUrl) {
+  const url = new URL(baseUrl)
+  const port = url.port || (url.protocol === 'https:' ? '443' : '80')
+  // The request is written on the device. Piping it through adb stdin drops the reply.
+  const probe = adb(sdk, serial, [
+    'shell',
+    `printf "GET /health/live HTTP/1.0\\r\\nHost: ${url.hostname}\\r\\nConnection: close\\r\\n\\r\\n" > /data/local/tmp/sahakar-req.txt; nc -W 5 -w 5 ${url.hostname} ${port} < /data/local/tmp/sahakar-req.txt`,
+  ])
+  return (probe.stdout || '').includes('"status"')
 }
 
 async function chooseApi(sdk, serial) {
@@ -416,19 +476,37 @@ async function chooseApi(sdk, serial) {
     warn(`Using the LIVE API (${PROD_API}). Sign in only with a test account.`)
     return `${PROD_API}/`
   }
-  if (!(await apiHealthy(LOCAL_API))) {
-    warn(
-      `The local API is not running at ${LOCAL_API}. The app will open but cannot sign in until you\n` +
-        '  run `node scripts/start.js` in another terminal (or rerun this with --prod).',
-    )
-  }
-  // The device reaches this computer through adb reverse. The emulator's 10.0.2.2
-  // address does not reach an API that is running inside WSL, so both emulators and
-  // phones use 127.0.0.1 on the device plus this forward.
-  if (adb(sdk, serial, ['reverse', `tcp:${API_PORT}`, `tcp:${API_PORT}`]).status !== 0) {
+  await ensureLocalApi()
+  const published = await publishLocalApi({
+    apiPort: API_PORT,
+    sdk,
+    serial,
+    log: (message) => log(message),
+  })
+  const hostPort = published.hostPort || API_PORT
+  // 10.0.2.2 is the emulator's name for this Windows machine. adb reverse to
+  // Windows port 8000 does not reach the API when that port is already taken,
+  // and it does not reach a service that is running inside WSL.
+  const emulator = serial.startsWith('emulator-')
+  let base = `${LOCAL_API}/`
+  if (IS_WSL && emulator) {
+    base = `http://10.0.2.2:${hostPort}/`
+  } else if (hostPort !== API_PORT) {
+    if (adb(sdk, serial, ['reverse', `tcp:${hostPort}`, `tcp:${hostPort}`]).status !== 0) {
+      fail(`Could not forward port ${hostPort} to the device (adb reverse failed).`)
+    }
+    base = `http://127.0.0.1:${hostPort}/`
+  } else if (adb(sdk, serial, ['reverse', `tcp:${API_PORT}`, `tcp:${API_PORT}`]).status !== 0) {
     fail('Could not forward port 8000 to the device (adb reverse failed).')
   }
-  return `${LOCAL_API}/`
+  if (!deviceReachesApi(sdk, serial, base)) {
+    fail(
+      `The device cannot reach the local API at ${base}health/live.\n` +
+        '  The API process is up, but the phone could not read a response.',
+    )
+  }
+  log(`The device can reach the local API at ${base}`)
+  return base
 }
 
 // --- Build, install, open ------------------------------------------------------------
