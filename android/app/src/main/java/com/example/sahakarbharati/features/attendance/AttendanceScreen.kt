@@ -2,27 +2,33 @@ package com.example.sahakarbharati.features.attendance
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.RectF
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.camera.view.transform.CoordinateTransform
+import androidx.camera.view.transform.ImageProxyTransformFactory
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,9 +41,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -110,45 +118,16 @@ fun AttendanceScreen(
                 .imePadding(),
         ) {
             Column(
-                Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+                    .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 ui.error?.takeIf { it.isNotBlank() }?.let { message ->
                     Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
                 }
-                WhiteCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(copy.pinTitle, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
-                        Text(copy.pinBody, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
-                        OutlinedTextField(
-                            value = code,
-                            onValueChange = { next -> code = next.filter(Char::isDigit).take(6) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(copy.pinLabel) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        )
-                        if (ui.submitting) {
-                            CircularProgressIndicator(
-                                color = RathYatraColors.Saffron,
-                                modifier = Modifier.align(Alignment.CenterHorizontally),
-                            )
-                        } else {
-                            SaffronButton(
-                                text = copy.submitPin,
-                                onClick = { submit(code, "code") },
-                            )
-                        }
-                    }
-                }
-            }
-            Column(
-                Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(copy.scannerActive, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
@@ -158,6 +137,17 @@ fun AttendanceScreen(
                         onCode = { submit(it, "qr") },
                         onDigits = { code = it },
                     )
+                    if (ui.submitting) {
+                        CircularProgressIndicator(
+                            color = RathYatraColors.Saffron,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                    } else {
+                        SaffronButton(
+                            text = copy.submitPin,
+                            onClick = { submit(code, "code") },
+                        )
+                    }
                 }
             }
             ui.latest?.let { visit ->
@@ -243,6 +233,8 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
     var frameReady by remember { mutableStateOf(false) }
     var latestRaw by remember { mutableStateOf<String?>(null) }
     var seenCode by remember { mutableStateOf<String?>(null) }
+    var codeAnchor by remember { mutableStateOf<RectF?>(null) }
+    val previewView = remember { mutableStateOf<PreviewView?>(null) }
     var foreignQr by remember { mutableStateOf(false) }
     var cameraFailed by remember { mutableStateOf(false) }
     var hint by remember { mutableStateOf<String?>(null) }
@@ -258,6 +250,11 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(240.dp),
+        ) {
         AndroidView(
             factory = { viewContext ->
                 val view = PreviewView(viewContext).apply {
@@ -265,6 +262,7 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
+                previewView.value = view
                 val future = ProcessCameraProvider.getInstance(viewContext)
                 val mainExecutor = ContextCompat.getMainExecutor(viewContext)
                 future.addListener(
@@ -291,11 +289,13 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                                     scanner.process(input)
                                         .addOnSuccessListener(mainExecutor) { codes ->
                                             frameReady = true
-                                            val raw = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }?.rawValue
+                                            val barcode = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }
+                                            val raw = barcode?.rawValue
                                             latestRaw = raw
                                             val digits = raw?.let { BoothCode.fromQr(it) }
                                             seenCode = digits
                                             foreignQr = !raw.isNullOrBlank() && digits == null
+                                            codeAnchor = qrAnchor(previewView.value, image, barcode?.boundingBox)
                                             if (!raw.isNullOrBlank() && digits != null) {
                                                 hint = null
                                                 currentOnDigits(digits)
@@ -319,20 +319,30 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                 )
                 view
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp),
+            modifier = Modifier.fillMaxSize(),
             onRelease = { provider.value?.unbindAll() },
         )
-        seenCode?.let { digits ->
-            Text("Code on this QR", color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
-            Text(
-                digits,
-                color = RathYatraColors.Navy,
-                fontWeight = FontWeight.Bold,
-                fontSize = 32.sp,
-                letterSpacing = 4.sp,
-            )
+        val anchor = codeAnchor
+        val digits = seenCode
+        if (anchor != null && digits != null && anchor.width() > 0f) {
+            val density = LocalDensity.current
+            Column(
+                Modifier
+                    .offset { IntOffset(anchor.left.toInt(), anchor.bottom.toInt()) }
+                    .width(with(density) { anchor.width().toDp() })
+                    .background(Color.White)
+                    .padding(top = 2.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    digits,
+                    color = RathYatraColors.Navy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    letterSpacing = 2.sp,
+                )
+            }
+        }
         }
         if (foreignQr && seenCode == null) {
             Text(copy.scanMiss, color = RathYatraColors.Emergency, fontSize = 14.sp)
@@ -358,6 +368,16 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
             Text(message, color = RathYatraColors.Emergency, fontSize = 14.sp)
         }
     }
+}
+
+private fun qrAnchor(view: PreviewView?, image: ImageProxy, box: android.graphics.Rect?): RectF? {
+    if (view == null || box == null) return null
+    val target = view.outputTransform ?: return null
+    val source = ImageProxyTransformFactory().apply { isUsingRotationDegrees = true }.getOutputTransform(image) ?: return null
+    val mapped = RectF(box)
+    CoordinateTransform(source, target).mapRect(mapped)
+    if (mapped.width() < 1f || mapped.height() < 1f) return null
+    return mapped
 }
 
 private fun bindCamera(
