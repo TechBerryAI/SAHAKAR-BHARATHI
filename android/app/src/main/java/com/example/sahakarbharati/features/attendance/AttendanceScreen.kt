@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -41,11 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlin.coroutines.resume
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.suspendCancellableCoroutine
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.regionLabel
@@ -109,16 +107,48 @@ fun AttendanceScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .imePadding(),
         ) {
-            ui.latest?.let { visit ->
-                VisitResultCard(visit, already = visit.alreadyRecorded)
+            Column(
+                Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ui.error?.takeIf { it.isNotBlank() }?.let { message ->
+                    Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                }
+                WhiteCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(copy.pinTitle, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
+                        Text(copy.pinBody, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+                        OutlinedTextField(
+                            value = code,
+                            onValueChange = { next -> code = next.filter(Char::isDigit).take(6) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(copy.pinLabel) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                        if (ui.submitting) {
+                            CircularProgressIndicator(
+                                color = RathYatraColors.Saffron,
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            )
+                        } else {
+                            SaffronButton(
+                                text = copy.submitPin,
+                                onClick = { submit(code, "code") },
+                            )
+                        }
+                    }
+                }
             }
-            ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
-            }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(copy.scannerActive, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
@@ -126,36 +156,12 @@ fun AttendanceScreen(
                     BoothCamera(
                         enabled = !ui.submitting,
                         onCode = { submit(it, "qr") },
+                        onDigits = { code = it },
                     )
                 }
             }
-            WhiteCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(copy.pinTitle, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
-                    Text(copy.pinBody, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
-                    OutlinedTextField(
-                        value = code,
-                        onValueChange = { next -> code = next.filter(Char::isDigit).take(6) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(copy.pinLabel) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                    if (ui.submitting) {
-                        CircularProgressIndicator(
-                            color = RathYatraColors.Saffron,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                        )
-                    } else {
-                        SaffronButton(
-                            text = copy.submitPin,
-                            onClick = {
-                                submit(code, "code")
-                            },
-                        )
-                    }
-                    Text(copy.pinNote, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
-                }
+            ui.latest?.let { visit ->
+                VisitResultCard(visit, already = visit.alreadyRecorded)
             }
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,6 +179,7 @@ fun AttendanceScreen(
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -204,7 +211,7 @@ private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
 }
 
 @Composable
-private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit) {
+private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit, onDigits: (String) -> Unit) {
     val copy = LocalCopy.current
     val context = LocalContext.current
     val hasCamera = remember {
@@ -219,99 +226,96 @@ private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit) {
     when {
         !hasCamera -> Text(copy.cameraOff, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
         !granted -> GhostNavyButton(text = copy.allowCamera, onClick = { launcher.launch(Manifest.permission.CAMERA) })
-        else -> CameraPreview(enabled = enabled, onCode = onCode)
+        else -> CameraPreview(enabled = enabled, onCode = onCode, onDigits = onDigits)
     }
 }
 
 @Composable
-private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit) {
+private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: (String) -> Unit) {
     val copy = LocalCopy.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnCode by rememberUpdatedState(onCode)
+    val currentOnDigits by rememberUpdatedState(onDigits)
     val enabledState by rememberUpdatedState(enabled)
     val executor = remember { Executors.newSingleThreadExecutor() }
     val scanner = remember { BarcodeScanning.getClient() }
-    val tapScanner = remember { BarcodeScanning.getClient() }
-    val autoScanner = remember { BarcodeScanning.getClient() }
     val provider = remember { mutableStateOf<ProcessCameraProvider?>(null) }
-    var previewView by remember { mutableStateOf<PreviewView?>(null) }
-    var scanning by remember { mutableStateOf(false) }
+    var frameReady by remember { mutableStateOf(false) }
+    var latestRaw by remember { mutableStateOf<String?>(null) }
+    var seenCode by remember { mutableStateOf<String?>(null) }
+    var foreignQr by remember { mutableStateOf(false) }
+    var cameraFailed by remember { mutableStateOf(false) }
     var hint by remember { mutableStateOf<String?>(null) }
     DisposableEffect(scanner) {
         onDispose {
             provider.value?.unbindAll()
             executor.shutdown()
             scanner.close()
-            tapScanner.close()
-            autoScanner.close()
         }
     }
-    val scanningNow = rememberUpdatedState(scanning)
-    LaunchedEffect(autoScanner) {
-        while (isActive) {
-            delay(400)
-            if (!enabledState || scanningNow.value) continue
-            val bitmap = previewView?.bitmap ?: continue
-            val raw = suspendCancellableCoroutine { continuation ->
-                autoScanner.process(InputImage.fromBitmap(bitmap, 0))
-                    .addOnSuccessListener { codes ->
-                        if (continuation.isActive) {
-                            continuation.resume(codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }?.rawValue)
-                        }
-                    }
-                    .addOnFailureListener {
-                        if (continuation.isActive) continuation.resume(null)
-                    }
-            }
-            if (!raw.isNullOrBlank() && BoothCode.fromQr(raw) != null) {
-                hint = null
-                currentOnCode(raw)
-            }
-        }
+    if (cameraFailed) {
+        Text(copy.cameraOff, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+        return
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         AndroidView(
             factory = { viewContext ->
-                val view = PreviewView(viewContext)
-                previewView = view
+                val view = PreviewView(viewContext).apply {
+                    // The check-in page scrolls. The default surface preview stays black there.
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                }
                 val future = ProcessCameraProvider.getInstance(viewContext)
+                val mainExecutor = ContextCompat.getMainExecutor(viewContext)
                 future.addListener(
                     {
-                        val cameraProvider = future.get()
-                        provider.value = cameraProvider
-                        val preview = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
-                        val mainExecutor = ContextCompat.getMainExecutor(viewContext)
-                        val analysis = ImageAnalysis.Builder()
-                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                            .build()
-                        analysis.setAnalyzer(executor) { image ->
-                            val media = image.image
-                            if (media == null || !enabledState) {
-                                image.close()
-                                return@setAnalyzer
+                        view.post {
+                            val cameraProvider = runCatching { future.get() }.getOrNull()
+                            if (cameraProvider == null) {
+                                cameraFailed = true
+                                return@post
                             }
-                            val input = InputImage.fromMediaImage(media, image.imageInfo.rotationDegrees)
-                            scanner.process(input)
-                                .addOnSuccessListener(mainExecutor) { codes ->
-                                    val raw = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }?.rawValue
-                                    if (!raw.isNullOrBlank() && BoothCode.fromQr(raw) != null) {
-                                        hint = null
-                                        currentOnCode(raw)
-                                    }
+                            provider.value = cameraProvider
+                            val preview = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
+                            val analysis = ImageAnalysis.Builder()
+                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                .build()
+                            analysis.setAnalyzer(executor) { image ->
+                                val media = image.image
+                                if (media == null || !enabledState) {
+                                    image.close()
+                                    return@setAnalyzer
                                 }
-                                .addOnCompleteListener { image.close() }
-                        }
-                        runCatching {
-                            cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(
-                                lifecycleOwner,
-                                CameraSelector.DEFAULT_BACK_CAMERA,
-                                preview,
-                                analysis,
-                            )
+                                try {
+                                    val input = InputImage.fromMediaImage(media, image.imageInfo.rotationDegrees)
+                                    scanner.process(input)
+                                        .addOnSuccessListener(mainExecutor) { codes ->
+                                            frameReady = true
+                                            val raw = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }?.rawValue
+                                            latestRaw = raw
+                                            val digits = raw?.let { BoothCode.fromQr(it) }
+                                            seenCode = digits
+                                            foreignQr = !raw.isNullOrBlank() && digits == null
+                                            if (!raw.isNullOrBlank() && digits != null) {
+                                                hint = null
+                                                currentOnDigits(digits)
+                                                currentOnCode(raw)
+                                            }
+                                        }
+                                        .addOnFailureListener(mainExecutor) {
+                                            frameReady = true
+                                        }
+                                        .addOnCompleteListener { image.close() }
+                                } catch (_: RuntimeException) {
+                                    image.close()
+                                }
+                            }
+                            val bound = bindCamera(cameraProvider, lifecycleOwner, preview, analysis, CameraSelector.DEFAULT_BACK_CAMERA) ||
+                                bindCamera(cameraProvider, lifecycleOwner, preview, analysis, CameraSelector.DEFAULT_FRONT_CAMERA)
+                            if (!bound) cameraFailed = true
                         }
                     },
-                    ContextCompat.getMainExecutor(viewContext),
+                    mainExecutor,
                 )
                 view
             },
@@ -320,47 +324,56 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit) {
                 .height(240.dp),
             onRelease = { provider.value?.unbindAll() },
         )
-        if (scanning) {
-            CircularProgressIndicator(
-                color = RathYatraColors.Saffron,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-        } else {
-            SaffronButton(
-                text = copy.scanQr,
-                onClick = {
-                    if (!enabled || scanning) return@SaffronButton
-                    val view = previewView
-                    val bitmap = view?.bitmap
-                    if (view == null || bitmap == null) {
-                        hint = copy.scanMiss
-                        return@SaffronButton
-                    }
-                    scanning = true
-                    hint = null
-                    val mainExecutor = ContextCompat.getMainExecutor(view.context)
-                    tapScanner.process(InputImage.fromBitmap(bitmap, 0))
-                        .addOnSuccessListener(mainExecutor) { codes ->
-                            val raw = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }?.rawValue
-                            scanning = false
-                            if (raw.isNullOrBlank() || BoothCode.fromQr(raw) == null) {
-                                hint = copy.scanMiss
-                            } else {
-                                hint = null
-                                onCode(raw)
-                            }
-                        }
-                        .addOnFailureListener(mainExecutor) {
-                            scanning = false
-                            hint = copy.scanMiss
-                        }
-                },
+        seenCode?.let { digits ->
+            Text("Code on this QR", color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+            Text(
+                digits,
+                color = RathYatraColors.Navy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 32.sp,
+                letterSpacing = 4.sp,
             )
         }
+        if (foreignQr && seenCode == null) {
+            Text(copy.scanMiss, color = RathYatraColors.Emergency, fontSize = 14.sp)
+        }
+        SaffronButton(
+            text = copy.scanQr,
+            onClick = {
+                if (!enabled) return@SaffronButton
+                if (!frameReady) {
+                    hint = copy.scanStarting
+                    return@SaffronButton
+                }
+                val raw = latestRaw
+                if (raw.isNullOrBlank() || BoothCode.fromQr(raw) == null) {
+                    hint = copy.scanMiss
+                } else {
+                    hint = null
+                    onCode(raw)
+                }
+            },
+        )
         hint?.let { message ->
             Text(message, color = RathYatraColors.Emergency, fontSize = 14.sp)
         }
     }
+}
+
+private fun bindCamera(
+    cameraProvider: ProcessCameraProvider,
+    lifecycleOwner: LifecycleOwner,
+    preview: Preview,
+    analysis: ImageAnalysis,
+    selector: CameraSelector,
+): Boolean {
+    val available = runCatching { cameraProvider.hasCamera(selector) }.getOrDefault(false)
+    if (!available) return false
+    return runCatching {
+        cameraProvider.unbindAll()
+        cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
+        true
+    }.isSuccess
 }
 
 private fun formatVisitTime(visit: AttendanceRecordDto): String {

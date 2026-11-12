@@ -24,7 +24,7 @@
 //                   older build signed with a different debug key is installed.
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, openSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -267,9 +267,10 @@ async function waitForBoot(sdk, serial, seconds) {
 
 // The emulator's own message (disk full, bad snapshot, missing hypervisor) is the
 // reason it never shows up in `adb devices`. The log is written by launchEmulator.
-const EMULATOR_LOG = IS_WSL
-  ? '/mnt/c/Users/Admin/AppData/Local/Temp/sahakar-emulator.log'
-  : path.join(os.tmpdir(), 'sahakar-emulator.log')
+// Windows Temp is not used: a running emulator keeps that file open, and WSL then
+// gets EACCES when the next launch tries to replace it.
+const LAUNCH_DIR = path.join(ROOT, '.android-launch')
+let emulatorLog = path.join(LAUNCH_DIR, 'emulator.log')
 
 function emulatorFatal(logFile) {
   if (!existsSync(logFile)) return undefined
@@ -288,15 +289,29 @@ function windowsEmulatorRunning() {
   return Number((result.stdout || '').trim()) > 0
 }
 
+function writableLaunchFile(name) {
+  mkdirSync(LAUNCH_DIR, { recursive: true })
+  const file = path.join(LAUNCH_DIR, name)
+  try {
+    writeFileSync(file, '')
+    return file
+  } catch (error) {
+    if (!['EACCES', 'EPERM', 'EBUSY'].includes(error?.code)) throw error
+    const alt = file.replace(/(\.[^.]+)$/, `-${process.pid}$1`)
+    writeFileSync(alt, '')
+    return alt
+  }
+}
+
 function launchEmulator(emulator, avd) {
   const args = ['-avd', avd, '-no-snapshot-save', '-no-boot-anim', '-gpu', 'host']
-  writeFileSync(EMULATOR_LOG, '')
+  emulatorLog = writableLaunchFile('emulator.log')
   if ((IS_WSL || IS_WINDOWS) && emulator.endsWith('.exe')) {
     // `start` detaches the Windows process. A direct spawn from WSL is stopped
     // when this script exits, and its console output would otherwise be discarded.
-    const bat = IS_WSL ? '/mnt/c/Users/Admin/AppData/Local/Temp/sahakar-emulator.bat' : path.join(os.tmpdir(), 'sahakar-emulator.bat')
+    const bat = writableLaunchFile('emulator.bat')
     const emuWin = toWindowsPath(emulator)
-    const logWin = toWindowsPath(EMULATOR_LOG)
+    const logWin = toWindowsPath(emulatorLog)
     writeFileSync(bat, `@echo off\r\n"${emuWin}" ${args.join(' ')} > "${logWin}" 2>&1\r\n`)
     const batWin = toWindowsPath(bat)
     spawnSync(
@@ -306,23 +321,23 @@ function launchEmulator(emulator, avd) {
     )
     return
   }
-  const fd = openSync(EMULATOR_LOG, 'w')
+  const fd = openSync(emulatorLog, 'w')
   const child = spawn(emulator, args, { detached: true, stdio: ['ignore', fd, fd] })
   child.unref()
 }
 
-async function waitForEmulator(sdk) {
+async function waitForEmulator(sdk, watchLog = true) {
   const deadline = Date.now() + 180_000
   let restartedAdb = false
   let sawProcess = false
   while (Date.now() < deadline) {
     const devices = connectedDevices(sdk)
     if (devices.length > 0) return devices[0]
-    const fatal = emulatorFatal(EMULATOR_LOG)
+    const fatal = watchLog ? emulatorFatal(emulatorLog) : undefined
     const running = IS_WINDOWS || IS_WSL ? windowsEmulatorRunning() : true
     if (running) sawProcess = true
     if (fatal && !running) {
-      fail(`The emulator stopped: ${fatal}\n  Log: ${EMULATOR_LOG}`)
+      fail(`The emulator stopped: ${fatal}\n  Log: ${emulatorLog}`)
     }
     // A Windows emulator started from WSL often never appears until adb is restarted.
     if (running && !restartedAdb) {
@@ -332,10 +347,10 @@ async function waitForEmulator(sdk) {
     }
     await sleep(1000)
   }
-  const fatal = emulatorFatal(EMULATOR_LOG)
-  if (fatal) fail(`The emulator stopped: ${fatal}\n  Log: ${EMULATOR_LOG}`)
+  const fatal = watchLog ? emulatorFatal(emulatorLog) : undefined
+  if (fatal) fail(`The emulator stopped: ${fatal}\n  Log: ${emulatorLog}`)
   if (!sawProcess) {
-    fail(`The emulator did not start. See ${EMULATOR_LOG}`)
+    fail(`The emulator did not start. See ${emulatorLog}`)
   }
   fail('The emulator did not appear in `adb devices` within 3 minutes.')
 }
@@ -389,6 +404,18 @@ async function pickDevice(sdk) {
     fail('No device connected and no emulator exists. Create one in Android Studio → Device Manager.')
   }
   if (!avds.includes(avd)) fail(`Emulator "${avd}" not found. Available: ${avds.join(', ')}`)
+
+  if ((IS_WINDOWS || IS_WSL) && windowsEmulatorRunning()) {
+    log('An emulator is already open. Connecting to it…')
+    adb(sdk, undefined, ['kill-server'])
+    adb(sdk, undefined, ['start-server'])
+    const serial = await waitForEmulator(sdk, false)
+    await waitForBoot(sdk, serial, 180)
+    await sleep(2000)
+    dismissFrozenDialogs(sdk, serial)
+    log(`Emulator ${serial} is ready.`)
+    return serial
+  }
 
   log(`Starting the "${avd}" emulator (the first start can take a minute)…`)
   // -no-boot-anim avoids the extra launcher work that triggers "isn't responding" on first boot.

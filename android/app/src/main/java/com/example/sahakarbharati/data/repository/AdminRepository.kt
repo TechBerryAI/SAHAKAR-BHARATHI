@@ -26,6 +26,7 @@ interface AdminRepository {
     suspend fun getUser(id: String): Result<AdminUserDetail>
     suspend fun setRole(id: String, role: String): Result<AdminUserDetail>
     suspend fun listPlaces(): Result<List<PlaceDto>>
+    suspend fun getPlace(id: String): Result<PlaceDto>
     suspend fun createPlace(name: String): Result<PlaceDto>
     suspend fun setPlaceActive(id: String, active: Boolean): Result<PlaceDto>
     suspend fun listPlaceAttendance(id: String, offset: Int): Result<AdminAttendanceListDto>
@@ -76,6 +77,16 @@ class RemoteAdminRepository(
             api.listPlaces("Bearer $token").items
         }.recoverCatching { error ->
             throw Exception(mapApiError(error, "Could not load booths."))
+        }
+    }
+
+    override suspend fun getPlace(id: String): Result<PlaceDto> {
+        val token = sessionStore.accessToken()
+            ?: return Result.failure(Exception("Sign in is required."))
+        return runCatching {
+            api.getPlace("Bearer $token", id)
+        }.recoverCatching { error ->
+            throw Exception(mapApiError(error, "Could not load this booth."))
         }
     }
 

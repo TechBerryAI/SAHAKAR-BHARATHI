@@ -192,21 +192,16 @@ class AdminPlaceViewModel(
                 loading = true
             }
             error = null
-            adminRepository.listPlaces().fold(
-                onSuccess = { page ->
-                    val found = page.find { it.id == placeId }
+            adminRepository.getPlace(placeId).fold(
+                onSuccess = { found ->
                     place = found
-                    if (found == null) {
-                        error = "That booth was not found."
-                    } else {
-                        adminRepository.listPlaceAttendance(found.id, 0).fold(
-                            onSuccess = { attendance ->
-                                visits = attendance.items
-                                total = attendance.total
-                            },
-                            onFailure = { failure -> error = failure.message },
-                        )
-                    }
+                    adminRepository.listPlaceAttendance(found.id, 0).fold(
+                        onSuccess = { attendance ->
+                            visits = attendance.items
+                            total = attendance.total
+                        },
+                        onFailure = { failure -> error = failure.message },
+                    )
                 },
                 onFailure = { failure -> error = failure.message },
             )

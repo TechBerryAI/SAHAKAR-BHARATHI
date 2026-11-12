@@ -30,6 +30,37 @@ def _staff_session(client: TestClient, engine: Engine) -> dict[str, object]:
     return session
 
 
+def test_staff_can_load_a_place_by_id(client: TestClient, engine: Engine) -> None:
+    _created, participant = register_and_login(client)
+    staff = _staff_session(client, engine)
+    created = client.post(
+        "/api/v1/admin/places",
+        headers=_headers(staff["access_token"]),
+        json={"name": "Gate booth"},
+    )
+    assert created.status_code == 201, created.text
+    place_id = created.json()["id"]
+    loaded = client.get(
+        f"/api/v1/admin/places/{place_id}",
+        headers=_headers(staff["access_token"]),
+    )
+    assert loaded.status_code == 200, loaded.text
+    assert loaded.json()["code"] == created.json()["code"]
+    assert loaded.json()["name"] == "Gate booth"
+
+    missing = client.get(
+        "/api/v1/admin/places/00000000-0000-4000-8000-000000000001",
+        headers=_headers(staff["access_token"]),
+    )
+    assert missing.status_code == 404
+
+    denied = client.get(
+        f"/api/v1/admin/places/{place_id}",
+        headers=_headers(participant["access_token"]),
+    )
+    assert denied.status_code == 403
+
+
 def test_participant_cannot_create_a_place(client: TestClient) -> None:
     _created, session = register_and_login(client)
     denied = client.post(

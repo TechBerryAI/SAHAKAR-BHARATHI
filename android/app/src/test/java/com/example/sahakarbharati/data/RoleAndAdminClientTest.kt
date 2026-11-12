@@ -137,6 +137,7 @@ private class RecordingAdminApi : SahakarApi {
     override suspend fun checkIn(authorization: String, body: CheckInRequest): AttendanceRecordDto = error("unused")
     override suspend fun myAttendance(authorization: String): AttendanceListDto = error("unused")
     override suspend fun listPlaces(authorization: String): PlaceListDto = error("unused")
+    override suspend fun getPlace(authorization: String, placeId: String): PlaceDto = error("unused")
     override suspend fun createPlace(authorization: String, body: PlaceCreateRequest): PlaceDto = error("unused")
     override suspend fun updatePlace(authorization: String, placeId: String, body: PlaceActiveRequest): PlaceDto = error("unused")
     override suspend fun listPlaceAttendance(

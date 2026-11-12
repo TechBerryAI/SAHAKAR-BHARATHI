@@ -268,6 +268,8 @@ private class FakeApi(private val sessionFails: Boolean) : SahakarApi {
 
     override suspend fun listPlaces(authorization: String): PlaceListDto = error("unused")
 
+    override suspend fun getPlace(authorization: String, placeId: String): PlaceDto = error("unused")
+
     override suspend fun createPlace(authorization: String, body: PlaceCreateRequest): PlaceDto = error("unused")
 
     override suspend fun updatePlace(authorization: String, placeId: String, body: PlaceActiveRequest): PlaceDto = error("unused")
