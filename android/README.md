@@ -32,7 +32,9 @@ It uses a connected device, or starts the first emulator, starts the local API w
 it is not already running (`node scripts/start.js`), and builds the debug app against
 the address that device can reach. From WSL that is `http://10.0.2.2:<port>/` on an
 emulator, because Windows port 8000 is often already taken and `adb reverse` then
-returns an empty reply. A USB phone uses `adb reverse` and `http://127.0.0.1:<port>/`.
+returns an empty reply. Android 16 blocks an app from that host address until
+local-network access is allowed; the script grants it after install. A USB phone
+uses `adb reverse` and `http://127.0.0.1:<port>/`.
 It installs the app and opens it, and stops if the device still cannot reach the API.
 
 | Option | Effect |
