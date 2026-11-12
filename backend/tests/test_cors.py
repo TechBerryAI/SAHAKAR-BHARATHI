@@ -43,6 +43,35 @@ def test_cors_allows_approved_origin_and_rejects_other(
         application.state.limiter.reset()
 
 
+def test_dev_preflight_allows_extra_headers_and_private_network(
+    engine: Engine,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("CORS_ORIGINS", "http://localhost:5174")
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    get_settings.cache_clear()
+    application = create_app()
+    db_session.SessionLocal.configure(bind=engine)
+    application.state.limiter = SlidingWindowLimiter()
+    try:
+        with TestClient(application) as client:
+            response = client.options(
+                "/api/v1/sessions",
+                headers={
+                    "Origin": "http://localhost:5174",
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": "content-type, x-requested-with",
+                    "Access-Control-Request-Private-Network": "true",
+                },
+            )
+            assert response.status_code == 200
+            assert response.headers.get("access-control-allow-origin") == "http://localhost:5174"
+            assert response.headers.get("access-control-allow-private-network") == "true"
+    finally:
+        get_settings.cache_clear()
+        application.state.limiter.reset()
+
+
 def test_cors_allows_firebase_hosting_origin(
     engine: Engine,
     monkeypatch,

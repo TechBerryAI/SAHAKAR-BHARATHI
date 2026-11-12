@@ -8,6 +8,7 @@ import {
   myAttendance,
   registerAndSignIn,
   RegisteredButSignInFailedError,
+  resolveApiBase,
   restoreSession,
   signIn,
   updateMe,
@@ -17,6 +18,22 @@ import { ACCESS_TOKEN_KEY, clearSession, getSnapshot } from './session.ts'
 import type { RegistrationCreate } from './types.ts'
 
 const API = 'https://api.unit-test.invalid'
+
+describe('resolveApiBase', () => {
+  it('keeps a remote API URL in dev and production', () => {
+    expect(resolveApiBase(API, true)).toBe(API)
+    expect(resolveApiBase(`${API}/`, false)).toBe(API)
+  })
+
+  it('uses the Vite proxy for a loopback API during dev', () => {
+    expect(resolveApiBase('http://127.0.0.1:8000/', true)).toBe('')
+    expect(resolveApiBase('http://localhost:8000', true)).toBe('')
+  })
+
+  it('keeps a loopback URL outside dev', () => {
+    expect(resolveApiBase('http://127.0.0.1:8000', false)).toBe('http://127.0.0.1:8000')
+  })
+})
 
 const profileBody = {
   login_id: 'SB-1234ABCD',

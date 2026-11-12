@@ -75,15 +75,34 @@ export function apiErrorText(err: unknown, copy: AppCopy, fallback: string): str
   return key ? copy[key] : fallback
 }
 
-const rawBase = import.meta.env.VITE_API_BASE_URL
-if (!rawBase?.trim()) {
-  throw new Error(
-    'Missing VITE_API_BASE_URL. Copy web/.env.example to web/.env.local for local development.',
-  )
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '0.0.0.0'])
+
+/**
+ * In dev, a loopback API URL is served by the Vite proxy as a same-origin `/api`
+ * path. The page is opened from Windows while the API runs in WSL, and a browser
+ * call straight to 127.0.0.1:8000 is a cross-origin preflight that fails.
+ */
+export function resolveApiBase(raw: string | undefined, dev: boolean): string {
+  const trimmed = raw?.trim() ?? ''
+  if (!trimmed) {
+    if (dev) return ''
+    throw new Error(
+      'Missing VITE_API_BASE_URL. Copy web/.env.example to web/.env.local for local development.',
+    )
+  }
+  const base = trimmed.replace(/\/+$/, '')
+  if (!dev) return base
+  try {
+    const host = new URL(base).hostname.toLowerCase()
+    if (LOOPBACK_HOSTS.has(host)) return ''
+  } catch {
+    return base
+  }
+  return base
 }
 
 // Production builds are validated in vite.config.ts; this is the runtime value.
-export const API_BASE_URL = rawBase.trim().replace(/\/+$/, '')
+export const API_BASE_URL = resolveApiBase(import.meta.env.VITE_API_BASE_URL, import.meta.env.DEV)
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length ? value : null

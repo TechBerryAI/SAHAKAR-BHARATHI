@@ -43,8 +43,9 @@ node scripts/start.js           # database, API (http://127.0.0.1:8000) and web 
 node scripts/start-android.js   # builds the Android app and opens it on an emulator or USB phone
 ```
 
-`scripts/start-android.js` uses the local API from `scripts/start.js` (it forwards the device's port 8000
-to this computer). From WSL it finds the Windows Android Studio SDK and builds with
+`scripts/start.js` uses the database in `backend/.env`. A hosted `DATABASE_URL` does not need Docker.
+`scripts/start-android.js` starts that API if it is not already running, then forwards the device's
+port 8000 to it. From WSL it finds the Windows Android Studio SDK and builds with
 `gradlew.bat`. Add `--prod` to use the live API instead, `--logs` to follow the app's
 logs, or see the options at the top of [`scripts/start-android.js`](scripts/start-android.js) and in
 [`android/README.md`](android/README.md#run-on-an-emulator-or-phone).
