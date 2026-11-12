@@ -6,9 +6,9 @@
 //
 // 1. Finds the Android SDK and a JDK (JAVA_HOME, or the one bundled with Android Studio).
 // 2. Uses a connected device, or starts an emulator (the first one, or --avd <name>).
-// 3. Starts the local API if it is not already running. From WSL, an emulator reaches
-//    that API at http://10.0.2.2:<port>/ (Windows localhost:8000 is often already taken).
-//    A USB phone uses adb reverse instead.
+// 3. Starts the local API if it is not already running. The device reaches it through
+//    the Windows bridge. Android 16 blocks the app from 10.0.2.2 until local-network
+//    access is granted; this script grants that permission after install.
 // 4. Builds the debug app, installs it, and opens it. The script stops if the device
 //    still cannot read a health response.
 //
@@ -560,7 +560,15 @@ function install(sdk, serial) {
   const apkForAdb = IS_WSL && isWindowsSdk(sdk) ? toWindowsPath(APK) : APK
   const result = adb(sdk, serial, ['install', '-r', '-t', apkForAdb])
   const output = `${result.stdout || ''}${result.stderr || ''}`
-  if (result.status === 0 && output.includes('Success')) return
+  if (result.status === 0 && output.includes('Success')) {
+    // Android 16 blocks the app from the emulator host until this is allowed.
+    // Granting here avoids a failed first sign-in while the prompt is still pending.
+    const grant = adb(sdk, serial, ['shell', 'pm', 'grant', PACKAGE, 'android.permission.ACCESS_LOCAL_NETWORK'])
+    if (grant.status !== 0) {
+      warn('Could not pre-grant local network access. Accept the prompt on the device before signing in.')
+    }
+    return
+  }
   if (output.includes('INSTALL_FAILED_UPDATE_INCOMPATIBLE')) {
     fail(
       'The device has an older build signed with a different debug key.\n' +
