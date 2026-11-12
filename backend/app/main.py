@@ -104,6 +104,27 @@ class RequestSizeLimitMiddleware:
                 await JSONResponse({"detail": "Request too large."}, status_code=413)(scope, receive, send)
 
 
+class PrivateNetworkAccessMiddleware:
+    """Let a local page call loopback. Chrome asks on the preflight and blocks without this."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = {key.decode("latin-1").lower(): value.decode("latin-1") for key, value in scope.get("headers", [])}
+        allow = headers.get("access-control-request-private-network") == "true"
+
+        async def send_with_header(message: Message) -> None:
+            if allow and message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["Access-Control-Allow-Private-Network"] = "true"
+            await send(message)
+
+        await self.app(scope, receive, send_with_header)
+
+
 class ApiResponseHeadersMiddleware:
     """API responses carry participant data and tokens: never cache them, never sniff them."""
 
@@ -220,8 +241,13 @@ def create_app() -> FastAPI:
             # Clients send bearer tokens, never cookies.
             allow_credentials=False,
             allow_methods=_CORS_METHODS,
-            allow_headers=_CORS_HEADERS,
+            # Dev pages and browser tooling add preflight headers we do not ship
+            # in production. A rejected header is a 400 with no CORS response,
+            # which the sign-in screen shows as "server could not be reached".
+            allow_headers=["*"] if not settings.is_production else _CORS_HEADERS,
         )
+    if not settings.is_production:
+        application.add_middleware(PrivateNetworkAccessMiddleware)
     application.add_exception_handler(RequestValidationError, _validation_error_handler)
     application.include_router(api_router, prefix="/api/v1")
 

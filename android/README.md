@@ -28,10 +28,14 @@ It finds the Android SDK (`ANDROID_HOME`, `local.properties`, or the default ins
 folder) and a JDK (`JAVA_HOME`, else Android Studio's bundled `jbr`). From WSL it also
 accepts a Windows `sdk.dir` / `ANDROID_HOME` (`C:\Users\…\Android\Sdk`), uses `adb.exe`,
 and builds with `gradlew.bat` via `cmd.exe` — Linux Gradle cannot use Windows `aapt.exe`.
-It uses a connected device, or starts the first emulator, then forwards the device's port
-8000 to this computer, builds the debug app against `http://127.0.0.1:8000/`, installs it,
-and opens it. Start the API first with `node scripts/start.js`. Without it the app opens but cannot
-sign in.
+It uses a connected device, or starts the first emulator, starts the local API when
+it is not already running (`node scripts/start.js`), and builds the debug app against
+the address that device can reach. From WSL that is `http://10.0.2.2:<port>/` on an
+emulator, because Windows port 8000 is often already taken and `adb reverse` then
+returns an empty reply. Android 16 blocks an app from that host address until
+local-network access is allowed; the script grants it after install. A USB phone
+uses `adb reverse` and `http://127.0.0.1:<port>/`.
+It installs the app and opens it, and stops if the device still cannot reach the API.
 
 | Option | Effect |
 |---|---|

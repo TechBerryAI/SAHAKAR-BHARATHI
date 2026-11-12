@@ -3,10 +3,12 @@
 //
 //   node scripts/start.js
 //
-// 1. Starts the local PostgreSQL container (sahakar-postgres) if Docker has it.
+// 1. Uses the database in backend/.env. A hosted DATABASE_URL does not need Docker.
+//    A local database must already be listening, or Docker can start sahakar-postgres.
 // 2. Applies database migrations (alembic upgrade head).
-// 3. Starts the API on http://127.0.0.1:8000 (dev_server.py when present, so the
-//    test OTP is shown on screen; otherwise plain uvicorn).
+// 3. Starts the API on port 8000 (dev_server.py when present, so the test OTP is
+//    shown on screen; otherwise plain uvicorn). It listens on every interface so
+//    Windows and the Android emulator can reach a server that is running in WSL.
 // 4. Starts the web app on http://localhost:5174 and prints the URL.
 //
 // Ctrl+C stops everything this script started.
@@ -17,16 +19,21 @@ import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { publishLocalApi } from './api-bridge.js'
+import { databaseTarget, loadEnvFile } from './dev-database.js'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BACKEND = path.join(ROOT, 'backend')
 const WEB = path.join(ROOT, 'web')
 const IS_WINDOWS = process.platform === 'win32'
+const ENV_FILE = path.join(BACKEND, '.env')
 
+const API_BIND_HOST = '0.0.0.0'
 const API_HOST = '127.0.0.1'
 const API_PORT = 8000
 const WEB_PORT = 5174
-const DB_PORT = 5433
 const DB_CONTAINER = 'sahakar-postgres'
+const DOCKER_EXE = '/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe'
 
 const API_URL = `http://${API_HOST}:${API_PORT}`
 const WEB_URL = `http://localhost:${WEB_PORT}`
@@ -49,7 +56,7 @@ function python() {
   if (!existsSync(venv)) {
     fail(
       `Python virtual environment not found at ${venv}.\n` +
-        '  Create it first:  cd backend && python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"',
+        '  Create it first:  cd backend && python -m venv .venv && .venv/bin/pip install -e ".[dev]"',
     )
   }
   return venv
@@ -61,25 +68,23 @@ async function portOpen(port) {
   return results.includes(true)
 }
 
-function portOpenOn(port, host) {
+function portOpenOn(port, host, timeoutMs = 1000) {
   return new Promise((resolve) => {
     const socket = net.connect({ port, host })
-    socket.setTimeout(1000)
-    socket.once('connect', () => {
+    const finish = (open) => {
       socket.destroy()
-      resolve(true)
-    })
-    socket.once('timeout', () => {
-      socket.destroy()
-      resolve(false)
-    })
-    socket.once('error', () => resolve(false))
+      resolve(open)
+    }
+    socket.setTimeout(timeoutMs)
+    socket.once('connect', () => finish(true))
+    socket.once('timeout', () => finish(false))
+    socket.once('error', () => finish(false))
   })
 }
 
 async function apiHealthy() {
   try {
-    const response = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(2000) })
+    const response = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(10000) })
     return response.ok
   } catch {
     return false
@@ -87,7 +92,8 @@ async function apiHealthy() {
 }
 
 async function waitFor(check, what, seconds) {
-  for (let i = 0; i < seconds * 2; i++) {
+  const deadline = Date.now() + seconds * 1000
+  while (Date.now() < deadline) {
     if (await check()) return
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
@@ -149,22 +155,107 @@ process.on('SIGINT', () => {
 })
 process.on('SIGTERM', () => stopAll(0))
 
-async function startDatabase() {
-  if (await portOpen(DB_PORT)) {
-    log(`PostgreSQL is already running on port ${DB_PORT}.`)
+function dockerReady(bin) {
+  return spawnSync(bin, ['info'], { encoding: 'utf8', timeout: 20000 }).status === 0
+}
+
+function launchDockerDesktop() {
+  const exe = '/mnt/c/Program Files/Docker/Docker/Docker Desktop.exe'
+  if (!existsSync(exe)) return false
+  log('Starting Docker Desktop…')
+  const child = spawn(
+    'cmd.exe',
+    ['/c', 'start', '', 'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'],
+    { detached: true, stdio: 'ignore' },
+  )
+  child.unref()
+  return true
+}
+
+async function findDocker() {
+  const bins = ['docker', ...(existsSync(DOCKER_EXE) ? [DOCKER_EXE] : [])]
+  for (const bin of bins) {
+    if (dockerReady(bin)) return bin
+  }
+  if (!launchDockerDesktop()) return undefined
+  const deadline = Date.now() + 120_000
+  while (Date.now() < deadline) {
+    for (const bin of bins) {
+      if (dockerReady(bin)) return bin
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+  }
+  return undefined
+}
+
+function dockerOutput(result) {
+  return `${result.stdout || ''}${result.stderr || ''}`.trim()
+}
+
+async function ensureLocalPostgres(env, port) {
+  if (await portOpen(port)) {
+    log(`PostgreSQL is already running on port ${port}.`)
     return
   }
-  const docker = spawnSync('docker', ['start', DB_CONTAINER], { encoding: 'utf8' })
-  if (docker.status !== 0) {
+  const docker = await findDocker()
+  if (!docker) {
     fail(
-      `PostgreSQL is not running on port ${DB_PORT} and the Docker container "${DB_CONTAINER}" ` +
-        'could not be started.\n  Start Docker Desktop (or your PostgreSQL server) and try again.',
+      `PostgreSQL is not running on port ${port}, and Docker is not running.\n` +
+        '  Start Docker Desktop, or set DATABASE_URL in backend/.env to a database this machine can reach.',
     )
   }
-  log(`Starting the "${DB_CONTAINER}" Docker container…`)
-  await waitFor(() => portOpen(DB_PORT), 'PostgreSQL', 60)
+  const started = spawnSync(docker, ['start', DB_CONTAINER], { encoding: 'utf8' })
+  if (started.status !== 0) {
+    const user = env.POSTGRES_USER || 'sahakar'
+    const password = env.POSTGRES_PASSWORD || ''
+    const database = env.POSTGRES_DB || 'sahakar'
+    log(`Creating the "${DB_CONTAINER}" container on port ${port}…`)
+    const args = [
+      'run',
+      '-d',
+      '--name',
+      DB_CONTAINER,
+      '-p',
+      `${port}:5432`,
+      '-e',
+      `POSTGRES_USER=${user}`,
+      '-e',
+      `POSTGRES_DB=${database}`,
+    ]
+    if (password) args.push('-e', `POSTGRES_PASSWORD=${password}`)
+    else args.push('-e', 'POSTGRES_HOST_AUTH_METHOD=trust')
+    args.push('postgres:16')
+    const created = spawnSync(docker, args, { encoding: 'utf8', timeout: 300000 })
+    if (created.status !== 0) {
+      fail(
+        `PostgreSQL is not running on port ${port} and Docker could not create "${DB_CONTAINER}".\n` +
+          dockerOutput(created),
+      )
+    }
+  } else {
+    log(`Starting the "${DB_CONTAINER}" Docker container…`)
+  }
+  await waitFor(() => portOpen(port), 'PostgreSQL', 60)
   // The port opens slightly before Postgres accepts logins.
   await new Promise((resolve) => setTimeout(resolve, 2000))
+}
+
+async function startDatabase() {
+  const env = loadEnvFile(ENV_FILE)
+  const target = databaseTarget(env)
+  if (target.error) fail(`${target.error} in backend/.env.`)
+  if (target.remote) {
+    log(`Using the database from backend/.env (${target.host}:${target.port}). Docker is not required.`)
+    if (!(await portOpenOn(target.port, target.host, 8000))) {
+      fail(
+        `Could not connect to ${target.host}:${target.port}.\n` +
+          '  Check DATABASE_URL in backend/.env and that this machine can reach that host.',
+      )
+    }
+    return
+  }
+  log(`Using local PostgreSQL at ${target.host}:${target.port}.`)
+  await ensureLocalPostgres(env, target.port)
 }
 
 function migrate() {
@@ -187,15 +278,16 @@ async function startApi() {
   const devServer = path.join(BACKEND, 'dev_server.py')
   const args = existsSync(devServer)
     ? ['dev_server.py']
-    : ['-m', 'uvicorn', 'app.main:app', '--host', API_HOST, '--port', String(API_PORT)]
+    : ['-m', 'uvicorn', 'app.main:app', '--host', API_BIND_HOST, '--port', String(API_PORT)]
   log(`Starting the API at ${API_URL}…`)
   run('api', python(), args, { cwd: BACKEND, env: { ...process.env, PYTHONUNBUFFERED: '1' } })
-  await waitFor(apiHealthy, 'The API', 60)
+  await waitFor(apiHealthy, 'The API', 90)
 }
 
 async function startWeb() {
   if (await portOpen(WEB_PORT)) {
-    fail(`Port ${WEB_PORT} is already in use. Is the web app already running at ${WEB_URL}?`)
+    log(`Web app is already running at ${WEB_URL}.`)
+    return
   }
   if (!existsSync(path.join(WEB, 'node_modules'))) {
     log('Installing web dependencies (first run)…')
@@ -214,6 +306,7 @@ async function startWeb() {
 await startDatabase()
 migrate()
 await startApi()
+await publishLocalApi({ apiPort: API_PORT, log })
 await startWeb()
 
 console.log(`
