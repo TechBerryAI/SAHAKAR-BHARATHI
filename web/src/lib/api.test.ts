@@ -246,6 +246,29 @@ describe('registration and profile', () => {
     expect(calls[1].init.method).toBe('GET')
   })
 
+  it('keeps booth check-in errors and hides unknown ones', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const fallback = 'Attendance could not be recorded.'
+    scriptServer(
+      { status: 404, body: { detail: 'That booth was not found.' } },
+      { status: 400, body: { detail: 'This booth is not accepting check-ins.' } },
+      { status: 422, body: { detail: [{ msg: 'Value error, Enter the 6-digit booth code.' }] } },
+      { status: 429, body: { detail: 'Too many attempts. Try again later.' } },
+      { status: 500, body: { detail: 'database exploded' } },
+    )
+    const missing = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const inactive = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const invalid = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const limited = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const unknown = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const english = copyFor('en')
+    expect(apiErrorText(missing, english, fallback)).toBe(english.boothNotFound)
+    expect(apiErrorText(inactive, english, fallback)).toBe(english.boothInactive)
+    expect(apiErrorText(invalid, english, fallback)).toBe(english.boothCodeInvalid)
+    expect(apiErrorText(limited, english, fallback)).toBe(english.tooManyAttempts)
+    expect(apiErrorText(unknown, english, fallback)).toBe(fallback)
+  })
+
   it('a network failure is reported as such', () => {
     expect(apiErrorText(new ApiError(0, 'x'), copyFor('en'), 'fallback')).toBe(copyFor('en').networkError)
     expect(apiErrorText(new Error('boom'), copyFor('en'), 'fallback')).toBe('fallback')

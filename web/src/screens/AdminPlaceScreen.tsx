@@ -1,14 +1,29 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import QRCode from 'qrcode'
-import { boothQrText } from '../lib/boothCode.ts'
+import { boothQrSvg } from '../lib/boothCode.ts'
 import { AdminSections } from '../components/AdminSections.tsx'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, ErrorBanner, Screen } from '../components/ui.tsx'
 import { useLanguage } from '../contexts/language.tsx'
-import { ApiError, apiErrorText, listPlaceAttendance, listPlaces, updatePlace } from '../lib/api.ts'
+import { ApiError, apiErrorText, getPlace, listPlaceAttendance, updatePlace } from '../lib/api.ts'
 import { formatMobile, regionLabel } from '../lib/format.ts'
 import type { AttendanceRecord, Place } from '../lib/types.ts'
+
+function BoothQr({ svg, label }: { svg: string; label: string }) {
+  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  const root = doc.documentElement
+  if (root.nodeName.toLowerCase() !== 'svg' || doc.querySelector('parsererror')) {
+    return <p className="muted">QR could not be drawn.</p>
+  }
+  return (
+    <div
+      className="print-qr"
+      role="img"
+      aria-label={label}
+      dangerouslySetInnerHTML={{ __html: root.outerHTML }}
+    />
+  )
+}
 
 function visitTime(iso: string): string {
   const date = new Date(iso)
@@ -27,34 +42,44 @@ export function AdminPlaceScreen() {
   const [place, setPlace] = useState<Place | null>(null)
   const [visits, setVisits] = useState<AttendanceRecord[]>([])
   const [total, setTotal] = useState(0)
-  const [qrUrl, setQrUrl] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [qrSvg, setQrSvg] = useState('')
+  const [qrFor, setQrFor] = useState('')
+  const [qrError, setQrError] = useState('')
+  const [qrErrorFor, setQrErrorFor] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [errorFor, setErrorFor] = useState('')
+  const current = place?.id === placeId ? place : null
+  const banner = errorFor === placeId ? error : ''
+  const pending = !current && errorFor !== placeId
 
   useEffect(() => {
     let cancelled = false
-    listPlaces()
-      .then(async (page) => {
-        const found = page.items.find((item) => item.id === placeId) ?? null
+    getPlace(placeId)
+      .then(async (found) => {
         if (cancelled) return
         setPlace(found)
-        if (!found) {
-          setError('That booth was not found.')
-          return
+        setVisits([])
+        setTotal(0)
+        setError('')
+        setErrorFor('')
+        try {
+          const attendance = await listPlaceAttendance(found.id)
+          if (cancelled) return
+          setVisits(attendance.items)
+          setTotal(attendance.total)
+        } catch (err: unknown) {
+          if (cancelled) return
+          if (err instanceof ApiError && err.status === 401) return
+          setError(apiErrorText(err, copy, 'Could not load attendance.'))
+          setErrorFor(placeId)
         }
-        const attendance = await listPlaceAttendance(found.id)
-        if (cancelled) return
-        setVisits(attendance.items)
-        setTotal(attendance.total)
       })
       .catch((err: unknown) => {
         if (cancelled) return
         if (err instanceof ApiError && err.status === 401) return
         setError(apiErrorText(err, copy, 'Could not load this booth.'))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        setErrorFor(placeId)
       })
     return () => {
       cancelled = true
@@ -62,41 +87,51 @@ export function AdminPlaceScreen() {
   }, [placeId, copy])
 
   useEffect(() => {
-    if (!place) return
+    const code = current?.code
+    if (!code) return
     let cancelled = false
-    void QRCode.toDataURL(boothQrText(place.code), { margin: 1, width: 320, errorCorrectionLevel: 'M' }).then(
-      (url) => {
-        if (!cancelled) setQrUrl(url)
-      },
-    )
+    void boothQrSvg(code)
+      .then((svg) => {
+        if (cancelled) return
+        setQrSvg(svg)
+        setQrFor(code)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setQrError('QR could not be drawn.')
+        setQrErrorFor(code)
+      })
     return () => {
       cancelled = true
     }
-  }, [place])
+  }, [current?.code])
 
   async function onToggle() {
-    if (!place || busy) return
+    if (!current || busy) return
     setBusy(true)
     setError('')
+    setErrorFor('')
     try {
-      const updated = await updatePlace(place.id, { active: !place.active })
+      const updated = await updatePlace(current.id, { active: !current.active })
       setPlace(updated)
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'Could not update this booth.'))
+      setErrorFor(placeId)
     } finally {
       setBusy(false)
     }
   }
 
   async function onLoadMore() {
-    if (!place) return
+    if (!current) return
     setBusy(true)
     try {
-      const page = await listPlaceAttendance(place.id, visits.length)
-      setVisits((current) => [...current, ...page.items])
+      const page = await listPlaceAttendance(current.id, visits.length)
+      setVisits((items) => [...items, ...page.items])
       setTotal(page.total)
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'Could not load attendance.'))
+      setErrorFor(placeId)
     } finally {
       setBusy(false)
     }
@@ -104,22 +139,24 @@ export function AdminPlaceScreen() {
 
   return (
     <>
-      <AppBar title={place?.name ?? 'Booth'} onBack={() => navigate('/admin/places')} />
+      <AppBar title={current?.name ?? 'Booth'} onBack={() => navigate('/admin/places')} />
       <Screen withNav>
         <AdminSections />
-        <ErrorBanner message={error} />
-        {loading ? (
+        <ErrorBanner message={banner} />
+        {pending ? (
           <div className="center-state">
             <div className="spinner" aria-label={copy.pleaseWait} />
           </div>
-        ) : place ? (
+        ) : current ? (
           <>
             <section className="print-sheet">
-              <h2 className="print-sheet__name">{place.name}</h2>
-              {qrUrl ? (
-                <img className="print-qr" src={qrUrl} width={240} height={240} alt="" />
+              <h2 className="print-sheet__name">{current.name}</h2>
+              {qrFor === current.code && qrSvg ? (
+                <BoothQr svg={qrSvg} label={`Booth QR for code ${current.code}`} />
+              ) : qrErrorFor === current.code && qrError ? (
+                <p className="muted">{qrError}</p>
               ) : null}
-              <p className="print-sheet__code">{place.code}</p>
+              <p className="print-sheet__code">{current.code}</p>
               <p className="muted print-sheet__hint">Scan this QR, or enter the code under it.</p>
             </section>
             <div className="stack no-print">
@@ -127,7 +164,7 @@ export function AdminPlaceScreen() {
                 Print QR
               </Button>
               <Button type="button" variant="ghost" disabled={busy} onClick={() => void onToggle()}>
-                {place.active ? 'Stop accepting visits' : 'Accept visits again'}
+                {current.active ? 'Stop accepting visits' : 'Accept visits again'}
               </Button>
             </div>
             <h2 className="attendance-heading no-print">Who was here</h2>

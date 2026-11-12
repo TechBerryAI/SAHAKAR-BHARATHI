@@ -333,6 +333,7 @@ class RathYatraCopy {
     lateinit var cameraOff: String
     lateinit var scanQr: String
     lateinit var scanMiss: String
+    lateinit var scanStarting: String
     lateinit var noVisitsYet: String
     lateinit var comingSoon: String
     lateinit var comingSoonBody: String
@@ -635,6 +636,7 @@ class RathYatraCopy {
             copy.cameraOff = cameraOff
             copy.scanQr = scanQr
             copy.scanMiss = scanMiss
+            copy.scanStarting = scanStarting
             copy.noVisitsYet = noVisitsYet
             copy.comingSoon = comingSoon
             copy.comingSoonBody = comingSoonBody
@@ -939,7 +941,8 @@ private val English: RathYatraCopy = RathYatraCopy().apply {
     allowCamera = "Allow camera"
     cameraOff = "Camera is off. You can still enter the booth code."
     scanQr = "Scan QR"
-    scanMiss = "No booth QR in the frame. Move closer and tap Scan QR."
+    scanMiss = "This QR has no booth code. The 6-digit code is printed under the booth QR."
+    scanStarting = "The camera is still starting. Hold the booth QR in the frame, then tap Scan QR."
     noVisitsYet = "No visits yet"
     comingSoon = "Opening soon"
     comingSoonBody = "This section will be available in a later update."
@@ -1241,7 +1244,8 @@ private val Hindi: RathYatraCopy = English.cloneCopy().apply {
     allowCamera = "कैमरा अनुमति दें"
     cameraOff = "कैमरा बंद है। बूथ कोड फिर भी दर्ज कर सकते हैं।"
     scanQr = "QR स्कैन करें"
-    scanMiss = "फ्रेम में बूथ QR नहीं है। पास जाकर QR स्कैन करें दबाएँ।"
+    scanMiss = "इस QR पर बूथ कोड नहीं है। 6 अंकों का कोड बूथ QR के नीचे छपा है।"
+    scanStarting = "कैमरा अभी शुरू हो रहा है। बूथ QR को फ्रेम में रखें, फिर QR स्कैन करें दबाएँ।"
     noVisitsYet = "अभी कोई उपस्थिति नहीं"
     comingSoon = "जल्द उपलब्ध"
     comingSoonBody = "यह खंड अगले अद्यतन में उपलब्ध होगा।"
