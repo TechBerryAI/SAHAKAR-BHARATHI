@@ -98,7 +98,7 @@ export function AdminPlacesScreen() {
                   </span>
                   <span className="admin-row__body">
                     <span className="admin-row__name">{place.name}</span>
-                    <span className="admin-row__meta">
+                    <span className="admin-row__meta admin-row__meta--codes">
                       <span className="place-code">{place.code}</span>
                       <span className={`place-status${place.active ? ' is-open' : ''}`}>
                         {place.active ? 'Accepting visits' : 'Not accepting visits'}

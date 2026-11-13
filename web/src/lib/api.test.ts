@@ -1,17 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
+  apiErrorKey,
   apiErrorText,
   checkIn,
+  confirmPhoneVerification,
+  createPlace,
+  getAdminUser,
   getMe,
+  getPlace,
+  isStaffRole,
+  listAdminUsers,
+  listPlaceAttendance,
+  listPlaces,
   logout,
   myAttendance,
+  profileFromPayload,
   registerAndSignIn,
   RegisteredButSignInFailedError,
   resolveApiBase,
   restoreSession,
+  sendPhoneVerification,
+  setAdminUserRole,
   signIn,
   updateMe,
+  updatePlace,
 } from './api.ts'
 import { copyFor } from './copy.ts'
 import { ACCESS_TOKEN_KEY, clearSession, getSnapshot } from './session.ts'
@@ -32,6 +45,14 @@ describe('resolveApiBase', () => {
 
   it('keeps a loopback URL outside dev', () => {
     expect(resolveApiBase('http://127.0.0.1:8000', false)).toBe('http://127.0.0.1:8000')
+  })
+
+  it('uses the proxy for every loopback host, and refuses a missing production URL', () => {
+    expect(resolveApiBase('http://[::1]:8000', true)).toBe('')
+    expect(resolveApiBase('http://0.0.0.0:8000/', true)).toBe('')
+    expect(resolveApiBase('', true)).toBe('')
+    expect(resolveApiBase('not a url', true)).toBe('not a url')
+    expect(() => resolveApiBase('  ', false)).toThrow(/VITE_API_BASE_URL/)
   })
 })
 
@@ -246,8 +267,167 @@ describe('registration and profile', () => {
     expect(calls[1].init.method).toBe('GET')
   })
 
+  it('keeps booth check-in errors and hides unknown ones', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const fallback = 'Attendance could not be recorded.'
+    scriptServer(
+      { status: 404, body: { detail: 'That booth was not found.' } },
+      { status: 400, body: { detail: 'This booth is not accepting check-ins.' } },
+      { status: 422, body: { detail: [{ msg: 'Value error, Enter the 6-digit booth code.' }] } },
+      { status: 429, body: { detail: 'Too many attempts. Try again later.' } },
+      { status: 500, body: { detail: 'database exploded' } },
+    )
+    const missing = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const inactive = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const invalid = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const limited = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const unknown = await checkIn('000000', 'qr').catch((err: unknown) => err)
+    const english = copyFor('en')
+    expect(apiErrorText(missing, english, fallback)).toBe(english.boothNotFound)
+    expect(apiErrorText(inactive, english, fallback)).toBe(english.boothInactive)
+    expect(apiErrorText(invalid, english, fallback)).toBe(english.boothCodeInvalid)
+    expect(apiErrorText(limited, english, fallback)).toBe(english.tooManyAttempts)
+    expect(apiErrorText(unknown, english, fallback)).toBe(fallback)
+  })
+
   it('a network failure is reported as such', () => {
     expect(apiErrorText(new ApiError(0, 'x'), copyFor('en'), 'fallback')).toBe(copyFor('en').networkError)
     expect(apiErrorText(new Error('boom'), copyFor('en'), 'fallback')).toBe('fallback')
+  })
+
+  it('maps the remaining known server messages', () => {
+    const english = copyFor('en')
+    const cases: Array<[string, keyof typeof english]> = [
+      ['An account already exists for this mobile number.', 'mobileRegistered'],
+      ['An account already exists with this email address.', 'emailRegistered'],
+      ['The code is incorrect or has expired.', 'otpInvalid'],
+      ['Verify this mobile number before registering.', 'verificationExpired'],
+    ]
+    for (const [message, key] of cases) {
+      const error = new ApiError(400, message)
+      expect(apiErrorKey(error)).toBe(key)
+      expect(apiErrorText(error, english, 'fallback')).toBe(english[key])
+    }
+    expect(apiErrorKey(new ApiError(429, 'slow down'))).toBe('tooManyAttempts')
+  })
+
+  it('builds a profile, defaulting the role and dropping blank strings', () => {
+    expect(profileFromPayload({ login_id: 'SB-1', email: '', role: 'owner' })).toMatchObject({
+      login_id: 'SB-1',
+      email: null,
+      role: 'participant',
+      status: 'active',
+    })
+    expect(isStaffRole('admin')).toBe(true)
+    expect(isStaffRole('super_admin')).toBe(true)
+    expect(isStaffRole('participant')).toBe(false)
+    expect(isStaffRole(undefined)).toBe(false)
+  })
+
+  it('signs in after a successful registration and saves a profile update', async () => {
+    const calls = scriptServer(
+      { status: 201, body: { login_id: 'SB-1234ABCD' } },
+      { status: 200, body: { ...profileBody, access_token: 'tok-1', token_type: 'bearer' } },
+    )
+    const created = await registerAndSignIn(registration)
+    expect(created.login_id).toBe('SB-1234ABCD')
+    expect(calls[1].url).toBe(`${API}/api/v1/sessions`)
+    expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBe('tok-1')
+
+    const updated = scriptServer({ status: 200, body: { ...profileBody, full_name: 'Anita Updated' } })
+    const profile = await updateMe({ full_name: 'Anita Updated' })
+    expect(profile.full_name).toBe('Anita Updated')
+    expect(getSnapshot().profile?.full_name).toBe('Anita Updated')
+    expect(updated[0].init.method).toBe('PATCH')
+  })
+
+  it('reuses a fresh profile and shares one in-flight load', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const calls = scriptServer({ status: 200, body: profileBody })
+    await getMe({ fresh: true })
+    await getMe()
+    expect(calls).toHaveLength(1)
+
+    clearSession()
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    let release: (response: Response) => void = () => {}
+    const pending: string[] = []
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      pending.push(url)
+      return new Promise<Response>((resolve) => {
+        release = resolve
+      })
+    }))
+    const first = getMe()
+    const second = getMe()
+    expect(pending).toHaveLength(1)
+    release(new Response(JSON.stringify(profileBody), { status: 200 }))
+    const [left, right] = await Promise.all([first, second])
+    expect(left.login_id).toBe(right.login_id)
+  })
+
+  it('sends phone verification without a session', async () => {
+    const calls = scriptServer(
+      { status: 202, body: { id: 'challenge-1', expires_in_seconds: 300 } },
+      { status: 200, body: { verification_token: 'verify-1', expires_in_seconds: 900 } },
+    )
+    const sent = await sendPhoneVerification('9876543210')
+    const confirmed = await confirmPhoneVerification(sent.id, '123456')
+    expect(confirmed.verification_token).toBe('verify-1')
+    expect(calls[0].url).toBe(`${API}/api/v1/phone-verifications`)
+    expect(calls[0].init.headers).not.toHaveProperty('Authorization')
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ mobile: '9876543210' })
+    expect(calls[1].url).toBe(`${API}/api/v1/phone-verifications/challenge-1/confirm`)
+    expect(JSON.parse(String(calls[1].init.body))).toEqual({ code: '123456' })
+  })
+
+  it('calls the admin user and booth endpoints with the signed-in token', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const calls = scriptServer(
+      { status: 200, body: { items: [], total: 0, limit: 20, offset: 0 } },
+      { status: 200, body: { ...profileBody, id: 'user-1', created_at: '2026-11-01T00:00:00Z' } },
+      { status: 200, body: { ...profileBody, id: 'user-1', created_at: '2026-11-01T00:00:00Z', role: 'admin' } },
+      { status: 200, body: { items: [] } },
+      { status: 201, body: { id: 'place-1', name: 'Gate booth', code: '004218', active: true } },
+      { status: 200, body: { id: 'place-1', name: 'Gate booth', code: '004218', active: true } },
+      { status: 200, body: { id: 'place-1', name: 'Gate booth', code: '004218', active: false } },
+      { status: 200, body: { items: [], total: 0, limit: 50, offset: 50 } },
+    )
+    await listAdminUsers('  Anita  ', 20)
+    await getAdminUser('user-1')
+    await setAdminUserRole('user-1', 'admin')
+    await listPlaces()
+    await createPlace('Gate booth')
+    await getPlace('place-1')
+    await updatePlace('place-1', { active: false })
+    await listPlaceAttendance('place-1', 50)
+
+    expect(calls[0].url).toBe(`${API}/api/v1/admin/users?limit=20&offset=20&q=Anita`)
+    expect(calls[1].url).toBe(`${API}/api/v1/admin/users/user-1`)
+    expect(calls[2].init.method).toBe('POST')
+    expect(JSON.parse(String(calls[2].init.body))).toEqual({ role: 'admin' })
+    expect(calls[3].url).toBe(`${API}/api/v1/admin/places`)
+    expect(JSON.parse(String(calls[4].init.body))).toEqual({ name: 'Gate booth' })
+    expect(calls[5].url).toBe(`${API}/api/v1/admin/places/place-1`)
+    expect(calls[6].init.method).toBe('PATCH')
+    expect(calls[7].url).toBe(`${API}/api/v1/admin/places/place-1/attendance?limit=50&offset=50`)
+    for (const call of calls) {
+      expect(new Headers(call.init.headers).get('Authorization')).toBe('Bearer tok-1')
+    }
+  })
+
+  it('does not call the server when logging out with no token', async () => {
+    const calls = scriptServer()
+    await logout()
+    expect(calls).toHaveLength(0)
+  })
+
+  it('revokes the token when logout reaches the server', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const calls = scriptServer({ status: 204 })
+    await logout()
+    expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull()
+    expect(calls[0].init.method).toBe('DELETE')
+    expect(calls[0].url).toBe(`${API}/api/v1/sessions/current`)
   })
 })

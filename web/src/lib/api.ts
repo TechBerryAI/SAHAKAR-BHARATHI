@@ -56,6 +56,9 @@ const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
   'An account already exists with this email address.': 'emailRegistered',
   'Mobile number or PIN is incorrect.': 'invalidCredentials',
   'Too many attempts. Try again later.': 'tooManyAttempts',
+  'That booth was not found.': 'boothNotFound',
+  'This booth is not accepting check-ins.': 'boothInactive',
+  'Enter the 6-digit booth code.': 'boothCodeInvalid',
   'The code is incorrect or has expired.': 'otpInvalid',
   'Verify this mobile number before registering.': 'verificationExpired',
 }
@@ -93,7 +96,7 @@ export function resolveApiBase(raw: string | undefined, dev: boolean): string {
   const base = trimmed.replace(/\/+$/, '')
   if (!dev) return base
   try {
-    const host = new URL(base).hostname.toLowerCase()
+    const host = new URL(base).hostname.toLowerCase().replace(/^\[|\]$/g, '')
     if (LOOPBACK_HOSTS.has(host)) return ''
   } catch {
     return base
@@ -149,7 +152,7 @@ function messageFromDetail(payload: unknown, fallback: string): string {
     if (first && typeof first === 'object' && 'msg' in first) {
       const msg = (first as { msg?: unknown }).msg
       if (typeof msg === 'string' && msg.trim()) {
-        return msg
+        return msg.trim().replace(/^Value error,\s*/, '')
       }
     }
   }
@@ -321,6 +324,12 @@ export function getAdminUser(id: string): Promise<AdminUserDetail> {
 export function listPlaces(): Promise<PlaceList> {
   return request<PlaceList>('/api/v1/admin/places', {
     fallback: 'Could not load booths.',
+  })
+}
+
+export function getPlace(id: string): Promise<Place> {
+  return request<Place>(`/api/v1/admin/places/${id}`, {
+    fallback: 'Could not load this booth.',
   })
 }
 

@@ -2,6 +2,7 @@ package com.example.sahakarbharati.data
 
 import android.content.SharedPreferences
 import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.DemoPhotos
 import com.example.sahakarbharati.data.model.ParticipantProfile
 import com.example.sahakarbharati.data.remote.AdminAttendanceListDto
 import com.example.sahakarbharati.data.remote.AdminUserDetailDto
@@ -10,6 +11,7 @@ import com.example.sahakarbharati.data.remote.PlaceCreateRequest
 import com.example.sahakarbharati.data.remote.PlaceDto
 import com.example.sahakarbharati.data.remote.PlaceListDto
 import com.example.sahakarbharati.data.remote.AttendanceListDto
+import com.example.sahakarbharati.data.remote.BoothCodeListDto
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.remote.CheckInRequest
 import com.example.sahakarbharati.data.remote.AdminUserListDto
@@ -64,6 +66,38 @@ class SessionHandlingTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun saveProfile_roundTripsEveryFieldAndTracksRegistration() {
+        val session = newSession()
+        assertNull(session.cachedProfile())
+        assertFalse(session.isRegistered)
+        assertFalse(session.notificationsEnabled)
+
+        val stored = profile.copy(
+            email = "anita@example.com",
+            gender = "Female",
+            dateOfBirth = "1985-03-12",
+            occupation = "Farmer",
+            addressLine = "12 Village Road",
+            locality = "Ward 4",
+            district = "Nashik",
+            state = "Maharashtra",
+            pincode = "422001",
+            status = "active",
+            role = "participant",
+        )
+        session.saveProfile(stored)
+        session.notificationsEnabled = true
+
+        assertEquals(stored, session.cachedProfile())
+        assertTrue(session.isRegistered)
+        assertTrue(session.notificationsEnabled)
+        assertTrue(DemoPhotos.isDemo(DemoPhotos.GIRL))
+        assertFalse(DemoPhotos.isDemo("photo.jpg"))
+        assertEquals("img_demo_boy", DemoPhotos.drawableName(DemoPhotos.BOY))
+        assertNull(DemoPhotos.drawableName("photo.jpg"))
     }
 
     @Test
@@ -266,7 +300,11 @@ private class FakeApi(private val sessionFails: Boolean) : SahakarApi {
 
     override suspend fun myAttendance(authorization: String): AttendanceListDto = error("unused")
 
+    override suspend fun listBoothCodes(authorization: String): BoothCodeListDto = error("unused")
+
     override suspend fun listPlaces(authorization: String): PlaceListDto = error("unused")
+
+    override suspend fun getPlace(authorization: String, placeId: String): PlaceDto = error("unused")
 
     override suspend fun createPlace(authorization: String, body: PlaceCreateRequest): PlaceDto = error("unused")
 

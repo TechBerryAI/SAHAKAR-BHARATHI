@@ -6,11 +6,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
+import com.example.sahakarbharati.data.remote.BoothCodeDto
 import com.example.sahakarbharati.data.repository.AttendanceRepository
 import kotlinx.coroutines.launch
 
 data class AttendanceUi(
     val history: List<AttendanceRecordDto> = emptyList(),
+    val booths: List<BoothCodeDto> = emptyList(),
     val latest: AttendanceRecordDto? = null,
     val loading: Boolean = true,
     val submitting: Boolean = false,
@@ -27,10 +29,14 @@ class AttendanceViewModel(
 
     fun load() {
         viewModelScope.launch {
-            state = state.copy(loading = state.history.isEmpty(), error = null)
-            repository.mine().fold(
-                onSuccess = { page -> state = state.copy(history = page.items, loading = false, error = null) },
-                onFailure = { error -> state = state.copy(loading = false, error = error.message) },
+            state = state.copy(loading = state.history.isEmpty() && state.booths.isEmpty(), error = null)
+            val codes = repository.boothCodes()
+            val visits = repository.mine()
+            state = state.copy(
+                booths = codes.getOrElse { state.booths },
+                history = visits.getOrNull()?.items ?: state.history,
+                loading = false,
+                error = codes.exceptionOrNull()?.message ?: visits.exceptionOrNull()?.message,
             )
         }
     }

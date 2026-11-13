@@ -53,3 +53,12 @@ class PlaceResponse(ORMModel):
 
 class PlaceList(ORMModel):
     items: list[PlaceResponse]
+
+
+class BoothCode(ORMModel):
+    name: str
+    code: str
+
+
+class BoothCodeList(ORMModel):
+    items: list[BoothCode]

@@ -137,6 +137,15 @@ data class AttendanceListDto(
     val total: Int,
 )
 
+data class BoothCodeDto(
+    val name: String,
+    val code: String,
+)
+
+data class BoothCodeListDto(
+    val items: List<BoothCodeDto>,
+)
+
 data class PlaceDto(
     val id: String,
     val name: String,

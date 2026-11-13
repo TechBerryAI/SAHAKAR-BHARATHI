@@ -25,3 +25,9 @@ class PlaceRepository:
     def list_recent(self, limit: int = 100) -> list[Place]:
         rows = self.db.scalars(select(Place).order_by(Place.created_at.desc()).limit(limit))
         return list(rows)
+
+    def list_active(self) -> list[Place]:
+        rows = self.db.scalars(
+            select(Place).where(Place.active.is_(True)).order_by(Place.name.asc(), Place.created_at.asc())
+        )
+        return list(rows)

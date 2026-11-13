@@ -6,21 +6,29 @@ import { useLanguage } from '../contexts/language.tsx'
 import { ApiError, apiErrorText, checkIn, myAttendance } from '../lib/api.ts'
 import { boothCodeFromManual, boothCodeFromQr } from '../lib/boothCode.ts'
 import { formatMobile, regionLabel } from '../lib/format.ts'
+import { readBoothQr, SCAN_NOTE_WAIT } from '../lib/scanFrame.ts'
 import type { AttendanceRecord } from '../lib/types.ts'
 
-type BarcodeHit = { rawValue?: string }
-type BarcodeDetectorLike = { detect: (source: HTMLVideoElement) => Promise<BarcodeHit[]> }
+const NOTE_HTTPS = 'The camera needs a secure (HTTPS) page. Enter the 6-digit code printed under the QR.'
+const NOTE_DENIED = 'Camera permission was denied. Enter the 6-digit code printed under the QR.'
+const NOTE_CAMERA = 'Camera is unavailable. Enter the 6-digit code printed under the QR.'
 
-function openDetector(): BarcodeDetectorLike | null {
-  const scope = window as unknown as {
-    BarcodeDetector?: new (options: { formats: string[] }) => BarcodeDetectorLike
+async function openCamera(): Promise<MediaStream> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new DOMException('Camera is unavailable.', 'NotFoundError')
   }
-  if (!scope.BarcodeDetector) return null
-  try {
-    return new scope.BarcodeDetector({ formats: ['qr_code'] })
-  } catch {
-    return null
+  const attempts: MediaStreamConstraints[] = [{ video: { facingMode: 'environment' } }, { video: true }]
+  let last: unknown
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints)
+    } catch (err) {
+      last = err
+      const name = err instanceof DOMException ? err.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') throw err
+    }
   }
+  throw last instanceof Error ? last : new DOMException('Camera is unavailable.', 'NotFoundError')
 }
 
 function visitTime(iso: string): string {
@@ -57,7 +65,7 @@ export function CheckInScreen() {
   const navigate = useNavigate()
   const { copy } = useLanguage()
   const videoRef = useRef<HTMLVideoElement>(null)
-  const detectorRef = useRef<BarcodeDetectorLike | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const lock = useRef({ code: '', until: 0 })
   const submitRef = useRef<(raw: string, source: 'qr' | 'code') => void>(() => {})
   const [code, setCode] = useState('')
@@ -68,7 +76,7 @@ export function CheckInScreen() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const canScan = openDetector() !== null
+  const cameraSecure = window.isSecureContext
 
   useEffect(() => {
     let cancelled = false
@@ -94,23 +102,24 @@ export function CheckInScreen() {
   useEffect(() => {
     if (!cameraOn) return
     const video = videoRef.current
-    const detector = openDetector()
-    detectorRef.current = detector
-    if (!video || !detector) return
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
     let stop = false
     let stream: MediaStream | null = null
     const timer = window.setInterval(() => {
-      if (stop || video.readyState < 2) return
-      void detector
-        .detect(video)
-        .then((codes) => {
-          const raw = codes.find((item) => item.rawValue)?.rawValue
-          if (raw) submitRef.current(raw, 'qr')
-        })
-        .catch(() => undefined)
+      if (stop) return
+      const result = readBoothQr(video, canvas)
+      if (stop) return
+      if (result.raw) {
+        const digits = boothCodeFromQr(result.raw)
+        if (digits) setCode(digits)
+        setCameraNote('')
+        submitRef.current(result.raw, 'qr')
+        return
+      }
+      setCameraNote(result.note)
     }, 400)
-    void navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' } })
+    void openCamera()
       .then(async (next) => {
         if (stop) {
           next.getTracks().forEach((track) => track.stop())
@@ -120,15 +129,20 @@ export function CheckInScreen() {
         video.srcObject = next
         await video.play()
       })
-      .catch(() => {
-        if (!stop) setCameraNote('Camera is unavailable. Enter the 6-digit code printed under the QR.')
+      .catch((err: unknown) => {
+        if (stop) return
+        const name = err instanceof DOMException ? err.name : ''
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          setCameraNote(NOTE_DENIED)
+          return
+        }
+        setCameraNote(NOTE_CAMERA)
       })
     return () => {
       stop = true
       window.clearInterval(timer)
       stream?.getTracks().forEach((track) => track.stop())
       video.srcObject = null
-      detectorRef.current = null
     }
   }, [cameraOn])
 
@@ -166,32 +180,30 @@ export function CheckInScreen() {
         {latest ? <VisitCard visit={latest} already={latest.already_recorded} /> : null}
         <Card title="Scan booth QR">
           <p className="card__body">Point the camera at the booth QR. Only a Sahakar Bharati booth code is accepted.</p>
-          {canScan ? (
+          {cameraSecure ? (
             cameraOn ? (
               <>
                 <video ref={videoRef} className="checkin-camera" muted playsInline />
+                <canvas ref={canvasRef} hidden />
                 <Button
                   type="button"
                   disabled={busy}
                   onClick={() => {
                     const video = videoRef.current
-                    const detector = detectorRef.current
-                    if (!video || !detector || video.readyState < 2) {
-                      setCameraNote('Point the camera at the booth QR, then tap Scan QR.')
+                    const canvas = canvasRef.current
+                    if (!video || !canvas) {
+                      setCameraNote(SCAN_NOTE_WAIT)
                       return
                     }
-                    void detector
-                      .detect(video)
-                      .then((codes) => {
-                        const raw = codes.find((item) => item.rawValue)?.rawValue ?? ''
-                        if (!boothCodeFromQr(raw)) {
-                          setCameraNote('No booth QR in the frame. Move closer and tap Scan QR.')
-                          return
-                        }
-                        setCameraNote('')
-                        submitRef.current(raw, 'qr')
-                      })
-                      .catch(() => setCameraNote('No booth QR in the frame. Move closer and tap Scan QR.'))
+                    const result = readBoothQr(video, canvas)
+                    if (!result.raw) {
+                      setCameraNote(result.note)
+                      return
+                    }
+                    const digits = boothCodeFromQr(result.raw)
+                    if (digits) setCode(digits)
+                    setCameraNote('')
+                    submitRef.current(result.raw, 'qr')
                   }}
                 >
                   Scan QR
@@ -203,7 +215,7 @@ export function CheckInScreen() {
               </Button>
             )
           ) : (
-            <p className="muted">This browser cannot read QR codes. Enter the 6-digit code printed under the QR.</p>
+            <p className="muted">{NOTE_HTTPS}</p>
           )}
           {cameraNote ? <p className="muted">{cameraNote}</p> : null}
         </Card>

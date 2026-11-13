@@ -1,7 +1,10 @@
 package com.example.sahakarbharati.features.admin
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,6 +61,7 @@ import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.remote.PlaceDto
 import com.example.sahakarbharati.data.sahakarViewModel
+import com.example.sahakarbharati.features.attendance.formatVisitTime
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.ui.theme.PillShape
 import com.example.sahakarbharati.ui.theme.RathYatraColors
@@ -65,13 +69,6 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private val visitTime = DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", Locale.ENGLISH)
-private val india = ZoneId.of("Asia/Kolkata")
 
 @Composable
 internal fun AdminSectionSwitch(
@@ -234,9 +231,14 @@ fun AdminPlaceScreen(
     LaunchedEffect(placeId) { viewModel.load(placeId) }
     val place = viewModel.place
     var qr by remember(place?.code) { mutableStateOf<Bitmap?>(null) }
+    var qrFailed by remember(place?.code) { mutableStateOf(false) }
     LaunchedEffect(place?.code) {
         val code = place?.code ?: return@LaunchedEffect
-        qr = withContext(Dispatchers.Default) { boothQrBitmap(BoothCode.text(code)) }
+        val bitmap = withContext(Dispatchers.Default) {
+            runCatching { boothQrBitmap(BoothCode.text(code)) }.getOrNull()
+        }
+        qr = bitmap
+        qrFailed = bitmap == null
     }
 
     SignedInScaffold(
@@ -278,6 +280,13 @@ fun AdminPlaceScreen(
                                 modifier = Modifier.size(240.dp).background(Color.White),
                             )
                         }
+                        if (qrFailed) {
+                            Text(
+                                "QR could not be drawn.",
+                                color = RathYatraColors.Emergency,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                         Text(
                             place.code,
                             fontSize = 32.sp,
@@ -296,10 +305,11 @@ fun AdminPlaceScreen(
                 SaffronButton(
                     text = "Print QR",
                     onClick = {
-                        if (image == null) return@SaffronButton
+                        val placard = runCatching { boothPlacard(place.name, place.code) }.getOrNull() ?: image
+                        if (placard == null) return@SaffronButton
                         PrintHelper(context).apply {
                             scaleMode = PrintHelper.SCALE_MODE_FIT
-                        }.printBitmap(place.name, image)
+                        }.printBitmap(place.name, placard)
                     },
                 )
                 GhostNavyButton(
@@ -362,11 +372,6 @@ private fun VisitRow(visit: AttendanceRecordDto) {
     }
 }
 
-private fun formatVisitTime(iso: String, fallback: String): String {
-    val instant = runCatching { Instant.parse(iso) }.getOrNull() ?: return fallback
-    return visitTime.format(instant.atZone(india))
-}
-
 private fun boothQrBitmap(text: String, size: Int = 640): Bitmap {
     val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size)
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
@@ -375,5 +380,39 @@ private fun boothQrBitmap(text: String, size: Int = 640): Bitmap {
             bitmap.setPixel(x, y, if (matrix.get(x, y)) AndroidColor.BLACK else AndroidColor.WHITE)
         }
     }
+    return bitmap
+}
+
+/** Printed placard: the QR and the 6-digit code travel together. */
+private fun boothPlacard(name: String, code: String): Bitmap {
+    val qrSize = 640
+    val matrix = QRCodeWriter().encode(BoothCode.text(code), BarcodeFormat.QR_CODE, qrSize, qrSize)
+    val width = 760
+    val qrTop = 120
+    val height = qrTop + qrSize + 160
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    canvas.drawColor(AndroidColor.WHITE)
+    val namePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.BLACK
+        textAlign = Paint.Align.CENTER
+        textSize = 48f
+        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+    }
+    canvas.drawText(name, width / 2f, 72f, namePaint)
+    val left = (width - qrSize) / 2
+    for (x in 0 until qrSize) {
+        for (y in 0 until qrSize) {
+            if (matrix.get(x, y)) bitmap.setPixel(left + x, qrTop + y, AndroidColor.BLACK)
+        }
+    }
+    val codePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.BLACK
+        textAlign = Paint.Align.CENTER
+        textSize = 84f
+        letterSpacing = 0.2f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    }
+    canvas.drawText(code, width / 2f, (qrTop + qrSize + 110).toFloat(), codePaint)
     return bitmap
 }

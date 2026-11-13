@@ -2210,6 +2210,12 @@ html[dir='rtl'] .lang-sheet__option {
   box-shadow: 0 0 0 1px rgba(201, 150, 58, 0.5);
 }
 
+.print-qr svg {
+  display: block;
+  width: 240px;
+  height: 240px;
+}
+
 .print-sheet__name,
 .print-sheet__code,
 .print-sheet__hint {
@@ -2231,7 +2237,7 @@ html[dir='rtl'] .lang-sheet__option {
   color: #17263f;
 }
 
-.admin-row__meta:has(.place-code) {
+.admin-row__meta--codes {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

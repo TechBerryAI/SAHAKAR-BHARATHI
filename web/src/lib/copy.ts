@@ -73,6 +73,9 @@ export type AppCopy = {
   verificationExpired: string
   otpResendWait: string
   tooManyAttempts: string
+  boothNotFound: string
+  boothInactive: string
+  boothCodeInvalid: string
   networkError: string
   serverWaking: string
   chooseLanguage: string
@@ -227,6 +230,9 @@ const HI: AppCopy = {
   verificationExpired: 'आपके मोबाइल का सत्यापन समाप्त हो गया है। कृपया अपना नंबर फिर से सत्यापित करें।',
   otpResendWait: 'नया ओटीपी माँगने से पहले कृपया एक मिनट प्रतीक्षा करें।',
   tooManyAttempts: 'बहुत अधिक प्रयास हो गए। कुछ देर बाद फिर कोशिश करें।',
+  boothNotFound: 'वह बूथ नहीं मिला।',
+  boothInactive: 'यह बूथ उपस्थिति नहीं ले रहा।',
+  boothCodeInvalid: '6 अंकों का बूथ कोड लिखें।',
   networkError: 'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें।',
   serverWaking: 'सर्वर शुरू हो रहा है। इसमें एक मिनट तक लग सकता है, कृपया प्रतीक्षा करें…',
   chooseLanguage: 'भाषा चुनें',
@@ -382,6 +388,9 @@ const EN: AppCopy = {
   verificationExpired: 'Your mobile verification has expired. Please verify your number again.',
   otpResendWait: 'Please wait a minute before requesting another OTP.',
   tooManyAttempts: 'Too many attempts. Try again later.',
+  boothNotFound: 'That booth was not found.',
+  boothInactive: 'This booth is not accepting check-ins.',
+  boothCodeInvalid: 'Enter the 6-digit booth code.',
   networkError: 'The server could not be reached. Check your connection.',
   serverWaking: 'The server is starting up. This can take up to a minute, please wait…',
   chooseLanguage: 'Choose language',

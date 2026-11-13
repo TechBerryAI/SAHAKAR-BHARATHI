@@ -150,3 +150,66 @@ def test_failed_sms_lets_the_user_resend_at_once(client: TestClient, engine: Eng
     client.app.state.sms_gateway = working
     retry = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
     assert retry.status_code == 202, retry.text
+
+
+def test_expired_challenge_and_attempt_lockout(client: TestClient, engine: Engine) -> None:
+    expired = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
+    assert expired.status_code == 202
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE phone_verifications SET expires_at = now() - interval '1 minute'"))
+    rejected = client.post(
+        f"/api/v1/phone-verifications/{expired.json()['id']}/confirm",
+        json={"code": "123456"},
+    )
+    assert rejected.status_code == 400
+    assert rejected.json()["detail"] == "The code is incorrect or has expired."
+
+    sent = client.post("/api/v1/phone-verifications", json={"mobile": "9000000001"})
+    assert sent.status_code == 202, sent.text
+    code = client.app.state.sms_gateway.latest_code()
+    wrong = "000000" if code != "000000" else "111111"
+    for _ in range(5):
+        attempt = client.post(
+            f"/api/v1/phone-verifications/{sent.json()['id']}/confirm",
+            json={"code": wrong},
+        )
+        assert attempt.status_code == 400
+    locked = client.post(
+        f"/api/v1/phone-verifications/{sent.json()['id']}/confirm",
+        json={"code": code},
+    )
+    assert locked.status_code == 429
+
+
+def test_expired_verification_token_cannot_register(client: TestClient, engine: Engine) -> None:
+    token = verify_mobile(client, "9876543210")
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE phone_verifications SET token_expires_at = now() - interval '1 minute'")
+        )
+    payload = register_payload()
+    payload["verification_token"] = token
+    rejected = client.post("/api/v1/registrations", json=payload)
+    assert rejected.status_code == 400
+    assert "Verify this mobile" in rejected.json()["detail"]
+
+
+def test_otp_send_and_confirm_are_limited_per_ip(client: TestClient) -> None:
+    for index in range(5):
+        sent = client.post("/api/v1/phone-verifications", json={"mobile": f"900000000{index}"})
+        assert sent.status_code == 202, sent.text
+    blocked = client.post("/api/v1/phone-verifications", json={"mobile": "9000000005"})
+    assert blocked.status_code == 429
+
+    challenge = "00000000-0000-4000-8000-000000000001"
+    for _ in range(10):
+        attempt = client.post(
+            f"/api/v1/phone-verifications/{challenge}/confirm",
+            json={"code": "123456"},
+        )
+        assert attempt.status_code == 400
+    limited = client.post(
+        f"/api/v1/phone-verifications/{challenge}/confirm",
+        json={"code": "123456"},
+    )
+    assert limited.status_code == 429

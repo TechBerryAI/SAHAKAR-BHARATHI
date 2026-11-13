@@ -62,6 +62,11 @@ interface SahakarApi {
         @Header("Authorization") authorization: String,
     ): AttendanceListDto
 
+    @GET("api/v1/places")
+    suspend fun listBoothCodes(
+        @Header("Authorization") authorization: String,
+    ): BoothCodeListDto
+
     @POST("api/v1/admin/users/{userId}/role")
     suspend fun setAdminUserRole(
         @Header("Authorization") authorization: String,
@@ -73,6 +78,12 @@ interface SahakarApi {
     suspend fun listPlaces(
         @Header("Authorization") authorization: String,
     ): PlaceListDto
+
+    @GET("api/v1/admin/places/{placeId}")
+    suspend fun getPlace(
+        @Header("Authorization") authorization: String,
+        @Path("placeId") placeId: String,
+    ): PlaceDto
 
     @POST("api/v1/admin/places")
     suspend fun createPlace(

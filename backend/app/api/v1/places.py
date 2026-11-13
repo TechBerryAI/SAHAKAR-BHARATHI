@@ -39,6 +39,15 @@ def update_place(
     return service.update(place_id, payload)
 
 
+@router.get("/{place_id}", response_model=PlaceResponse)
+def get_place(
+    place_id: uuid.UUID,
+    _staff: User = Depends(require_staff),
+    service: PlaceService = Depends(get_place_service),
+) -> PlaceResponse:
+    return service.to_response(service.get(place_id))
+
+
 @router.get("/{place_id}/attendance", response_model=AdminAttendanceList)
 def list_place_attendance(
     place_id: uuid.UUID,
