@@ -11,7 +11,7 @@ from app.db.session import is_unique_violation
 from app.models.place import Place
 from app.models.user import User
 from app.repositories.places import PlaceRepository
-from app.schemas.place import PlaceCreate, PlaceList, PlaceResponse, PlaceUpdate
+from app.schemas.place import BoothCode, BoothCodeList, PlaceCreate, PlaceList, PlaceResponse, PlaceUpdate
 
 
 class PlaceService:
@@ -36,6 +36,11 @@ class PlaceService:
 
     def list_places(self) -> PlaceList:
         return PlaceList(items=[self.to_response(place) for place in self.places.list_recent()])
+
+    def list_active_codes(self) -> BoothCodeList:
+        return BoothCodeList(
+            items=[BoothCode(name=place.name, code=place.code) for place in self.places.list_active()]
+        )
 
     def update(self, place_id: uuid.UUID, payload: PlaceUpdate) -> PlaceResponse:
         place = self.places.get(place_id)

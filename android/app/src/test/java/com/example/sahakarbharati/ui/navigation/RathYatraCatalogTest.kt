@@ -54,6 +54,33 @@ class RathYatraNavigationTest {
     }
 
     @Test
+    fun navigateStack_homeReplacesTheStackEvenWithoutReplaceRoot() {
+        val stack = navigateStack(
+            listOf(RathYatraDestinations.SPLASH, RathYatraDestinations.SIGN_IN),
+            RathYatraDestinations.HOME,
+        )
+        assertEquals(listOf(RathYatraDestinations.HOME), stack)
+    }
+
+    @Test
+    fun navigateStack_popsBackToADestinationAlreadyOnTheStack() {
+        val stack = navigateStack(
+            listOf(
+                RathYatraDestinations.HOME,
+                RathYatraDestinations.ADMIN,
+                RathYatraDestinations.ADMIN_USER,
+            ),
+            RathYatraDestinations.ADMIN,
+        )
+        assertEquals(listOf(RathYatraDestinations.HOME, RathYatraDestinations.ADMIN), stack)
+    }
+
+    @Test
+    fun popStack_keepsASingleScreen() {
+        assertEquals(listOf(RathYatraDestinations.HOME), popStack(listOf(RathYatraDestinations.HOME)))
+    }
+
+    @Test
     fun navigateStack_homeReplacesRoot() {
         val stack = navigateStack(
             listOf(

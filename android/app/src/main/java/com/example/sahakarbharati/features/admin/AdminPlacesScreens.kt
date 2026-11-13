@@ -61,6 +61,7 @@ import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.remote.PlaceDto
 import com.example.sahakarbharati.data.sahakarViewModel
+import com.example.sahakarbharati.features.attendance.formatVisitTime
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.ui.theme.PillShape
 import com.example.sahakarbharati.ui.theme.RathYatraColors
@@ -68,13 +69,6 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private val visitTime = DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", Locale.ENGLISH)
-private val india = ZoneId.of("Asia/Kolkata")
 
 @Composable
 internal fun AdminSectionSwitch(
@@ -376,11 +370,6 @@ private fun VisitRow(visit: AttendanceRecordDto) {
             }
         }
     }
-}
-
-private fun formatVisitTime(iso: String, fallback: String): String {
-    val instant = runCatching { Instant.parse(iso) }.getOrNull() ?: return fallback
-    return visitTime.format(instant.atZone(india))
 }
 
 private fun boothQrBitmap(text: String, size: Int = 640): Bitmap {

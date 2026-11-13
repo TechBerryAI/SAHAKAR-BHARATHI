@@ -10,6 +10,7 @@ import com.example.sahakarbharati.data.remote.PlaceCreateRequest
 import com.example.sahakarbharati.data.remote.PlaceDto
 import com.example.sahakarbharati.data.remote.PlaceListDto
 import com.example.sahakarbharati.data.remote.AttendanceListDto
+import com.example.sahakarbharati.data.remote.BoothCodeListDto
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.remote.CheckInRequest
 import com.example.sahakarbharati.data.remote.AdminUserListDto
@@ -136,6 +137,7 @@ private class RecordingAdminApi : SahakarApi {
     ): AdminUserDetailDto = error("unused")
     override suspend fun checkIn(authorization: String, body: CheckInRequest): AttendanceRecordDto = error("unused")
     override suspend fun myAttendance(authorization: String): AttendanceListDto = error("unused")
+    override suspend fun listBoothCodes(authorization: String): BoothCodeListDto = error("unused")
     override suspend fun listPlaces(authorization: String): PlaceListDto = error("unused")
     override suspend fun getPlace(authorization: String, placeId: String): PlaceDto = error("unused")
     override suspend fun createPlace(authorization: String, body: PlaceCreateRequest): PlaceDto = error("unused")

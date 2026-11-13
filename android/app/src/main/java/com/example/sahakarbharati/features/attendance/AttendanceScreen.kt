@@ -2,37 +2,45 @@ package com.example.sahakarbharati.features.attendance
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.RectF
+import android.graphics.Outline
 import android.os.SystemClock
+import android.util.Size
+import android.view.MotionEvent
+import android.view.Surface
+import android.view.View
+import android.view.ViewGroup
+import android.view.ViewOutlineProvider
+import android.widget.FrameLayout
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.camera.view.transform.CoordinateTransform
-import androidx.camera.view.transform.ImageProxyTransformFactory
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,11 +49,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -66,17 +75,11 @@ import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.ui.theme.RathYatraColors
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.concurrent.Executors
-
-private val visitTime = DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", Locale.ENGLISH)
-private val india = ZoneId.of("Asia/Kolkata")
 
 @Composable
 fun AttendanceScreen(
@@ -86,6 +89,10 @@ fun AttendanceScreen(
 ) {
     val copy = LocalCopy.current
     val session = rememberAppSession()
+    val hostView = LocalView.current
+    SideEffect {
+        hostView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+    }
     val viewModel: AttendanceViewModel = sahakarViewModel()
     val ui = viewModel.state
     var code by remember { mutableStateOf("") }
@@ -115,27 +122,40 @@ fun AttendanceScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .imePadding(),
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-                    .imePadding(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                    Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
-                }
+            ui.error?.takeIf { it.isNotBlank() }?.let { message ->
+                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+            }
             WhiteCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(copy.scannerActive, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
-                    Text(copy.reticleHint, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+                Column(
+                    Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(copy.scannerActive, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
+                        Text(
+                            "Scan the QR on the booth banner, or type the 6-digit code printed under it.",
+                            color = RathYatraColors.Navy.copy(alpha = 0.7f),
+                            fontSize = 14.sp,
+                        )
+                    }
                     BoothCamera(
                         enabled = !ui.submitting,
                         onCode = { submit(it, "qr") },
-                        onDigits = { code = it },
+                        onDigits = {},
+                    )
+                    Text(copy.pinBody, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+                    OutlinedTextField(
+                        value = code,
+                        onValueChange = { next -> code = next.filter(Char::isDigit).take(6) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(copy.pinLabel) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
                     if (ui.submitting) {
                         CircularProgressIndicator(
@@ -154,23 +174,23 @@ fun AttendanceScreen(
                 VisitResultCard(visit, already = visit.alreadyRecorded)
             }
             WhiteCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(copy.historyTitle, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
-                    if (ui.loading && ui.history.isEmpty()) {
-                        CircularProgressIndicator(color = RathYatraColors.Saffron, modifier = Modifier.align(Alignment.CenterHorizontally))
-                    } else if (ui.history.isEmpty()) {
-                        Text(copy.noVisitsYet, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
-                    } else {
-                        ui.history.forEach { visit ->
-                            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                                Text(visit.placeName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
-                                Text(formatVisitTime(visit), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(copy.historyTitle, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
+                        if (ui.loading && ui.history.isEmpty()) {
+                            CircularProgressIndicator(color = RathYatraColors.Saffron, modifier = Modifier.align(Alignment.CenterHorizontally))
+                        } else if (ui.history.isEmpty()) {
+                            Text(copy.noVisitsYet, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+                        } else {
+                            ui.history.forEach { visit ->
+                                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                    Text(visit.placeName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
+                                    Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
+                                }
                             }
                         }
                     }
                 }
-            }
-            }
+            Spacer(Modifier.height(96.dp))
         }
     }
 }
@@ -188,7 +208,7 @@ private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
                 fontSize = 20.sp,
             )
             Text(visit.placeName, color = RathYatraColors.Saffron, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            Text(formatVisitTime(visit), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+            Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
             Text(copy.recordedDetails, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
             Text(visit.fullName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
             Text(formatMobile(visit.mobile), color = RathYatraColors.Navy, fontSize = 14.sp)
@@ -224,17 +244,20 @@ private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit, onDigits: (S
 private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: (String) -> Unit) {
     val copy = LocalCopy.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val currentOnCode by rememberUpdatedState(onCode)
     val currentOnDigits by rememberUpdatedState(onDigits)
     val enabledState by rememberUpdatedState(enabled)
     val executor = remember { Executors.newSingleThreadExecutor() }
-    val scanner = remember { BarcodeScanning.getClient() }
+    val scanner = remember {
+        BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build(),
+        )
+    }
     val provider = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var frameReady by remember { mutableStateOf(false) }
     var latestRaw by remember { mutableStateOf<String?>(null) }
     var seenCode by remember { mutableStateOf<String?>(null) }
-    var codeAnchor by remember { mutableStateOf<RectF?>(null) }
-    val previewView = remember { mutableStateOf<PreviewView?>(null) }
     var foreignQr by remember { mutableStateOf(false) }
     var cameraFailed by remember { mutableStateOf(false) }
     var hint by remember { mutableStateOf<String?>(null) }
@@ -249,20 +272,45 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
         Text(copy.cameraOff, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
         return
     }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        val previewShape = RoundedCornerShape(16.dp)
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(240.dp),
+                .height(300.dp)
+                .graphicsLayer { clip = true; shape = previewShape }
+                .clip(previewShape),
         ) {
         AndroidView(
             factory = { viewContext ->
-                val view = PreviewView(viewContext).apply {
-                    // The check-in page scrolls. The default surface preview stays black there.
-                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                val frame = PassThroughFrame(viewContext).apply {
+                    clipChildren = true
+                    clipToPadding = true
+                    isClickable = false
                 }
-                previewView.value = view
+                val view = PreviewView(viewContext).apply {
+                    // A surface preview stays black inside Compose. Texture mode stays inside this frame.
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                    // Fill the preview. FIT_CENTER leaves black bars, so the booth banner sits in a smaller window.
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                    outlineProvider = object : ViewOutlineProvider() {
+                        override fun getOutline(view: View, outline: Outline) {
+                            val radius = 16f * view.resources.displayMetrics.density
+                            outline.setRoundRect(0, 0, view.width, view.height, radius)
+                        }
+                    }
+                    clipToOutline = true
+                    isClickable = false
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                }
+                frame.addView(view)
                 val future = ProcessCameraProvider.getInstance(viewContext)
                 val mainExecutor = ContextCompat.getMainExecutor(viewContext)
                 future.addListener(
@@ -274,8 +322,25 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                                 return@post
                             }
                             provider.value = cameraProvider
-                            val preview = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
+                            val rotation = view.display?.rotation ?: Surface.ROTATION_0
+                            // The booth QR is a small part of the room. A larger frame is what makes it readable.
+                            val resolution = ResolutionSelector.Builder()
+                                .setResolutionStrategy(
+                                    ResolutionStrategy(
+                                        Size(1920, 1080),
+                                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                                    ),
+                                )
+                                .build()
+                            val preview = Preview.Builder()
+                                .setResolutionSelector(resolution)
+                                .setTargetRotation(rotation)
+                                .build()
+                                .also { it.surfaceProvider = view.surfaceProvider }
                             val analysis = ImageAnalysis.Builder()
+                                .setResolutionSelector(resolution)
+                                .setTargetRotation(rotation)
+                                .setOutputImageRotationEnabled(true)
                                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                                 .build()
                             analysis.setAnalyzer(executor) { image ->
@@ -289,17 +354,15 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                                     scanner.process(input)
                                         .addOnSuccessListener(mainExecutor) { codes ->
                                             frameReady = true
-                                            val barcode = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }
-                                            val raw = barcode?.rawValue
+                                            val raws = codes.mapNotNull { it.rawValue }
+                                            val raw = raws.firstOrNull { BoothCode.fromQr(it) != null } ?: raws.firstOrNull()
                                             latestRaw = raw
                                             val digits = raw?.let { BoothCode.fromQr(it) }
                                             seenCode = digits
                                             foreignQr = !raw.isNullOrBlank() && digits == null
-                                            codeAnchor = qrAnchor(previewView.value, image, barcode?.boundingBox)
                                             if (!raw.isNullOrBlank() && digits != null) {
                                                 hint = null
                                                 currentOnDigits(digits)
-                                                currentOnCode(raw)
                                             }
                                         }
                                         .addOnFailureListener(mainExecutor) {
@@ -317,32 +380,11 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                     },
                     mainExecutor,
                 )
-                view
+                frame
             },
             modifier = Modifier.fillMaxSize(),
             onRelease = { provider.value?.unbindAll() },
         )
-        val anchor = codeAnchor
-        val digits = seenCode
-        if (anchor != null && digits != null && anchor.width() > 0f) {
-            val density = LocalDensity.current
-            Column(
-                Modifier
-                    .offset { IntOffset(anchor.left.toInt(), anchor.bottom.toInt()) }
-                    .width(with(density) { anchor.width().toDp() })
-                    .background(Color.White)
-                    .padding(top = 2.dp, bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    digits,
-                    color = RathYatraColors.Navy,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
-                    letterSpacing = 2.sp,
-                )
-            }
-        }
         }
         if (foreignQr && seenCode == null) {
             Text(copy.scanMiss, color = RathYatraColors.Emergency, fontSize = 14.sp)
@@ -370,14 +412,10 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
     }
 }
 
-private fun qrAnchor(view: PreviewView?, image: ImageProxy, box: android.graphics.Rect?): RectF? {
-    if (view == null || box == null) return null
-    val target = view.outputTransform ?: return null
-    val source = ImageProxyTransformFactory().apply { isUsingRotationDegrees = true }.getOutputTransform(image) ?: return null
-    val mapped = RectF(box)
-    CoordinateTransform(source, target).mapRect(mapped)
-    if (mapped.width() < 1f || mapped.height() < 1f) return null
-    return mapped
+/** Keeps a drag on the camera picture from getting stuck, so the page underneath can scroll. */
+private class PassThroughFrame(context: android.content.Context) : FrameLayout(context) {
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
+    override fun onTouchEvent(event: MotionEvent): Boolean = false
 }
 
 private fun bindCamera(
@@ -394,9 +432,4 @@ private fun bindCamera(
         cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
         true
     }.isSuccess
-}
-
-private fun formatVisitTime(visit: AttendanceRecordDto): String {
-    val instant = runCatching { Instant.parse(visit.checkedInAt) }.getOrNull() ?: return visit.attendanceDate
-    return visitTime.format(instant.atZone(india))
 }

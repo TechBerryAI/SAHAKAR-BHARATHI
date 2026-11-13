@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -112,3 +114,12 @@ def test_verified_mobile_without_registration_creates_no_account(
         )
     again = client.post("/api/v1/phone-verifications", json={"mobile": "9876543212"})
     assert again.status_code == 202
+
+
+def test_registration_rejects_under_18(client: TestClient) -> None:
+    today = date.today()
+    underage = date(today.year - 17, today.month, min(today.day, 28))
+    payload = verified_register_payload(client, date_of_birth=underage.isoformat())
+    rejected = client.post("/api/v1/registrations", json=payload)
+    assert rejected.status_code == 422
+    assert "18" in rejected.text

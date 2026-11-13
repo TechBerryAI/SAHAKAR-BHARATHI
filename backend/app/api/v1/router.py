@@ -1,10 +1,11 @@
 from fastapi import APIRouter
 
-from app.api.v1 import admin, attendance, me, phone_verifications, places, registrations, sessions
+from app.api.v1 import admin, attendance, booth_codes, me, phone_verifications, places, registrations, sessions
 
 api_router = APIRouter()
 api_router.include_router(admin.router)
 api_router.include_router(places.router)
+api_router.include_router(booth_codes.router)
 api_router.include_router(registrations.router)
 api_router.include_router(phone_verifications.router)
 api_router.include_router(sessions.router)

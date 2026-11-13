@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from app.core.security import verify_pin
 from app.db.session import SessionLocal
-from app.services.super_admin import SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_MOBILE, seed_super_admin
+from app.services.super_admin import (
+    SUPER_ADMIN_LOGIN_ID,
+    SUPER_ADMIN_MOBILE,
+    LoginIdTakenError,
+    seed_super_admin,
+)
 from tests.conftest import register_and_login
 
 
@@ -183,3 +189,118 @@ def test_super_admin_can_block_and_restore_sign_in(client: TestClient) -> None:
     assert restored.json()["status"] == "active"
     allowed = client.post("/api/v1/sessions", json={"identifier": "9876543210", "pin": "2468"})
     assert allowed.status_code == 200
+
+    unchanged = client.post(
+        f"/api/v1/admin/users/{target_id}/status",
+        headers=headers,
+        json={"status": "active"},
+    )
+    assert unchanged.status_code == 200
+    db = SessionLocal()
+    try:
+        changes = db.execute(
+            text("SELECT count(*) FROM audit_events WHERE event_type = 'status_change'")
+        ).scalar_one()
+        assert changes == 2
+    finally:
+        db.close()
+
+
+def test_staff_search_escapes_wildcards_and_pages(client: TestClient, engine: Engine) -> None:
+    register_and_login(client, mobile="9000000001", email="one@example.com", full_name="Anita Desai")
+    register_and_login(client, mobile="9000000002", email="two@example.com", full_name="Ravi Kumar")
+    _set_role(engine, "9000000002", "admin")
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE users SET full_name = :name WHERE mobile = :mobile"),
+            {"name": "100% Done", "mobile": "9000000001"},
+        )
+    signed_in = client.post("/api/v1/sessions", json={"identifier": "9000000002", "pin": "2468"})
+    assert signed_in.status_code == 200, signed_in.text
+    headers = _headers(signed_in.json()["access_token"])
+
+    everyone = client.get("/api/v1/admin/users", headers=headers)
+    assert everyone.status_code == 200
+    assert everyone.json()["total"] == 2
+
+    percent = client.get("/api/v1/admin/users", headers=headers, params={"q": "%"})
+    assert percent.status_code == 200
+    assert percent.json()["total"] == 1
+    assert percent.json()["items"][0]["full_name"] == "100% Done"
+
+    underscore = client.get("/api/v1/admin/users", headers=headers, params={"q": "_"})
+    assert underscore.status_code == 200
+    assert underscore.json()["total"] == 0
+
+    page = client.get("/api/v1/admin/users", headers=headers, params={"limit": 1, "offset": 1})
+    assert page.status_code == 200
+    assert page.json()["total"] == 2
+    assert page.json()["limit"] == 1
+    assert page.json()["offset"] == 1
+    assert len(page.json()["items"]) == 1
+
+    missing = client.get(
+        "/api/v1/admin/users/00000000-0000-4000-8000-000000000099",
+        headers=headers,
+    )
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "That person was not found."
+
+
+def test_super_admin_cannot_change_another_super_admin(client: TestClient, engine: Engine) -> None:
+    created, _session = register_and_login(client)
+    db = SessionLocal()
+    try:
+        seed_super_admin(db, pin="1234")
+    finally:
+        db.close()
+    _set_role(engine, "9876543210", "super_admin")
+
+    signed_in = client.post("/api/v1/sessions", json={"identifier": SUPER_ADMIN_MOBILE, "pin": "1234"})
+    assert signed_in.status_code == 200, signed_in.text
+    headers = _headers(signed_in.json()["access_token"])
+    target_id = client.get(
+        "/api/v1/admin/users",
+        headers=headers,
+        params={"q": created["login_id"]},
+    ).json()["items"][0]["id"]
+
+    role = client.post(f"/api/v1/admin/users/{target_id}/role", headers=headers, json={"role": "participant"})
+    assert role.status_code == 403
+    assert "super admin" in role.json()["detail"].lower()
+
+    status = client.post(
+        f"/api/v1/admin/users/{target_id}/status",
+        headers=headers,
+        json={"status": "disabled"},
+    )
+    assert status.status_code == 403
+
+    missing = client.post(
+        "/api/v1/admin/users/00000000-0000-4000-8000-000000000099/role",
+        headers=headers,
+        json={"role": "admin"},
+    )
+    assert missing.status_code == 404
+
+
+def test_seed_rejects_a_bad_pin_and_a_taken_login_id(client: TestClient, engine: Engine) -> None:
+    db = SessionLocal()
+    try:
+        with pytest.raises(ValueError, match="4 to 6 digits"):
+            seed_super_admin(db, pin="12")
+    finally:
+        db.close()
+
+    register_and_login(client, mobile="9000000003", email="holder@example.com", full_name="Other Holder")
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE users SET login_id = :login_id WHERE mobile = :mobile"),
+            {"login_id": SUPER_ADMIN_LOGIN_ID, "mobile": "9000000003"},
+        )
+    db = SessionLocal()
+    try:
+        with pytest.raises(LoginIdTakenError):
+            seed_super_admin(db, pin="1234")
+    finally:
+        db.close()

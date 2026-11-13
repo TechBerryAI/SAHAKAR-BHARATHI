@@ -636,25 +636,3 @@ private fun GenderButton(label: String, icon: ImageVector, selected: Boolean, mo
         Text(label, color = tint, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
-
-private fun joinDob(day: String, month: String, year: String): String = "$day/$month/$year"
-
-private fun adultDob(dob: String): Boolean {
-    val parts = dob.split("/")
-    if (parts.size != 3) return false
-    val day = parts[0].toIntOrNull() ?: return false
-    val month = parts[1].toIntOrNull() ?: return false
-    val year = parts[2].toIntOrNull() ?: return false
-    if (month !in 1..12) return false
-    val calendar = Calendar.getInstance()
-    calendar.set(Calendar.YEAR, year)
-    calendar.set(Calendar.MONTH, month - 1)
-    calendar.set(Calendar.DAY_OF_MONTH, 1)
-    if (day !in 1..calendar.getActualMaximum(Calendar.DAY_OF_MONTH)) return false
-    val today = Calendar.getInstance()
-    var age = today.get(Calendar.YEAR) - year
-    val todayMonth = today.get(Calendar.MONTH) + 1
-    val todayDay = today.get(Calendar.DAY_OF_MONTH)
-    if (todayMonth < month || (todayMonth == month && todayDay < day)) age -= 1
-    return age >= 18
-}
