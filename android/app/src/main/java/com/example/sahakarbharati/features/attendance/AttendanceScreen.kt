@@ -4,6 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Outline
 import android.os.SystemClock
+import android.util.Size
+import android.view.MotionEvent
+import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -13,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +29,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -71,17 +75,11 @@ import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.ui.theme.RathYatraColors
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.concurrent.Executors
-
-private val visitTime = DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", Locale.ENGLISH)
-private val india = ZoneId.of("Asia/Kolkata")
 
 @Composable
 fun AttendanceScreen(
@@ -125,6 +123,7 @@ fun AttendanceScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -171,16 +170,10 @@ fun AttendanceScreen(
                     }
                 }
             }
-            Column(
-                Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                ui.latest?.let { visit ->
-                    VisitResultCard(visit, already = visit.alreadyRecorded)
-                }
-                WhiteCard {
+            ui.latest?.let { visit ->
+                VisitResultCard(visit, already = visit.alreadyRecorded)
+            }
+            WhiteCard {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(copy.historyTitle, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
                         if (ui.loading && ui.history.isEmpty()) {
@@ -191,14 +184,13 @@ fun AttendanceScreen(
                             ui.history.forEach { visit ->
                                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                     Text(visit.placeName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
-                                    Text(formatVisitTime(visit), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
+                                    Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
                                 }
                             }
                         }
                     }
                 }
-                Spacer(Modifier.height(24.dp))
-            }
+            Spacer(Modifier.height(96.dp))
         }
     }
 }
@@ -216,7 +208,7 @@ private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
                 fontSize = 20.sp,
             )
             Text(visit.placeName, color = RathYatraColors.Saffron, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            Text(formatVisitTime(visit), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+            Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
             Text(copy.recordedDetails, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
             Text(visit.fullName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
             Text(formatMobile(visit.mobile), color = RathYatraColors.Navy, fontSize = 14.sp)
@@ -255,7 +247,13 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
     val currentOnDigits by rememberUpdatedState(onDigits)
     val enabledState by rememberUpdatedState(enabled)
     val executor = remember { Executors.newSingleThreadExecutor() }
-    val scanner = remember { BarcodeScanning.getClient() }
+    val scanner = remember {
+        BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build(),
+        )
+    }
     val provider = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var frameReady by remember { mutableStateOf(false) }
     var latestRaw by remember { mutableStateOf<String?>(null) }
@@ -282,21 +280,23 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
         val previewShape = RoundedCornerShape(16.dp)
         Box(
             Modifier
-                .width(168.dp)
-                .height(224.dp)
+                .fillMaxWidth()
+                .height(300.dp)
                 .graphicsLayer { clip = true; shape = previewShape }
                 .clip(previewShape),
         ) {
         AndroidView(
             factory = { viewContext ->
-                val frame = FrameLayout(viewContext).apply {
+                val frame = PassThroughFrame(viewContext).apply {
                     clipChildren = true
                     clipToPadding = true
+                    isClickable = false
                 }
                 val view = PreviewView(viewContext).apply {
                     // A surface preview stays black inside Compose. Texture mode stays inside this frame.
                     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                    scaleType = PreviewView.ScaleType.FIT_CENTER
+                    // Fill the preview. FIT_CENTER leaves black bars, so the booth banner sits in a smaller window.
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
                     outlineProvider = object : ViewOutlineProvider() {
                         override fun getOutline(view: View, outline: Outline) {
                             val radius = 16f * view.resources.displayMetrics.density
@@ -304,6 +304,7 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                         }
                     }
                     clipToOutline = true
+                    isClickable = false
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -321,8 +322,25 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                                 return@post
                             }
                             provider.value = cameraProvider
-                            val preview = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
+                            val rotation = view.display?.rotation ?: Surface.ROTATION_0
+                            // The booth QR is a small part of the room. A larger frame is what makes it readable.
+                            val resolution = ResolutionSelector.Builder()
+                                .setResolutionStrategy(
+                                    ResolutionStrategy(
+                                        Size(1920, 1080),
+                                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                                    ),
+                                )
+                                .build()
+                            val preview = Preview.Builder()
+                                .setResolutionSelector(resolution)
+                                .setTargetRotation(rotation)
+                                .build()
+                                .also { it.surfaceProvider = view.surfaceProvider }
                             val analysis = ImageAnalysis.Builder()
+                                .setResolutionSelector(resolution)
+                                .setTargetRotation(rotation)
+                                .setOutputImageRotationEnabled(true)
                                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                                 .build()
                             analysis.setAnalyzer(executor) { image ->
@@ -336,8 +354,8 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                                     scanner.process(input)
                                         .addOnSuccessListener(mainExecutor) { codes ->
                                             frameReady = true
-                                            val barcode = codes.firstOrNull { it.format == Barcode.FORMAT_QR_CODE }
-                                            val raw = barcode?.rawValue
+                                            val raws = codes.mapNotNull { it.rawValue }
+                                            val raw = raws.firstOrNull { BoothCode.fromQr(it) != null } ?: raws.firstOrNull()
                                             latestRaw = raw
                                             val digits = raw?.let { BoothCode.fromQr(it) }
                                             seenCode = digits
@@ -394,6 +412,12 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
     }
 }
 
+/** Keeps a drag on the camera picture from getting stuck, so the page underneath can scroll. */
+private class PassThroughFrame(context: android.content.Context) : FrameLayout(context) {
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
+    override fun onTouchEvent(event: MotionEvent): Boolean = false
+}
+
 private fun bindCamera(
     cameraProvider: ProcessCameraProvider,
     lifecycleOwner: LifecycleOwner,
@@ -408,9 +432,4 @@ private fun bindCamera(
         cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
         true
     }.isSuccess
-}
-
-private fun formatVisitTime(visit: AttendanceRecordDto): String {
-    val instant = runCatching { Instant.parse(visit.checkedInAt) }.getOrNull() ?: return visit.attendanceDate
-    return visitTime.format(instant.atZone(india))
 }

@@ -83,6 +83,16 @@ cd android
 
 Optional: block accidental secret commits locally with `git config core.hooksPath .githooks`.
 
+## Run all tests
+
+From the repository root, with the backend virtualenv installed and a PostgreSQL database whose name contains `test`:
+
+```bash
+npm test
+```
+
+That runs backend pytest (using `backend/.venv` when it exists), the web Vitest suite, Android JVM unit tests (`:app:testDebugUnitTest`, no emulator), and `node --test scripts/dev-database.test.js`. The run stops at the first suite that fails.
+
 ## Configuration
 
 Every variable, with placeholders only:

@@ -96,7 +96,7 @@ export function resolveApiBase(raw: string | undefined, dev: boolean): string {
   const base = trimmed.replace(/\/+$/, '')
   if (!dev) return base
   try {
-    const host = new URL(base).hostname.toLowerCase()
+    const host = new URL(base).hostname.toLowerCase().replace(/^\[|\]$/g, '')
     if (LOOPBACK_HOSTS.has(host)) return ''
   } catch {
     return base

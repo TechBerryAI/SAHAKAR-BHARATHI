@@ -213,3 +213,64 @@ def test_textbee_reuses_the_resolved_sim_across_requests() -> None:
         sms._sim_cache.clear()
 
     assert calls == {"device": 1, "send": 3}
+
+
+def test_textbee_send_reports_transport_errors_and_a_busy_gateway() -> None:
+    from app.core.errors import SmsDeliveryError
+
+    def down(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("down")
+
+    gateway = TextbeeGateway(api_key="test-key", transport=httpx.MockTransport(down))
+    try:
+        gateway.send("9876543210", "code")
+    except SmsDeliveryError as exc:
+        assert "reach" in exc.detail.lower()
+    else:
+        raise AssertionError("expected a transport error")
+
+    def busy(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={})
+
+    gateway = TextbeeGateway(api_key="test-key", transport=httpx.MockTransport(busy))
+    try:
+        gateway.send("9876543210", "code")
+    except SmsDeliveryError as exc:
+        assert "busy" in exc.detail.lower()
+    else:
+        raise AssertionError("expected a busy gateway")
+
+
+def test_textbee_wait_until_sent_covers_timeout_failure_and_http_errors() -> None:
+    idle = TextbeeGateway(
+        api_key="test-key",
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200)),
+    )
+    assert idle.wait_until_sent() is False
+
+    def queued(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, json={"data": {"success": True, "smsBatchId": "batch-wait"}})
+        return httpx.Response(200, json={"data": [{"status": "queued"}]})
+
+    waiting = TextbeeGateway(api_key="test-key", transport=httpx.MockTransport(queued))
+    waiting.send("9876543210", "code")
+    assert waiting.wait_until_sent(timeout=0) is False
+
+    def failed(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, json={"data": {"success": True, "_id": "batch-fail"}})
+        return httpx.Response(200, json={"data": [{"status": "failed"}]})
+
+    failed_gateway = TextbeeGateway(api_key="test-key", transport=httpx.MockTransport(failed))
+    failed_gateway.send("9876543210", "code")
+    assert failed_gateway.wait_until_sent(timeout=5) is False
+
+    def broken(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, json={"data": {"success": True, "smsBatchId": "batch-http"}})
+        raise httpx.ConnectError("down")
+
+    broken_gateway = TextbeeGateway(api_key="test-key", transport=httpx.MockTransport(broken))
+    broken_gateway.send("9876543210", "code")
+    assert broken_gateway.wait_until_sent(timeout=5) is False

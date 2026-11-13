@@ -2,6 +2,7 @@ package com.example.sahakarbharati.data
 
 import android.content.SharedPreferences
 import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.DemoPhotos
 import com.example.sahakarbharati.data.model.ParticipantProfile
 import com.example.sahakarbharati.data.remote.AdminAttendanceListDto
 import com.example.sahakarbharati.data.remote.AdminUserDetailDto
@@ -65,6 +66,38 @@ class SessionHandlingTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun saveProfile_roundTripsEveryFieldAndTracksRegistration() {
+        val session = newSession()
+        assertNull(session.cachedProfile())
+        assertFalse(session.isRegistered)
+        assertFalse(session.notificationsEnabled)
+
+        val stored = profile.copy(
+            email = "anita@example.com",
+            gender = "Female",
+            dateOfBirth = "1985-03-12",
+            occupation = "Farmer",
+            addressLine = "12 Village Road",
+            locality = "Ward 4",
+            district = "Nashik",
+            state = "Maharashtra",
+            pincode = "422001",
+            status = "active",
+            role = "participant",
+        )
+        session.saveProfile(stored)
+        session.notificationsEnabled = true
+
+        assertEquals(stored, session.cachedProfile())
+        assertTrue(session.isRegistered)
+        assertTrue(session.notificationsEnabled)
+        assertTrue(DemoPhotos.isDemo(DemoPhotos.GIRL))
+        assertFalse(DemoPhotos.isDemo("photo.jpg"))
+        assertEquals("img_demo_boy", DemoPhotos.drawableName(DemoPhotos.BOY))
+        assertNull(DemoPhotos.drawableName("photo.jpg"))
     }
 
     @Test

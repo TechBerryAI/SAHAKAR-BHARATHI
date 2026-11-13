@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import get_settings
 from app.core.rate_limit import PostgresRateLimiter, SlidingWindowLimiter
@@ -80,3 +82,36 @@ def test_app_uses_postgres_limiter_when_configured(engine: Engine, monkeypatch) 
 def test_default_limiter_is_in_memory() -> None:
     get_settings.cache_clear()
     assert isinstance(build_limiter(get_settings()), SlidingWindowLimiter)
+
+
+class _DownEngine:
+    def begin(self) -> None:
+        raise SQLAlchemyError("database is down")
+
+
+def test_postgres_limiter_fails_open_when_the_database_errors() -> None:
+    assert PostgresRateLimiter(_DownEngine()).allow("otp-send:127.0.0.1", 1, 60) is True  # type: ignore[arg-type]
+
+
+def test_postgres_limiter_reset_clears_buckets(engine: Engine) -> None:
+    limiter = PostgresRateLimiter(engine)
+    assert limiter.allow("reset-me", 5, 60) is True
+    limiter.reset()
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT count(*) FROM rate_limit_buckets")).scalar_one() == 0
+
+
+def test_sliding_window_prunes_stale_keys() -> None:
+    limiter = SlidingWindowLimiter()
+    now = time.monotonic()
+    for index in range(256):
+        limiter._hits[f"old-{index}"] = [now - 4000]
+    assert limiter.allow("fresh", 1, 60) is True
+    assert list(limiter._hits) == ["fresh"]
+
+    kept = SlidingWindowLimiter()
+    now = time.monotonic()
+    for index in range(256):
+        kept._hits[f"live-{index}"] = [now]
+    assert kept.allow("fresh", 1, 60) is True
+    assert len(kept._hits) == 257
