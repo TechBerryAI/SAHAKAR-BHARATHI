@@ -6,9 +6,7 @@ Desktop.ini
 
 # Editors / IDEs
 .idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
+.vscode/
 *.iml
 *.swp
 *.swo
@@ -36,7 +34,7 @@ local.properties
 *.p12
 *.p8
 *.pfx
-.claude/settings.local.json
+.claude/
 
 # Logs and dumps
 *.log
