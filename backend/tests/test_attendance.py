@@ -394,7 +394,7 @@ def test_check_in_unique_race_returns_the_existing_visit(client: TestClient, eng
         db.close()
 
     assert raced.already_recorded is True
-    assert raced.id == recorded.json()["id"]
+    assert str(raced.id) == recorded.json()["id"]
     with engine.connect() as connection:
         assert connection.execute(text("SELECT count(*) FROM attendance")).scalar_one() == 1
 

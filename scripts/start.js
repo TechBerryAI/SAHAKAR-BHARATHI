@@ -1,7 +1,5 @@
 #!/usr/bin/env node
-// Starts the whole app locally with one command:
-//
-//   node scripts/start.js
+// Local API and web app. Run `make start` from the repository root.
 //
 // 1. Uses the database in backend/.env. A hosted DATABASE_URL does not need Docker.
 //    A local database must already be listening, or Docker can start sahakar-postgres.
@@ -315,6 +313,6 @@ console.log(`
     App:  \x1b[1m${WEB_URL}\x1b[0m
     API:  ${API_URL}
 
-  Android app: run \x1b[1mnode scripts/start-android.js\x1b[0m in another terminal.
+  Android app: run \x1b[1mmake android\x1b[0m in another terminal.
   Press Ctrl+C to stop.
 `)

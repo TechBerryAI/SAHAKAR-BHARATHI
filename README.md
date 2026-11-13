@@ -30,68 +30,66 @@ Web / PWA (React, Vite) ─────┘                                      
 | [`web/`](web/) | Vite + React + TypeScript app, PWA, Firebase Hosting config |
 | [`infra/supabase/`](infra/supabase/) | `schema.sql` snapshot, optional `runtime_role.sql` |
 | [`docs/`](docs/) | Database, deployment, readiness report |
-| [`scripts/`](scripts/) | `start.js`, `start-android.js`, and [`check-secrets.sh`](scripts/check-secrets.sh) |
+| [`scripts/`](scripts/) | Launchers used by `make start` and `make android`, plus [`check-secrets.sh`](scripts/check-secrets.sh) |
 | [`render.yaml`](render.yaml) | Render Blueprint (service `sahakar-bharati-api`) |
 | [`.github/workflows/`](.github/workflows/) | Backend, web, Android CI; Firebase Hosting deploy |
 
-## Run it locally
+## Commands
 
-Two commands, each in its own terminal (Node 22+):
+Run every command below from the repository root. `make` prints this list again.
 
-```bash
-node scripts/start.js           # database, API (http://127.0.0.1:8000) and web app (http://localhost:5174)
-node scripts/start-android.js   # builds the Android app and opens it on an emulator or USB phone
-```
+You need Python 3.12, Node 22+, and PostgreSQL. The Android app also needs JDK 17+ and Android SDK 37.
 
-`scripts/start.js` uses the database in `backend/.env`. A hosted `DATABASE_URL` does not need Docker.
-`scripts/start-android.js` starts that API if it is not already running, then forwards the device's
-port 8000 to it. From WSL it finds the Windows Android Studio SDK and builds with
-`gradlew.bat`. Add `--prod` to use the live API instead, `--logs` to follow the app's
-logs, or see the options at the top of [`scripts/start-android.js`](scripts/start-android.js) and in
-[`android/README.md`](android/README.md#run-on-an-emulator-or-phone).
+### Once, before the first start
 
-## Quick start
-
-**Backend** (Python 3.12, local PostgreSQL with databases `sahakar` and `sahakar_test`):
+Create the local databases when `backend/.env` will use this machine's PostgreSQL. A hosted `DATABASE_URL` does not need these databases or Docker.
 
 ```bash
-cd backend
-cp .env.example .env          # local values only; never point this at production by accident
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-alembic upgrade head
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-pytest && ruff check
+createuser sahakar
+createdb -O sahakar sahakar
+createdb -O sahakar sahakar_test
 ```
 
-**Web** (Node 22+):
+Copy the env files. Edit them only when the local database user, password, or host differs. Keep production credentials out of these files.
 
 ```bash
-cd web
-cp .env.example .env.local    # VITE_API_BASE_URL=http://127.0.0.1:8000
-npm ci && npm run dev
-npm run lint && npm run typecheck && npm test
+cp backend/.env.example backend/.env
+cp web/.env.example web/.env.local
 ```
 
-**Android** (JDK 17+, Android SDK 37):
+Then install dependencies and apply migrations:
 
 ```bash
-cd android
-./gradlew :app:testDebugUnitTest :app:assembleDebug        # gradlew.bat on Windows
-./gradlew :app:assembleRelease -Psahakar.apiBaseUrl=https://sahakar-bharathi-api.onrender.com/
+make install
+make migrate
+make hooks
 ```
 
-Optional: block accidental secret commits locally with `git config core.hooksPath .githooks`.
+`make hooks` is optional. It makes git run the secret check before each commit.
 
-## Run all tests
+### Which command to run
 
-From the repository root, with the backend virtualenv installed and a PostgreSQL database whose name contains `test`:
+| When | Command | What you get |
+|---|---|---|
+| You want the API and the web app | `make start` | Migrations, API at http://127.0.0.1:8000, web app at http://localhost:5174. Ctrl+C stops both. |
+| You want the Android app on an emulator or USB phone | `make android` | Starts the local API when it is down, builds the debug app, installs it, and opens it. On WSL this uses the Windows SDK. |
+| The phone should use the live API | `make android-prod` | Same install and open, against https://sahakar-bharathi-api.onrender.com/. Sign in only with a test account. |
+| You need the Android app's logs | `make android-logs` | Opens the app, then streams its logs until Ctrl+C. |
+| You need one particular emulator | `make android ANDROID_ARGS="--avd <name>"` | Starts that emulator when nothing is connected. Names come from `emulator -list-avds`. |
+| Several phones are connected | `make android ANDROID_ARGS="--device <serial>"` | Uses that device. Serials come from `adb devices`. |
+| Install fails because of an old debug signature | `make android ANDROID_ARGS="--reinstall"` | Uninstalls first. This clears the app's data on that device. |
+| The web app is already running and you are working on the API | `make api` | API only, with reload, on port 8000. |
+| The API is already running and you are working on the web app | `make web` | Web app only, on http://localhost:5174. |
+| You pulled new database migrations | `make migrate` | Applies Alembic migrations to the database in `backend/.env`. |
+| You want to know the whole project still works | `make test` | Backend, web, Android unit tests, and script tests. Stops at the first failure. Needs a PostgreSQL database whose name contains `test`. |
+| You changed the backend | `make test-backend` | Backend pytest. One group: `make test-backend ARGS="-k attendance"`. |
+| You changed the web app | `make test-web` | Web Vitest suite. |
+| You changed the Android app | `make test-android` | Android JVM unit tests on this computer. |
+| You changed files in `scripts/` | `make test-scripts` | Node tests for those scripts. |
+| You want the style and type checks | `make lint` | Backend ruff, web ESLint, and the web typecheck. `make lint-backend` and `make lint-web` run one side. |
+| You want to look for secrets in tracked files | `make secrets` | Prints the file and the rule name. It does not print the secret. |
 
-```bash
-npm test
-```
-
-That runs backend pytest (using `backend/.venv` when it exists), the web Vitest suite, Android JVM unit tests (`:app:testDebugUnitTest`, no emulator), and `node --test scripts/dev-database.test.js`. The run stops at the first suite that fails.
+Two terminals cover a normal day: `make start` in one, `make android` in the other. Run `make test` before you commit.
 
 ## Configuration
 

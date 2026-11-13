@@ -22,25 +22,19 @@ createdb -O sahakar sahakar
 createdb -O sahakar sahakar_test
 ```
 
-From the repository root:
+From the repository root, copy `backend/.env.example` to `backend/.env` and edit it when the local database user, password, or host differs. Then:
 
 ```bash
-cd backend
-cp .env.example .env
-# Edit .env if the local Postgres user, password, host, or database names differ.
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-alembic upgrade head
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+make install-backend
+make migrate
+make api
 ```
 
-Run tests against the local test database:
+`make start` runs the migrations, the API, and the web app together. Run tests from the repository root:
 
 ```bash
-cd backend
-pytest
-ruff check
+make test-backend
+make lint-backend
 ```
 
 Tests use `TEST_DATABASE_URL` or `POSTGRES_TEST_DB` only. They never fall back to `DATABASE_URL`, and they pin `MIGRATION_DATABASE_URL` to the test database. The database name must contain `test`.
