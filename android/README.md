@@ -21,7 +21,7 @@ Android Studio: open the `android/` folder. Command line: set `ANDROID_HOME` or
 From the repository root:
 
 ```bash
-node scripts/start-android.js
+make android
 ```
 
 It finds the Android SDK (`ANDROID_HOME`, `local.properties`, or the default install
@@ -29,7 +29,7 @@ folder) and a JDK (`JAVA_HOME`, else Android Studio's bundled `jbr`). From WSL i
 accepts a Windows `sdk.dir` / `ANDROID_HOME` (`C:\Users\…\Android\Sdk`), uses `adb.exe`,
 and builds with `gradlew.bat` via `cmd.exe` — Linux Gradle cannot use Windows `aapt.exe`.
 It uses a connected device, or starts the first emulator, starts the local API when
-it is not already running (`node scripts/start.js`), and builds the debug app against
+it is not already running (`make start`), and builds the debug app against
 the address that device can reach. From WSL that is `http://10.0.2.2:<port>/` on an
 emulator, because Windows port 8000 is often already taken and `adb reverse` then
 returns an empty reply. Android 16 blocks an app from that host address until
@@ -37,32 +37,33 @@ local-network access is allowed; the script grants it after install. A USB phone
 uses `adb reverse` and `http://127.0.0.1:<port>/`.
 It installs the app and opens it, and stops if the device still cannot reach the API.
 
-| Option | Effect |
+| Command | Effect |
 |---|---|
-| `--prod` | Use the live API (`https://sahakar-bharathi-api.onrender.com/`). Sign in only with a test account. |
-| `--avd <name>` | Emulator to start when nothing is connected (`emulator -list-avds`). |
-| `--device <serial>` | Device to use when several are connected (`adb devices`). |
-| `--logs` | Stream the app's log output after opening it (Ctrl+C stops the logs, not the app). |
-| `--reinstall` | Uninstall first. Needed only when an older build signed with a different debug key is installed; **clears the app's data on that device**. |
+| `make android-prod` | Use the live API (`https://sahakar-bharathi-api.onrender.com/`). Sign in only with a test account. |
+| `make android ANDROID_ARGS="--avd <name>"` | Emulator to start when nothing is connected (`emulator -list-avds`). |
+| `make android ANDROID_ARGS="--device <serial>"` | Device to use when several are connected (`adb devices`). |
+| `make android-logs` | Stream the app's log output after opening it (Ctrl+C stops the logs, not the app). |
+| `make android ANDROID_ARGS="--reinstall"` | Uninstall first. Needed only when an older build signed with a different debug key is installed; **clears the app's data on that device**. |
 
 A phone needs USB debugging turned on (Settings → Developer options). The emulator keeps
-running after the script finishes; run the command again after code changes.
+running after Make finishes; run `make android` again after code changes.
 
 ## Build and test
 
+From the repository root, JVM unit tests are:
+
 ```bash
-cd android
-./gradlew :app:testDebugUnitTest          # JVM unit tests
-./gradlew :app:assembleDebug              # app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:lintDebug
-./gradlew :app:connectedDebugAndroidTest  # needs a running emulator/device
+make test-android
 ```
 
-Windows: use `gradlew.bat` with the same tasks.
+Release and device checks still use Gradle from `android/`. On Windows use `gradlew.bat`. On WSL, `make android` and `make test-android` call that Windows wrapper for you, because Linux Gradle cannot use the Windows SDK's `aapt.exe`.
 
-WSL: `node scripts/start-android.js` from the repository root uses the Windows SDK and
-`gradlew.bat` automatically. Do not run `./gradlew` against a Windows SDK — Linux
-Gradle looks for `aapt`, not `aapt.exe`. A Linux SDK in WSL still uses `./gradlew`.
+```bash
+cd android
+./gradlew :app:assembleDebug              # app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:lintDebug
+./gradlew :app:connectedDebugAndroidTest  # needs a running emulator or phone
+```
 
 ## API base URL
 

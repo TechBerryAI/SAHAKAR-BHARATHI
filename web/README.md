@@ -8,19 +8,28 @@ Firebase Auth and Firestore are not used; `firebase.json` is hosting-only.
 
 Node 22+ (CI uses 22; Vite 8 does not run on Node 18).
 
+From the repository root, copy `web/.env.example` to `web/.env.local` and set `VITE_API_BASE_URL=http://127.0.0.1:8000`. Then:
+
 ```bash
-cd web
-cp .env.example .env.local      # set VITE_API_BASE_URL=http://127.0.0.1:8000
-npm ci
-npm run dev
+make install-web
+make web
 ```
+
+`make start` runs this app together with the API.
 
 ## Checks
 
+From the repository root:
+
 ```bash
-npm run lint
-npm run typecheck
-npm test            # Vitest: API/session behaviour and the production URL guard
+make lint-web
+make test-web
+```
+
+The production bundle is built from `web/` with a public HTTPS API origin:
+
+```bash
+cd web
 VITE_API_BASE_URL=https://sahakar-bharathi-api.onrender.com npm run build
 ```
 

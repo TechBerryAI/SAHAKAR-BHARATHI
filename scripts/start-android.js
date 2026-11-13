@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-// Builds the Android app and opens it on an emulator or a USB-connected phone:
-//
-//   node scripts/start-android.js            # uses the local API from `node scripts/start.js`
-//   node scripts/start-android.js --prod     # uses the live API instead
+// Builds the Android app and opens it on an emulator or a USB-connected phone.
+// Run `make android` from the repository root. `make android-prod` uses the live API.
 //
 // 1. Finds the Android SDK and a JDK (JAVA_HOME, or the one bundled with Android Studio).
 // 2. Uses a connected device, or starts an emulator (the first one, or --avd <name>).
@@ -204,7 +202,7 @@ function findJavaHome(windowsToolchain) {
     fail(
       'No Windows JDK (java.exe) found. Android Studio on this machine has an incomplete jbr, or JAVA_HOME\n' +
         '  is a Linux path. Set JAVA_HOME to a Windows JDK 17+ (for example the Android Studio jbr folder\n' +
-        '  that contains bin\\java.exe), or run node scripts/start-android.js from Windows PowerShell.',
+        '  that contains bin\\java.exe), or run make android from Windows.',
     )
   }
 
@@ -235,7 +233,7 @@ function findCmd() {
   }
   fail(
     'cmd.exe is not available from WSL, so the Windows Gradle wrapper cannot run.\n' +
-      '  Enable Windows interop, or run node scripts/start-android.js from Windows PowerShell.',
+      '  Enable Windows interop, or run make android from Windows.',
   )
 }
 
