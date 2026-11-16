@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -146,10 +147,11 @@ fun AdminPlacesScreen(
                 label = { Text("Booth name") },
                 placeholder = { Text("Pune stall") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { viewModel.create() }),
             )
             SaffronButton(
                 text = if (viewModel.saving) "Please wait…" else "Create booth",
-                onClick = { if (!viewModel.saving) viewModel.create() },
+                onClick = { viewModel.create() },
             )
             viewModel.error?.let { message ->
                 Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
