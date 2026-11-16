@@ -136,6 +136,7 @@ class AdminPlacesViewModel(
 
     fun onNameChange(value: String) {
         name = value.take(120)
+        if (error == NAME_REQUIRED) error = null
     }
 
     fun refresh() {
@@ -152,7 +153,11 @@ class AdminPlacesViewModel(
 
     fun create() {
         val trimmed = name.trim()
-        if (trimmed.length < 2 || saving) return
+        if (saving) return
+        if (trimmed.length < 2) {
+            error = NAME_REQUIRED
+            return
+        }
         viewModelScope.launch {
             saving = true
             error = null
@@ -165,6 +170,10 @@ class AdminPlacesViewModel(
             )
             saving = false
         }
+    }
+
+    private companion object {
+        const val NAME_REQUIRED = "Booth name is required."
     }
 }
 
