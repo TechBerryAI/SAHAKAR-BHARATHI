@@ -35,6 +35,9 @@ enum class AppLanguage(
     TCY("tcy", "Tulu", "ತುಳು"),
     ;
 
+    val rightToLeft: Boolean
+        get() = this == UR || this == KS || this == SD
+
     companion object {
         private val hindiFamily = setOf(HI, MAI, BHO, RAJ, DOI, NE, KOK, SA)
 
@@ -1298,6 +1301,6 @@ val languagePickerOrder: List<AppLanguage> = listOf(
 )
 
 fun copyFor(language: AppLanguage): RathYatraCopy {
-    val base = if (AppLanguage.usesHindiCopy(language)) Hindi else English
-    return guestOverlay(language, base)
+    val base = if (language == AppLanguage.HI) Hindi else English
+    return base.cloneCopy().also { applySharedCopy(it, language) }
 }

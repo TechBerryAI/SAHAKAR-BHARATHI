@@ -58,6 +58,7 @@ import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.LocalSetLanguage
 import com.example.sahakarbharati.core.copy.languagePickerOrder
+import com.example.sahakarbharati.core.copy.ui
 import com.example.sahakarbharati.ui.theme.CardShape
 import com.example.sahakarbharati.ui.theme.PillShape
 import com.example.sahakarbharati.ui.theme.RathYatraColors
@@ -321,6 +322,15 @@ fun LanguageChips(
                         .heightIn(max = 420.dp)
                         .padding(top = 8.dp, bottom = 20.dp),
                 ) {
+                    if (filtered.isEmpty()) {
+                        item {
+                            Text(
+                                text = ui("noLanguages"),
+                                modifier = Modifier.padding(vertical = 16.dp),
+                                color = RathYatraColors.OnSurfaceVariant,
+                            )
+                        }
+                    }
                     items(filtered, key = { it.key }) { option ->
                         val selected = option == language
                         Row(

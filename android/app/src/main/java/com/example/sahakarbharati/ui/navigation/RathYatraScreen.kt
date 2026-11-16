@@ -35,7 +35,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.LayoutDirection
 import com.example.sahakarbharati.features.admin.AdminPlaceScreen
 import com.example.sahakarbharati.features.admin.AdminPlacesScreen
 import com.example.sahakarbharati.features.admin.AdminUserScreen
@@ -124,6 +126,7 @@ fun RathYatraScreen(
     }
 
     CompositionLocalProvider(
+        LocalLayoutDirection provides if (language.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
         LocalLanguage provides language,
         LocalCopy provides copy,
         LocalSetLanguage provides { selected ->
