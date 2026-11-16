@@ -1,5 +1,5 @@
 -- Sahakar Bharati participant schema for Supabase (PostgreSQL).
--- Matches Alembic head 20261103_0008 (verification_challenges is not created).
+-- Matches Alembic head 20261114_0009 (verification_challenges is not created).
 -- backend/tests/test_database_schema.py fails if this file drifts from the models.
 --
 -- USE ONLY ON AN EMPTY DATABASE. The preferred path is `alembic upgrade head`
@@ -7,7 +7,7 @@
 -- Editor when Alembic cannot reach the database. Apply it with:
 --   psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/supabase/schema.sql
 --
--- It records Alembic revision 20261103_0008, so `alembic upgrade head` works
+-- It records Alembic revision 20261114_0009, so `alembic upgrade head` works
 -- afterwards. If alembic_version already has a row the script stops with an
 -- error instead of creating a second version row.
 --
@@ -113,7 +113,8 @@ CREATE INDEX IF NOT EXISTS ix_phone_verifications_mobile
 CREATE TABLE IF NOT EXISTS public.rate_limit_buckets (
     key_hash varchar(64) PRIMARY KEY,
     window_start timestamptz NOT NULL,
-    hits integer NOT NULL
+    hits integer NOT NULL,
+    hit_times timestamptz[] NOT NULL DEFAULT '{}'::timestamptz[]
 );
 
 CREATE INDEX IF NOT EXISTS ix_rate_limit_buckets_window_start
@@ -126,7 +127,7 @@ COMMENT ON TABLE public.audit_events IS 'Login, logout, registration, and profil
 COMMENT ON TABLE public.phone_verifications IS 'Hashed mobile OTP challenges and single-use registration tokens.';
 COMMENT ON COLUMN public.users.pin_hash IS 'Argon2id hash. Never store a raw PIN.';
 COMMENT ON COLUMN public.sessions.token_hash IS 'SHA-256 of the bearer token. The raw token is returned once.';
-COMMENT ON TABLE public.rate_limit_buckets IS 'Shared fixed-window throttle counters (RATE_LIMIT_BACKEND=postgres). Keys are SHA-256 hashed.';
+COMMENT ON TABLE public.rate_limit_buckets IS 'Shared sliding-window throttle counters (RATE_LIMIT_BACKEND=postgres). Keys are SHA-256 hashed. hit_times holds accepted timestamps.';
 
 CREATE TABLE IF NOT EXISTS public.places (
     id uuid PRIMARY KEY,
@@ -205,6 +206,6 @@ BEGIN
     IF EXISTS (SELECT 1 FROM public.alembic_version) THEN
         RAISE EXCEPTION 'alembic_version is not empty: run alembic upgrade head instead of schema.sql';
     END IF;
-    INSERT INTO public.alembic_version (version_num) VALUES ('20261103_0008');
+    INSERT INTO public.alembic_version (version_num) VALUES ('20261114_0009');
 END
 $$;

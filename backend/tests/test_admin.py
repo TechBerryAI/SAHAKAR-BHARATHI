@@ -152,6 +152,50 @@ def test_super_admin_grants_and_removes_admin_but_cannot_demote_self(client: Tes
         db.close()
 
 
+def test_disabling_a_user_revokes_existing_sessions(client: TestClient, engine: Engine) -> None:
+    created, session = register_and_login(client)
+    old_token = session["access_token"]
+    db = SessionLocal()
+    try:
+        seed_super_admin(db, pin="1234")
+    finally:
+        db.close()
+
+    signed_in = client.post("/api/v1/sessions", json={"identifier": SUPER_ADMIN_MOBILE, "pin": "1234"})
+    headers = _headers(signed_in.json()["access_token"])
+    target_id = client.get(
+        "/api/v1/admin/users",
+        headers=headers,
+        params={"q": created["login_id"]},
+    ).json()["items"][0]["id"]
+
+    blocked = client.post(
+        f"/api/v1/admin/users/{target_id}/status",
+        headers=headers,
+        json={"status": "disabled"},
+    )
+    assert blocked.status_code == 200, blocked.text
+    denied = client.get("/api/v1/me", headers=_headers(old_token))
+    assert denied.status_code == 401
+    with engine.connect() as connection:
+        revoked = connection.execute(
+            text("SELECT count(*) FROM sessions WHERE revoked_at IS NOT NULL")
+        ).scalar_one()
+    assert revoked >= 1
+
+    restored = client.post(
+        f"/api/v1/admin/users/{target_id}/status",
+        headers=headers,
+        json={"status": "active"},
+    )
+    assert restored.status_code == 200
+    still_dead = client.get("/api/v1/me", headers=_headers(old_token))
+    assert still_dead.status_code == 401
+    fresh = client.post("/api/v1/sessions", json={"identifier": "9876543210", "pin": "2468"})
+    assert fresh.status_code == 200, fresh.text
+    assert client.get("/api/v1/me", headers=_headers(fresh.json()["access_token"])).status_code == 200
+
+
 def test_super_admin_can_block_and_restore_sign_in(client: TestClient) -> None:
     created, _session = register_and_login(client)
     db = SessionLocal()

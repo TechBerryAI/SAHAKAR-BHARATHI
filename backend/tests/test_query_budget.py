@@ -49,7 +49,8 @@ def test_otp_send_budget(client: TestClient, engine: Engine) -> None:
         response = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
     assert response.status_code == 202
     assert response.json()["id"]
-    assert_within_budget(events, 3)
+    # Lock, account lookup, existing challenges, challenge insert, two audit inserts.
+    assert_within_budget(events, 6)
 
 
 def test_registration_budget(client: TestClient, engine: Engine) -> None:

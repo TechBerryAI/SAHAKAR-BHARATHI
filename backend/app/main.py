@@ -1,4 +1,5 @@
 import logging
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -14,9 +15,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.api.v1.router import api_router
+from app.core.client_ip import ClientIpMiddleware
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.core.rate_limit import PostgresRateLimiter, RateLimiter, SlidingWindowLimiter
+from app.core.request_context import reset_cf_ray, reset_request_id, set_cf_ray, set_request_id
 from app.db import session as db_session
 from app.db.session import SessionLocal
 from app.schemas.common import HealthResponse
@@ -125,6 +128,40 @@ class PrivateNetworkAccessMiddleware:
         await self.app(scope, receive, send_with_header)
 
 
+def _header(scope: Scope, name: str) -> str:
+    target = name.lower().encode("latin-1")
+    for key, value in scope.get("headers", []):
+        if key.lower() == target:
+            return value.decode("latin-1", errors="replace")[:128]
+    return ""
+
+
+class RequestIdMiddleware:
+    """Server-generated id for logs and responses. A client-supplied id is ignored."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        request_id = uuid.uuid4().hex
+        token = set_request_id(request_id)
+        ray_token = set_cf_ray(_header(scope, "cf-ray"))
+
+        async def send_with_id(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["X-Request-ID"] = request_id
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_with_id)
+        finally:
+            reset_request_id(token)
+            reset_cf_ray(ray_token)
+
+
 class ApiResponseHeadersMiddleware:
     """API responses carry participant data and tokens: never cache them, never sniff them."""
 
@@ -141,6 +178,11 @@ class ApiResponseHeadersMiddleware:
                 headers = MutableHeaders(scope=message)
                 headers.setdefault("Cache-Control", "no-store")
                 headers.setdefault("X-Content-Type-Options", "nosniff")
+                if get_settings().is_production:
+                    headers.setdefault(
+                        "Strict-Transport-Security",
+                        "max-age=31536000; includeSubDomains",
+                    )
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
@@ -167,9 +209,7 @@ class SafeErrorMiddleware:
             await validation_error_response(exc)(scope, receive, send)
         except Exception:
             logger.exception("Unhandled application error")
-            await JSONResponse({"detail": "An unexpected error occurred."}, status_code=500)(
-                scope, receive, send
-            )
+            await JSONResponse({"detail": "An unexpected error occurred."}, status_code=500)(scope, receive, send)
 
 
 def build_limiter(settings: Settings) -> RateLimiter:
@@ -185,13 +225,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # Tests install their own limiter before startup.
     if getattr(_app.state, "limiter", None) is None:
         _app.state.limiter = build_limiter(settings)
-    if settings.is_production and not settings.uses_shared_rate_limits:
-        logger.warning(
-            "RATE_LIMIT_BACKEND=memory: throttles are per process. Run one instance with one worker, "
-            "or set RATE_LIMIT_BACKEND=postgres."
-        )
-    if settings.is_production and not settings.textbee_api_key.strip():
-        logger.warning("TEXTBEE_API_KEY is not set: OTP delivery, and therefore registration, will fail.")
     yield
     db_session.engine.dispose()
 
@@ -248,6 +281,8 @@ def create_app() -> FastAPI:
         )
     if not settings.is_production:
         application.add_middleware(PrivateNetworkAccessMiddleware)
+    application.add_middleware(ClientIpMiddleware)
+    application.add_middleware(RequestIdMiddleware)
     application.add_exception_handler(RequestValidationError, _validation_error_handler)
     application.include_router(api_router, prefix="/api/v1")
 

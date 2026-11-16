@@ -18,9 +18,13 @@ _sim_cache: dict[str, tuple[int, float]] = {}
 
 
 class SmsGateway(Protocol):
-    def send(self, recipient_e164: str, message: str) -> None: ...
+    """Delivery port used by phone verification. TextbeeGateway is the current adapter.
 
-    def wait_until_sent(self, timeout: float = 20.0) -> bool: ...
+    Registration and OTP confirmation depend on this protocol, not on Textbee's HTTP API.
+    A later SMS vendor replaces TextbeeGateway only.
+    """
+
+    def send(self, recipient_e164: str, message: str) -> None: ...
 
 
 class TextbeeGateway:
@@ -77,7 +81,7 @@ class TextbeeGateway:
         if response.status_code == 429:
             raise SmsDeliveryError("The SMS gateway is busy. Try again later.")
         if response.status_code != 200 or not _accepted(response):
-            raise SmsDeliveryError()
+            raise SmsDeliveryError("The SMS gateway rejected the message.")
         warning = _send_warning(response)
         if warning == "SMS_PERMISSION_MISSING":
             raise SmsDeliveryError(
@@ -86,6 +90,7 @@ class TextbeeGateway:
         self._last_batch_id = _batch_id(response)
 
     def wait_until_sent(self, timeout: float = 20.0) -> bool:
+        """Poll a batch. Phone verification does not call this; send() is the contract."""
         if not self._last_batch_id:
             return False
         deadline = time.monotonic() + timeout

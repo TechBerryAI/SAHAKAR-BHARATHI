@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 
 import httpx
@@ -20,6 +21,8 @@ from app.services.places import PlaceService
 from app.services.profile import ProfileService
 from app.services.registration import RegistrationService
 from app.services.sms import SmsGateway, TextbeeGateway
+
+logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -53,7 +56,8 @@ def get_sms_gateway(
     if override is not None:
         return override
     if not settings.textbee_api_key.strip():
-        raise SmsDeliveryError("SMS gateway is not configured.")
+        logger.warning("SMS gateway key is missing")
+        raise SmsDeliveryError()
     return TextbeeGateway(
         api_key=settings.textbee_api_key.strip(),
         device_id=settings.textbee_device_id.strip(),
@@ -74,9 +78,9 @@ def get_phone_verification_service(
 def get_registration_service(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
-    gateway: SmsGateway = Depends(get_sms_gateway),
 ) -> RegistrationService:
-    return RegistrationService(db, PhoneVerificationService(db, settings, gateway))
+    # Consuming a verification token does not send SMS. A missing gateway must not block registration.
+    return RegistrationService(db, PhoneVerificationService(db, settings))
 
 
 def get_profile_service(db: Session = Depends(get_db)) -> ProfileService:

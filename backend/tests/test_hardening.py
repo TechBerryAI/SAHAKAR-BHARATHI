@@ -26,6 +26,9 @@ def test_production_accepts_verify_full_tls() -> None:
         environment="production",
         database_url=f"{_REMOTE_DB}?sslmode=verify-full",
         cors_origins="",
+        textbee_api_key="test-key",
+        rate_limit_backend="postgres",
+        client_ip_source="cf-connecting-ip",
     )
     assert settings.engine_kwargs()["connect_args"]["sslmode"] == "verify-full"
 
@@ -40,8 +43,112 @@ def test_production_rejects_insecure_cors_origins(origins: str) -> None:
 
 
 def test_production_without_cors_origins_allows_no_browser_origin() -> None:
-    settings = Settings(environment="production", database_url=_REMOTE_DB, cors_origins="")
+    settings = Settings(
+        environment="production",
+        database_url=_REMOTE_DB,
+        cors_origins="",
+        textbee_api_key="test-key",
+        rate_limit_backend="postgres",
+        client_ip_source="cf-connecting-ip",
+    )
     assert settings.cors_origin_list == []
+
+
+def test_production_requires_shared_rate_limits_and_an_sms_key() -> None:
+    with pytest.raises(ValidationError, match="RATE_LIMIT_BACKEND=postgres"):
+        Settings(
+            environment="production",
+            database_url=_REMOTE_DB,
+            cors_origins="",
+            textbee_api_key="test-key",
+            rate_limit_backend="memory",
+        )
+    with pytest.raises(ValidationError, match="TEXTBEE_API_KEY"):
+        Settings(
+            environment="production",
+            database_url=_REMOTE_DB,
+            cors_origins="",
+            textbee_api_key="",
+            rate_limit_backend="postgres",
+        )
+    with pytest.raises(ValidationError, match="TEXTBEE_BASE_URL"):
+        Settings(
+            environment="production",
+            database_url=_REMOTE_DB,
+            cors_origins="",
+            textbee_api_key="test-key",
+            textbee_base_url="http://api.textbee.dev/api/v1",
+            rate_limit_backend="postgres",
+        )
+
+
+def test_otp_timings_must_be_positive() -> None:
+    with pytest.raises(ValidationError, match="OTP_TTL_SECONDS"):
+        Settings(otp_ttl_seconds=0)
+
+
+def test_request_id_is_generated_by_the_server(client: TestClient) -> None:
+    response = client.get("/health/live", headers={"X-Request-ID": "client-supplied"})
+    request_id = response.headers.get("x-request-id", "")
+    assert request_id
+    assert request_id != "client-supplied"
+    assert len(request_id) == 32
+    api = client.get("/api/v1/me")
+    assert "strict-transport-security" not in api.headers
+
+
+def test_cf_ray_is_kept_only_when_it_matches_cloudflare() -> None:
+    import asyncio
+
+    from app.core.request_context import current_cf_ray, sanitize_cf_ray
+    from app.main import RequestIdMiddleware
+
+    assert sanitize_cf_ray("230b030023ae2822-SJC") == "230b030023ae2822-SJC"
+    assert sanitize_cf_ray("not a ray\n") == "-"
+    assert sanitize_cf_ray("x" * 200) == "-"
+    captured: dict[str, str] = {}
+
+    async def downstream(scope, receive, send):
+        captured["ray"] = current_cf_ray()
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def exercise() -> None:
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "path": "/health/live",
+            "raw_path": b"/health/live",
+            "headers": [(b"cf-ray", b"230b030023ae2822-SJC"), (b"x-request-id", b"client-supplied")],
+            "client": ("127.0.0.1", 1234),
+            "scheme": "http",
+            "query_string": b"",
+            "server": ("test", 80),
+        }
+
+        async def send(message: object) -> None:
+            return None
+
+        await RequestIdMiddleware(downstream)(scope, receive, send)
+
+    asyncio.run(exercise())
+    assert captured["ray"] == "230b030023ae2822-SJC"
+
+
+def test_production_requires_cloudflare_client_ip() -> None:
+    with pytest.raises(ValidationError, match="CLIENT_IP_SOURCE"):
+        Settings(
+            environment="production",
+            database_url=_REMOTE_DB,
+            cors_origins="",
+            textbee_api_key="test-key",
+            rate_limit_backend="postgres",
+            client_ip_source="peer",
+        )
 
 
 def test_unknown_rate_limit_backend_is_rejected() -> None:

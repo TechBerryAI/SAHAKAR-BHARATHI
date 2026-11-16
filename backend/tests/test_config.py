@@ -45,6 +45,9 @@ def test_production_accepts_remote_database_url() -> None:
         environment="production",
         database_url="postgresql://u:p@db.example.com:5432/app",
         cors_origins="",
+        textbee_api_key="test-key",
+        rate_limit_backend="postgres",
+        client_ip_source="cf-connecting-ip",
     )
     assert settings.sqlalchemy_url().startswith("postgresql+psycopg://")
     assert settings.engine_kwargs()["connect_args"]["sslmode"] == "require"
@@ -64,13 +67,17 @@ def test_alembic_head_is_applied(engine) -> None:
 
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "20261103_0008"
+    assert version == "20261114_0009"
 
 
 def test_production_disables_openapi_docs(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@db.example.com:5432/app")
     monkeypatch.setenv("CORS_ORIGINS", "")
+    monkeypatch.setenv("TEXTBEE_API_KEY", "test-key")
+    monkeypatch.setenv("TEXTBEE_BASE_URL", "https://api.textbee.dev/api/v1")
+    monkeypatch.setenv("RATE_LIMIT_BACKEND", "postgres")
+    monkeypatch.setenv("CLIENT_IP_SOURCE", "cf-connecting-ip")
     get_settings.cache_clear()
     try:
         application = create_app()

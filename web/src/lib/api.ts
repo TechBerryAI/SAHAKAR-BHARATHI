@@ -61,6 +61,8 @@ const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
   'Enter the 6-digit booth code.': 'boothCodeInvalid',
   'The code is incorrect or has expired.': 'otpInvalid',
   'Verify this mobile number before registering.': 'verificationExpired',
+  'Could not send the SMS. Please try again.': 'otpSendFailed',
+  'Please try again in a moment.': 'pleaseWait',
 }
 
 /** Which known error this is, so a screen can react to it (not just show its text). */

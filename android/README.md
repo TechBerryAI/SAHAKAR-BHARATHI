@@ -141,5 +141,5 @@ R8 is enabled for release with optimisation scoped to `androidx`, `kotlin` and
   pending over 4 s shows a "server is starting up" banner on every screen (English and
   Hindi text; other languages show the English base, like other untranslated strings).
 - The app does not collect or upload a profile photo.
-- Signed-in navigation is Home, Profile, and Admin for staff (`admin` or `super_admin`). Tracking, QR attendance, benefits, and notifications are not in the app.
+- Signed-in navigation is Home, Event Check-in, Profile, and Admin for staff (`admin` or `super_admin`). Live tracking, a QR pass, benefits, and notifications are not in the app.
 - Profile editing saves name, occupation, and address with `PATCH /api/v1/me`. Login ID, mobile, email, gender, date of birth, and PIN stay read-only.
