@@ -69,14 +69,30 @@ def test_registration_ignores_client_supplied_ids_and_flags(client: TestClient) 
     assert "verification_status" not in body
 
 
-def test_duplicate_mobile_returns_409(client: TestClient) -> None:
+def test_duplicate_mobile_is_hidden_until_the_phone_is_verified(client: TestClient) -> None:
     first = client.post("/api/v1/registrations", json=verified_register_payload(client))
     assert first.status_code == 201
     duplicate = register_payload(email="other@example.com")
     duplicate["verification_token"] = "not-a-real-verification-token"
     second = client.post("/api/v1/registrations", json=duplicate)
-    assert second.status_code == 409
-    assert second.json()["detail"] == "An account already exists for this mobile number."
+    assert second.status_code == 400
+    assert second.json()["detail"] == "Verify this mobile number before registering."
+    assert "already exists" not in second.text
+
+
+def test_duplicate_mobile_returns_409_after_a_valid_token(client: TestClient, engine: Engine) -> None:
+    payload = verified_register_payload(client, mobile="9876543213")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users (id, login_id, mobile, pin_hash, full_name) "
+                "VALUES (gen_random_uuid(), 'SB-00000099', :mobile, 'x', 'Existing')"
+            ),
+            {"mobile": payload["mobile"]},
+        )
+    response = client.post("/api/v1/registrations", json=payload)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "An account already exists for this mobile number."
 
 
 def test_duplicate_email_returns_409(client: TestClient) -> None:
@@ -90,12 +106,36 @@ def test_duplicate_email_returns_409(client: TestClient) -> None:
     assert second.json()["detail"] == "An account already exists with this email address."
 
 
-def test_registered_mobile_cannot_request_an_otp(client: TestClient) -> None:
+def test_registered_mobile_response_matches_a_new_number(client: TestClient, engine: Engine) -> None:
     created = client.post("/api/v1/registrations", json=verified_register_payload(client))
     assert created.status_code == 201
-    response = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
-    assert response.status_code == 409
-    assert response.json()["detail"] == "An account already exists for this mobile number."
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE phone_verifications SET created_at = created_at - interval '5 minutes'")
+        )
+    registered = client.post("/api/v1/phone-verifications", json={"mobile": "9876543210"})
+    fresh = client.post("/api/v1/phone-verifications", json={"mobile": "9876543299"})
+    assert registered.status_code == 202
+    assert fresh.status_code == 202
+    assert set(registered.json()) == set(fresh.json()) == {"id", "expires_in_seconds"}
+    assert "exist" not in registered.text.lower()
+    assert "account" not in registered.text.lower()
+    gateway = client.app.state.sms_gateway
+    registered_sms = next(
+        message
+        for recipient, message in reversed(gateway.messages)
+        if recipient == "9876543210"
+    )
+    fresh_sms = next(message for recipient, message in gateway.messages if recipient == "9876543299")
+    assert "already has an account" in registered_sms
+    assert not any(char.isdigit() for char in registered_sms)
+    assert gateway.latest_code() in fresh_sms
+    wrong = client.post(
+        f"/api/v1/phone-verifications/{registered.json()['id']}/confirm",
+        json={"code": "000000"},
+    )
+    assert wrong.status_code == 400
+    assert wrong.json()["detail"] == "The code is incorrect or has expired."
 
 
 def test_verified_mobile_without_registration_creates_no_account(

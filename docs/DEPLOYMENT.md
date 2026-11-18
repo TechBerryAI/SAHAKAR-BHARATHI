@@ -45,10 +45,10 @@ Blueprint: `render.yaml` (service `sahakar-bharati-api`, do not rename).
 |---|---|
 | Root directory | `backend` |
 | Build | `pip install .` |
-| Start | `uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'` |
-| Health check | `/health` (database readiness; `/health/live` is process-only) |
+| Start | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Health check | `/health` (database readiness; `/health/live` is process-only and returns no secrets) |
 | Python | `PYTHON_VERSION=3.12.8` (also `backend/runtime.txt`) |
-| Instances / workers | **1 / 1** while `RATE_LIMIT_BACKEND=memory` |
+| Instances / workers | Blueprint starts one process. `RATE_LIMIT_BACKEND=postgres` shares the sliding window if you add instances. `memory` is rejected in production. |
 
 Environment variables (dashboard; never commit values):
 
@@ -57,9 +57,12 @@ Environment variables (dashboard; never commit values):
 | `ENVIRONMENT` | yes | `production` |
 | `DATABASE_URL` | yes | Supabase pooler URL, TLS. Startup fails if missing, local, or TLS disabled. |
 | `CORS_ORIGINS` | yes for web | `https://sahakarbharati-e3b04.web.app,https://sahakarbharati-e3b04.firebaseapp.com`. https only in production. |
-| `TEXTBEE_API_KEY` | for registration | OTP SMS. Without it registration cannot complete (startup logs a warning). |
-| `TEXTBEE_DEVICE_ID` | optional | Textbee sending phone. |
-| `RATE_LIMIT_BACKEND` | no | `memory` (default) or `postgres` (required before >1 instance). Needs migration 0006. |
+| `TEXTBEE_API_KEY` | yes | OTP SMS. Production startup fails closed when it is empty. An empty `TEXTBEE_DEVICE_ID` is valid (Textbee's default phone). |
+| `TEXTBEE_DEVICE_ID` | no | Textbee sending phone. Blank uses the account default. |
+| `TEXTBEE_BASE_URL` | no | Defaults to `https://api.textbee.dev/api/v1`. Production rejects a non-https URL. |
+| `RATE_LIMIT_BACKEND` | yes | Production requires `postgres` (migration 0006 and 0009). `memory` is development only. |
+| `CLIENT_IP_SOURCE` | yes | `cf-connecting-ip` on Render. Do not use `X-Forwarded-For` or `--forwarded-allow-ips`. |
+| `LOGIN_IP_RATE_LIMIT` | no | Default 30 login attempts per IP per 15 minutes, separate from the per-identifier cap of 5. |
 | `SESSION_TTL_SECONDS`, `LOGIN_*`, `REGISTER_*`, `OTP_*`, `MAX_REQUEST_BYTES` | no | See `backend/.env.example`. |
 
 Not needed and must not be set: Supabase anon key, service-role key, JWT secret.
@@ -83,9 +86,13 @@ Not needed and must not be set: Supabase anon key, service-role key, JWT secret.
 ### Roll back
 
 - Render dashboard → service → **Events / Deploys** → "Rollback" to the previous deploy.
-- Migrations 0005/0006 are additive and compatible with the previous release;
-  do **not** downgrade the database. For a bad data change, restore to a scratch
-  project and repair forward.
+- Current Alembic head is `20261117_0011`. Do **not** run `alembic downgrade`.
+  0005's downgrade is a no-op; 0008's downgrade drops `places` and `attendance`;
+  0009's downgrade drops `hit_times` and the limiter will fail. 0010 and 0011 drop
+  the Yatra, district, and protocol tables. For a bad data
+  change, restore to a scratch project and repair forward.
+- Client IP throttles use `CF-Connecting-IP` (see below). The start command
+  does not enable Uvicorn's `--forwarded-allow-ips`.
 
 ### Cold starts
 
@@ -103,13 +110,54 @@ a service between regions: create a new service in Singapore from the same
 Blueprint, verify it, then switch clients (Android `SAHAKAR_API_BASE_URL`, web
 `VITE_API_BASE_URL`, Render `CORS_ORIGINS` unchanged).
 
-### Client IP and per-IP throttles
+### Client IP
 
-Uvicorn trusts `X-Forwarded-For` from any proxy (`--forwarded-allow-ips='*'`), so
-per-IP throttles can be bypassed by a client that sends its own header. The
-per-identifier database lockout (5 failures / 15 min) still applies across all
-instances. Narrowing trusted proxy IPs requires Render's proxy ranges; tracked as
-a remaining risk.
+Checked against Render and Cloudflare's documentation on 2026-11-16.
+
+Render's published path for a web service is:
+
+```text
+visitor → Cloudflare → Render load balancer → this process
+```
+
+The process port is not reachable from the public internet. Render forwards Cloudflare's request headers, including `CF-Ray`. Cloudflare's `CF-Connecting-IP` is the single address that connected to Cloudflare. That is the throttle, log, and request-context identity when `CLIENT_IP_SOURCE=cf-connecting-ip`.
+
+A caller cannot choose that value. Cloudflare writes the header on the request it sends toward the origin. `X-Forwarded-For` is not used: Cloudflare appends to a value the caller already sent, so the left side of that list is caller-controlled. `X-Real-IP` is not used.
+
+If `CF-Connecting-IP` is missing or is not one IP address, the identity is the TCP peer (Render's load balancer). The caller cannot choose that either. Every visitor then shares one bucket until the header is present again.
+
+`CLIENT_IP_SOURCE=peer` (development and tests) ignores `CF-Connecting-IP`, `X-Forwarded-For`, and `X-Real-IP`, because a local process can be reached directly.
+
+Do not put another CDN in front of the Render hostname. `CF-Connecting-IP` would then be that CDN, not the visitor.
+
+`X-Forwarded-Proto` is applied only for `cf-connecting-ip`, and only when the value is exactly `http` or `https`. Cloudflare overwrites that header. It does not affect the throttle address.
+
+Login has two independent limits: 5 attempts per identifier per 15 minutes, and 30 attempts per IP per 15 minutes. Rotating identifiers does not reset the IP limit. A wrong PIN and an unknown mobile return the same error. The database lockout (5 failures / 15 minutes per identifier) is unchanged.
+
+OTP sending stays at 5 per mobile per hour, 30 per IP per hour, and a 60-second resend cooldown.
+
+### Phone-number enumeration
+
+`POST /api/v1/phone-verifications` returns **202** `{id, expires_in_seconds}`
+whether or not the mobile already has an account. Both paths do the same work
+(hash a code, store a challenge, send an SMS) so status, body, and timing do
+not answer "is this number registered?".
+
+- A new number receives `SAHAKAR BHARTI: OTP is ######. Do not share it.`
+- A registered number receives a sign-in notice with no code. Confirming any
+  code returns the same `The code is incorrect or has expired.` as a wrong code.
+- Registration still returns `An account already exists for this mobile number.`
+  or the email equivalent **after** a valid verification token. A missing or
+  fake token is always `Verify this mobile number before registering.`,
+  including when the mobile is already taken.
+- Web and Android keep a Sign in action on the OTP step. The SMS is what tells
+  an existing participant to use it. The 409 strings stay for the person who
+  has just proved they hold the phone.
+
+### Monitoring
+
+What to watch, and what is not configured, is in `docs/MONITORING.md`.
+`/health` and `/health/live` return only `status` and `database`.
 
 ## Web on Firebase Hosting
 

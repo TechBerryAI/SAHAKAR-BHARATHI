@@ -731,7 +731,7 @@ private fun VerifyMobileScreen(
                     color = if (noteIsError) RathYatraColors.Emergency else RathYatraColors.OnSurfaceVariant,
                 )
             }
-            if (accountExists) {
+            if (accountExists || otpSent) {
                 SaffronButton(
                     text = ui("signIn"),
                     onClick = onSignIn,

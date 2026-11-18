@@ -28,12 +28,14 @@ class RegistrationService:
         self.phone_verifications = phone_verifications
 
     def register(self, payload: RegistrationCreate) -> RegistrationResponse:
+        # A missing or fake token is the same answer whether or not the mobile
+        # or email is already taken. The 409 below is only for someone who just
+        # proved they hold the phone.
+        self.phone_verifications.consume(payload.mobile, payload.verification_token)
         if self.users.exists_with_mobile_or_email(payload.mobile, payload.email):
-            # One query on the normal path; only a duplicate pays for telling which field clashed.
             if self.users.get_by_mobile(payload.mobile):
                 raise MobileAlreadyRegisteredError()
             raise EmailAlreadyRegisteredError()
-        self.phone_verifications.consume(payload.mobile, payload.verification_token)
 
         login_id = generate_login_id()
         while self.users.get_by_login_id(login_id):

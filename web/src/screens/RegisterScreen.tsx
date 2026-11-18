@@ -245,7 +245,8 @@ export function RegisterScreen() {
       setOtp('')
       setOtpNote(copy.otpSent)
     } catch (err) {
-      // The API only refuses an OTP with 409 when this number already has an account.
+      // A taken number still returns 202. The SMS tells that person to sign in.
+      // Registration still returns 409 after a valid verification token.
       if (err instanceof ApiError && err.status === 409) {
         setError(copy.mobileRegistered)
         setAccountExists(true)
@@ -435,6 +436,15 @@ export function RegisterScreen() {
           <div className="verify__footer">
             <Button type="submit" className="verify__submit" disabled={otpBusy}>
               {otpBusy ? copy.pleaseWait : challengeId ? copy.verifyOtp : copy.sendOtp}
+              <span aria-hidden="true">→</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="verify__signin"
+              onClick={() => navigate('/sign-in', { state: { identifier: form.mobile } })}
+            >
+              {copy.signIn}
               <span aria-hidden="true">→</span>
             </Button>
           </div>

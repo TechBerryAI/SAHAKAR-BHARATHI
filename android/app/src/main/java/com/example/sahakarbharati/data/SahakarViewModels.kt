@@ -16,6 +16,8 @@ import com.example.sahakarbharati.features.home.HomeViewModel
 import com.example.sahakarbharati.features.profile.ProfileViewModel
 import com.example.sahakarbharati.features.registration.RegistrationViewModel
 import com.example.sahakarbharati.features.registration.SignInViewModel
+import com.example.sahakarbharati.features.yatra.YatraDetailViewModel
+import com.example.sahakarbharati.features.yatra.YatraListViewModel
 
 class SahakarViewModelFactory(
     private val container: AppContainer,
@@ -41,6 +43,10 @@ class SahakarViewModelFactory(
                 AdminPlaceViewModel(container.adminRepository) as T
             modelClass.isAssignableFrom(AttendanceViewModel::class.java) ->
                 AttendanceViewModel(container.attendanceRepository) as T
+            modelClass.isAssignableFrom(YatraListViewModel::class.java) ->
+                YatraListViewModel(container.yatraRepository) as T
+            modelClass.isAssignableFrom(YatraDetailViewModel::class.java) ->
+                YatraDetailViewModel(container.yatraRepository) as T
             else -> error("Unknown ViewModel ${modelClass.name}")
         }
     }

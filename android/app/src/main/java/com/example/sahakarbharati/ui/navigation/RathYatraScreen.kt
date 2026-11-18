@@ -44,6 +44,8 @@ import com.example.sahakarbharati.features.admin.AdminUserScreen
 import com.example.sahakarbharati.features.attendance.AttendanceScreen
 import com.example.sahakarbharati.features.admin.AdminUsersScreen
 import com.example.sahakarbharati.features.home.CitizenHomeScreen
+import com.example.sahakarbharati.features.yatra.YatraDetailScreen
+import com.example.sahakarbharati.features.yatra.YatraListScreen
 import com.example.sahakarbharati.features.profile.ProfileScreen
 import com.example.sahakarbharati.features.registration.RegistrationFormScreen
 import com.example.sahakarbharati.features.registration.RegistrationSuccessScreen
@@ -75,6 +77,7 @@ fun RathYatraScreen(
     var stack by rememberSaveable { mutableStateOf(initialStack.ifEmpty { listOf(RathYatraDestinations.SPLASH) }) }
     var adminUserId by rememberSaveable { mutableStateOf("") }
     var adminPlaceId by rememberSaveable { mutableStateOf("") }
+    var yatraId by rememberSaveable { mutableStateOf("") }
     var signInMobile by rememberSaveable { mutableStateOf("") }
     var accountReady by rememberSaveable { mutableStateOf(false) }
     var languageKey by rememberSaveable { mutableStateOf(session.languageKey()) }
@@ -166,6 +169,22 @@ fun RathYatraScreen(
             onOpenAdmin = { go(RathYatraDestinations.ADMIN) },
             onOpenBooths = { go(RathYatraDestinations.ADMIN_PLACES) },
             onOpenAttendance = { go(RathYatraDestinations.ATTENDANCE) },
+            onOpenYatras = { go(RathYatraDestinations.YATRAS) },
+            onSelectTab = { go(it) },
+            modifier = modifier.fillMaxSize(),
+        )
+        RathYatraDestinations.YATRAS -> YatraListScreen(
+            onOpenYatra = { id ->
+                yatraId = id
+                go(RathYatraDestinations.YATRA_DETAIL)
+            },
+            onBack = { back() },
+            onSelectTab = { go(it) },
+            modifier = modifier.fillMaxSize(),
+        )
+        RathYatraDestinations.YATRA_DETAIL -> YatraDetailScreen(
+            yatraId = yatraId,
+            onBack = { back() },
             onSelectTab = { go(it) },
             modifier = modifier.fillMaxSize(),
         )

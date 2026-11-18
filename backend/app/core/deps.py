@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 
 import httpx
@@ -9,17 +10,23 @@ from app.core.config import Settings, get_settings
 from app.core.errors import ForbiddenError, SmsDeliveryError
 from app.core.rate_limit import SlidingWindowLimiter
 from app.core.roles import ROLE_SUPER_ADMIN, STAFF_ROLES
+from app.core.storage import DocumentStorage, LocalDocumentStorage, UnavailableDocumentStorage
 from app.db.session import get_db
 from app.models.session import AuthSession
 from app.models.user import User
 from app.services.admin import AdminService
 from app.services.attendance import AttendanceService
 from app.services.auth import AuthService
+from app.services.districts import DistrictService
 from app.services.phone_verification import PhoneVerificationService
 from app.services.places import PlaceService
 from app.services.profile import ProfileService
+from app.services.protocol import ProtocolService
 from app.services.registration import RegistrationService
 from app.services.sms import SmsGateway, TextbeeGateway
+from app.services.yatras import YatraService
+
+logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -53,7 +60,8 @@ def get_sms_gateway(
     if override is not None:
         return override
     if not settings.textbee_api_key.strip():
-        raise SmsDeliveryError("SMS gateway is not configured.")
+        logger.warning("SMS gateway key is missing")
+        raise SmsDeliveryError()
     return TextbeeGateway(
         api_key=settings.textbee_api_key.strip(),
         device_id=settings.textbee_device_id.strip(),
@@ -74,9 +82,9 @@ def get_phone_verification_service(
 def get_registration_service(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
-    gateway: SmsGateway = Depends(get_sms_gateway),
 ) -> RegistrationService:
-    return RegistrationService(db, PhoneVerificationService(db, settings, gateway))
+    # Consuming a verification token does not send SMS. A missing gateway must not block registration.
+    return RegistrationService(db, PhoneVerificationService(db, settings))
 
 
 def get_profile_service(db: Session = Depends(get_db)) -> ProfileService:
@@ -93,6 +101,31 @@ def get_place_service(db: Session = Depends(get_db)) -> PlaceService:
 
 def get_attendance_service(db: Session = Depends(get_db)) -> AttendanceService:
     return AttendanceService(db)
+
+
+def get_district_service(db: Session = Depends(get_db)) -> DistrictService:
+    return DistrictService(db)
+
+
+def get_yatra_service(db: Session = Depends(get_db)) -> YatraService:
+    return YatraService(db)
+
+
+def get_document_storage(request: Request) -> DocumentStorage:
+    override = getattr(request.app.state, "document_storage", None)
+    if override is not None:
+        return override
+    settings = get_settings()
+    if settings.document_backend() != "local":
+        return UnavailableDocumentStorage()
+    return LocalDocumentStorage(settings.document_directory())
+
+
+def get_protocol_service(
+    db: Session = Depends(get_db),
+    storage: DocumentStorage = Depends(get_document_storage),
+) -> ProtocolService:
+    return ProtocolService(db, storage)
 
 
 def get_current_user(

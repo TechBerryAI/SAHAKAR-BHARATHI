@@ -71,10 +71,17 @@ class Settings(BaseSettings):
     login_lockout_seconds: int = 15 * 60
     max_request_bytes: int = 65_536
     cors_origins: str = ""
-    # "memory" is per-process and only correct for a single API instance.
-    # "postgres" shares counters through the database (one extra round-trip per
-    # throttled request); use it before running more than one instance/worker.
+    # "memory" is per-process and is rejected in production.
+    # "postgres" shares counters through rate_limit_buckets (one extra round-trip
+    # per throttled request) and is required before the process may serve production.
     rate_limit_backend: str = "memory"
+    # "peer" uses the TCP connection and ignores forwarding headers.
+    # "cf-connecting-ip" is the Render production source: Cloudflare overwrites
+    # that header with the visitor address. See app/core/client_ip.py.
+    client_ip_source: str = "peer"
+    # Independent of the per-identifier login limit. Stops one network from
+    # trying many accounts. 30 per 15 minutes leaves room for a shared phone.
+    login_ip_rate_limit: int = 30
 
     textbee_api_key: str = ""
     textbee_device_id: str = ""
@@ -84,9 +91,16 @@ class Settings(BaseSettings):
     otp_max_attempts: int = 5
     otp_resend_seconds: int = 60
     otp_send_rate_limit: int = 5
+    otp_send_ip_rate_limit: int = 30
     otp_send_rate_window_seconds: int = 60 * 60
-    otp_confirm_rate_limit: int = 10
+    otp_confirm_rate_limit: int = 30
     otp_confirm_rate_window_seconds: int = 15 * 60
+
+    # Empty in production rejects uploads. "local" stores bytes on DOCUMENT_STORAGE_DIR.
+    # That directory is not an object store and is ephemeral on a host such as Render.
+    document_storage_backend: str = ""
+    document_storage_dir: str = ""
+    document_max_bytes: int = 5_242_880
 
     @property
     def is_production(self) -> bool:
@@ -166,8 +180,40 @@ class Settings(BaseSettings):
             )
         if self.rate_limit_backend.strip().lower() not in _RATE_LIMIT_BACKENDS:
             raise ValueError(f"RATE_LIMIT_BACKEND must be one of {sorted(_RATE_LIMIT_BACKENDS)}")
-        if self.session_ttl_seconds <= 0 or self.max_request_bytes <= 0:
-            raise ValueError("SESSION_TTL_SECONDS and MAX_REQUEST_BYTES must be positive")
+        source = self.client_ip_source.strip().lower()
+        if source not in {"peer", "cf-connecting-ip"}:
+            raise ValueError("CLIENT_IP_SOURCE must be peer or cf-connecting-ip")
+        self.client_ip_source = source
+        backend = self.document_storage_backend.strip().lower()
+        if backend not in {"", "local"}:
+            raise ValueError("DOCUMENT_STORAGE_BACKEND must be empty or local")
+        self.document_storage_backend = backend
+        if self.document_max_bytes <= 0 or self.document_max_bytes > 5_242_880:
+            raise ValueError("DOCUMENT_MAX_BYTES must be from 1 to 5242880")
+        for name, value in (
+            ("SESSION_TTL_SECONDS", self.session_ttl_seconds),
+            ("MAX_REQUEST_BYTES", self.max_request_bytes),
+            ("LOGIN_RATE_LIMIT", self.login_rate_limit),
+            ("LOGIN_IP_RATE_LIMIT", self.login_ip_rate_limit),
+            ("LOGIN_RATE_WINDOW_SECONDS", self.login_rate_window_seconds),
+            ("ATTENDANCE_CODE_RATE_LIMIT", self.attendance_code_rate_limit),
+            ("ATTENDANCE_CODE_RATE_WINDOW_SECONDS", self.attendance_code_rate_window_seconds),
+            ("REGISTER_RATE_LIMIT", self.register_rate_limit),
+            ("REGISTER_RATE_WINDOW_SECONDS", self.register_rate_window_seconds),
+            ("LOGIN_LOCKOUT_FAILURES", self.login_lockout_failures),
+            ("LOGIN_LOCKOUT_SECONDS", self.login_lockout_seconds),
+            ("OTP_TTL_SECONDS", self.otp_ttl_seconds),
+            ("OTP_VERIFICATION_TTL_SECONDS", self.otp_verification_ttl_seconds),
+            ("OTP_MAX_ATTEMPTS", self.otp_max_attempts),
+            ("OTP_RESEND_SECONDS", self.otp_resend_seconds),
+            ("OTP_SEND_RATE_LIMIT", self.otp_send_rate_limit),
+            ("OTP_SEND_IP_RATE_LIMIT", self.otp_send_ip_rate_limit),
+            ("OTP_SEND_RATE_WINDOW_SECONDS", self.otp_send_rate_window_seconds),
+            ("OTP_CONFIRM_RATE_LIMIT", self.otp_confirm_rate_limit),
+            ("OTP_CONFIRM_RATE_WINDOW_SECONDS", self.otp_confirm_rate_window_seconds),
+        ):
+            if value <= 0:
+                raise ValueError(f"{name} must be positive")
         if not self.is_production:
             return self
         if not self.database_url.strip():
@@ -188,7 +234,32 @@ class Settings(BaseSettings):
             origin_url = urlparse(origin)
             if origin_url.scheme != "https" or (origin_url.hostname or "").lower() in _LOCAL_HOSTS:
                 raise ValueError("CORS_ORIGINS must list only https:// non-local origins in production")
+        if not self.textbee_api_key.strip():
+            raise ValueError("TEXTBEE_API_KEY is required when ENVIRONMENT=production")
+        if urlparse(self.textbee_base_url.strip()).scheme != "https":
+            raise ValueError("TEXTBEE_BASE_URL must use https when ENVIRONMENT=production")
+        if self.rate_limit_backend.strip().lower() != "postgres":
+            raise ValueError("RATE_LIMIT_BACKEND=postgres is required when ENVIRONMENT=production")
+        if self.client_ip_source != "cf-connecting-ip":
+            raise ValueError(
+                "CLIENT_IP_SOURCE=cf-connecting-ip is required when ENVIRONMENT=production"
+            )
+        if self.document_storage_backend == "local" and not self.document_storage_dir.strip():
+            raise ValueError("DOCUMENT_STORAGE_DIR is required when DOCUMENT_STORAGE_BACKEND=local")
         return self
+
+    def document_backend(self) -> str:
+        if self.document_storage_backend:
+            return self.document_storage_backend
+        if self.is_production:
+            return ""
+        return "local"
+
+    def document_directory(self) -> Path:
+        raw = self.document_storage_dir.strip()
+        if raw:
+            return Path(raw)
+        return _BACKEND_ROOT / "var" / "documents"
 
     @property
     def uses_shared_rate_limits(self) -> bool:

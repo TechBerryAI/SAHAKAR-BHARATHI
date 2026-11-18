@@ -14,6 +14,8 @@ object RathYatraDestinations {
     const val ADMIN_PLACES = "admin_places"
     const val ADMIN_PLACE = "admin_place"
     const val ATTENDANCE = "attendance"
+    const val YATRAS = "yatras"
+    const val YATRA_DETAIL = "yatra_detail"
 
     val all: List<String> = listOf(
         SPLASH,
@@ -29,6 +31,8 @@ object RathYatraDestinations {
         ADMIN_PLACES,
         ADMIN_PLACE,
         ATTENDANCE,
+        YATRAS,
+        YATRA_DETAIL,
     )
 
     val startDestination: String = SPLASH

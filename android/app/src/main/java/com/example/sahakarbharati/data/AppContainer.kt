@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.sahakarbharati.BuildConfig
 import com.example.sahakarbharati.data.remote.ColdStartRetryInterceptor
 import com.example.sahakarbharati.data.remote.SahakarApi
+import com.example.sahakarbharati.data.remote.YatraApi
 import com.example.sahakarbharati.data.remote.SessionExpiryInterceptor
 import com.example.sahakarbharati.data.remote.SlowRequestTracker
 import com.example.sahakarbharati.data.repository.AdminRepository
@@ -14,6 +15,8 @@ import com.example.sahakarbharati.data.repository.RemoteAdminRepository
 import com.example.sahakarbharati.data.repository.RemoteAttendanceRepository
 import com.example.sahakarbharati.data.repository.RemoteAuthRepository
 import com.example.sahakarbharati.data.repository.RemoteProfileRepository
+import com.example.sahakarbharati.data.repository.RemoteYatraRepository
+import com.example.sahakarbharati.data.repository.YatraRepository
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -44,8 +47,10 @@ class AppContainer(context: Context) {
         .build()
 
     val api: SahakarApi = retrofit.create(SahakarApi::class.java)
+    val yatraApi: YatraApi = retrofit.create(YatraApi::class.java)
     val authRepository: AuthRepository = RemoteAuthRepository(api, session)
     val profileRepository: ProfileRepository = RemoteProfileRepository(api, session)
     val adminRepository: AdminRepository = RemoteAdminRepository(api, session)
     val attendanceRepository: AttendanceRepository = RemoteAttendanceRepository(api, session)
+    val yatraRepository: YatraRepository = RemoteYatraRepository(yatraApi, session)
 }

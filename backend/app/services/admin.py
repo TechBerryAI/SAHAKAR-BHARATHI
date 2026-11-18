@@ -8,6 +8,7 @@ from app.core.errors import ForbiddenError, NotFoundError
 from app.core.roles import ROLE_SUPER_ADMIN
 from app.models.user import User
 from app.repositories.audit import AuditRepository
+from app.repositories.sessions import SessionRepository
 from app.repositories.users import UserRepository
 from app.schemas.admin import AdminUserDetail, AdminUserList, AdminUserSummary, RoleUpdate, StatusUpdate
 from app.services.profile import ProfileService
@@ -17,6 +18,7 @@ class AdminService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.users = UserRepository(db)
+        self.sessions = SessionRepository(db)
         self.audit = AuditRepository(db)
         self.profiles = ProfileService(db)
 
@@ -89,6 +91,8 @@ class AdminService:
         previous = target.status
         if previous != payload.status:
             target.status = payload.status
+            if payload.status == "disabled":
+                self.sessions.revoke_active_for_user(target.id)
             self.audit.add(
                 "status_change",
                 user_id=actor.id,

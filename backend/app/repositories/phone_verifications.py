@@ -14,11 +14,18 @@ class PhoneVerificationRepository:
         self.db = db
 
     def get(self, challenge_id: uuid.UUID) -> PhoneVerification | None:
-        return self.db.get(PhoneVerification, challenge_id)
+        # Lock the row so two confirms cannot both issue a registration token.
+        return self.db.scalar(
+            select(PhoneVerification)
+            .where(PhoneVerification.id == challenge_id)
+            .with_for_update()
+        )
 
     def get_by_token_hash(self, token_hash: str) -> PhoneVerification | None:
         return self.db.scalar(
-            select(PhoneVerification).where(PhoneVerification.token_hash == token_hash)
+            select(PhoneVerification)
+            .where(PhoneVerification.token_hash == token_hash)
+            .with_for_update()
         )
 
     def for_mobile(self, mobile: str) -> list[PhoneVerification]:

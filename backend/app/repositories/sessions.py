@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -30,3 +31,14 @@ class SessionRepository:
 
     def revoke(self, session: AuthSession) -> None:
         session.revoked_at = datetime.now(UTC)
+
+    def revoke_active_for_user(self, user_id: uuid.UUID) -> None:
+        now = datetime.now(UTC)
+        rows = self.db.scalars(
+            select(AuthSession).where(
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),
+            )
+        )
+        for session in rows:
+            session.revoked_at = now

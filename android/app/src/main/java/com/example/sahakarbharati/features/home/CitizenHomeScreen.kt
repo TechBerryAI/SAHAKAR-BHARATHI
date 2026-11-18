@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -58,6 +59,7 @@ fun CitizenHomeScreen(
     onOpenAdmin: () -> Unit,
     onOpenBooths: () -> Unit,
     onOpenAttendance: () -> Unit,
+    onOpenYatras: () -> Unit,
     onSelectTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -174,6 +176,28 @@ fun CitizenHomeScreen(
                             Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                             contentDescription = null,
                             tint = Color.White.copy(alpha = 0.8f),
+                        )
+                    }
+                }
+                WhiteCard(onClick = onOpenYatras) {
+                    Row(
+                        Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(Icons.Outlined.Map, contentDescription = null, tint = RathYatraColors.DeepGreen)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Rath Yatras", color = Color(0xFF17263F), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "See published Yatras, their districts, dates, and stops.",
+                                fontSize = 14.sp,
+                                color = RathYatraColors.OnSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFFB7A48A),
                         )
                     }
                 }

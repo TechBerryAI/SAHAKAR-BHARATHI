@@ -8,8 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.core.errors import InactivePlaceError, RateLimitedError, UnknownPlaceError
-from app.core.rate_limit import RateLimiter
+from app.core.errors import InactivePlaceError, UnknownPlaceError
+from app.core.rate_limit import RateLimiter, enforce_rate_limit
 from app.db.session import is_unique_violation
 from app.models.attendance import Attendance
 from app.models.user import User
@@ -129,10 +129,10 @@ class AttendanceService:
 
     @staticmethod
     def _count_failure(user: User, limiter: RateLimiter, settings: Settings) -> None:
-        allowed = limiter.allow(
+        enforce_rate_limit(
+            limiter,
             f"attendance-code:{user.id}",
             settings.attendance_code_rate_limit,
             settings.attendance_code_rate_window_seconds,
+            retry_after=settings.attendance_code_rate_window_seconds,
         )
-        if not allowed:
-            raise RateLimitedError(retry_after=settings.attendance_code_rate_window_seconds)

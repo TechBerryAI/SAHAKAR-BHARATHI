@@ -44,9 +44,17 @@ The value is compiled into the bundle; it is public, not a secret.
 ## Security and sessions
 
 - The bearer token is stored in `localStorage` (the API has no cookie sessions).
-  Mitigations: a build-time Content-Security-Policy (`script-src 'self'`,
-  `connect-src` limited to the API origin), `X-Frame-Options: DENY`, no
-  `dangerouslySetInnerHTML`/`eval`, and API responses sent with `Cache-Control: no-store`.
+  Any script that runs on the page can read `sahakar_access_token`. A
+  Content-Security-Policy (`script-src 'self'`, `connect-src` limited to the API
+  origin) is injected at build time and repeated as a Firebase Hosting header.
+  That policy blocks extra script sources. It does **not** make `localStorage`
+  equivalent to an HttpOnly cookie: a script that is allowed by the policy, or
+  an XSS that bypasses it, can still read the token. HttpOnly, Secure,
+  SameSite cookies are a later change, not this phase.
+  Other mitigations: `X-Frame-Options: DENY`, no `dangerouslySetInnerHTML`/`eval`,
+  API responses sent with `Cache-Control: no-store`, logout clears the token
+  and revokes the server session, and a 401 clears the saved session. Tokens
+  are not written to application logs.
 - API cold start (`src/lib/network.ts`): each attempt waits up to 75 s, GET requests
   are retried after a network failure, timeout or 502/503/504 (2 s, then 5 s), and
   POST/PATCH/DELETE are sent once. Any request pending over 4 s shows a "server is

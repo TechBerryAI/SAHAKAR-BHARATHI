@@ -60,6 +60,10 @@ def production_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[FastAPI]:
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@db.example.com:5432/app")
     monkeypatch.setenv("CORS_ORIGINS", "https://sahakarbharati-e3b04.web.app")
+    monkeypatch.setenv("TEXTBEE_API_KEY", "test-key")
+    monkeypatch.setenv("TEXTBEE_BASE_URL", "https://api.textbee.dev/api/v1")
+    monkeypatch.setenv("RATE_LIMIT_BACKEND", "postgres")
+    monkeypatch.setenv("CLIENT_IP_SOURCE", "cf-connecting-ip")
     get_settings.cache_clear()
     yield create_app()
     get_settings.cache_clear()
@@ -127,6 +131,10 @@ def test_production_serves_root_and_hides_docs(production_app: FastAPI, db_calls
     assert client.get("/health/live").status_code == 200
     assert client.get("/docs").status_code == 404
     assert client.get("/openapi.json").status_code == 404
+    api = client.get("/api/v1/me")
+    assert api.headers["cache-control"] == "no-store"
+    assert api.headers["x-content-type-options"] == "nosniff"
+    assert api.headers["strict-transport-security"].startswith("max-age=")
     assert db_calls == []
 
 

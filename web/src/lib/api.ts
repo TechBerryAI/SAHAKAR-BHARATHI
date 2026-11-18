@@ -12,20 +12,31 @@ import type { AppCopy } from './copy.ts'
 import { fetchWithColdStart } from './network.ts'
 import type {
   AdminAttendanceList,
-  AttendanceList,
-  AttendanceRecord,
   AdminUserDetail,
   AdminUserList,
-  Place,
-  PlaceList,
+  AttendanceList,
+  AttendanceRecord,
   PhoneVerificationConfirmed,
   PhoneVerificationCreated,
+  Place,
+  PlaceList,
   Profile,
   ProfileUpdate,
   RegistrationCreate,
   SessionResponse,
   UserRole,
 } from './types.ts'
+import type {
+  AdministratorBrief,
+  District,
+  DistrictPage,
+  ProtocolDocument,
+  ProtocolItem,
+  YatraDetail,
+  YatraPage,
+  YatraRoute,
+  YatraStop,
+} from './yatra.ts'
 
 export class ApiError extends Error {
   status: number
@@ -61,6 +72,8 @@ const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
   'Enter the 6-digit booth code.': 'boothCodeInvalid',
   'The code is incorrect or has expired.': 'otpInvalid',
   'Verify this mobile number before registering.': 'verificationExpired',
+  'Could not send the SMS. Please try again.': 'otpSendFailed',
+  'Please try again in a moment.': 'pleaseWait',
 }
 
 /** Which known error this is, so a screen can react to it (not just show its text). */
@@ -170,7 +183,7 @@ async function parseJson(response: Response): Promise<unknown> {
 }
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   auth?: boolean
   fallback: string
@@ -376,6 +389,252 @@ export function setAdminUserRole(id: string, role: 'admin' | 'participant'): Pro
     body: { role },
     fallback: 'Could not update access.',
   })
+}
+
+export function listDistricts(): Promise<DistrictPage> {
+  return request<DistrictPage>('/api/v1/admin/districts?limit=100', {
+    fallback: 'Could not load districts.',
+  })
+}
+
+export function createDistrict(body: { name: string; code: string; state_name?: string }): Promise<District> {
+  return request<District>('/api/v1/admin/districts', {
+    method: 'POST',
+    body,
+    fallback: 'Could not create this district.',
+  })
+}
+
+export function updateDistrict(
+  id: string,
+  body: { name?: string; state_name?: string; active?: boolean },
+): Promise<District> {
+  return request<District>(`/api/v1/admin/districts/${id}`, {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update this district.',
+  })
+}
+
+export function assignDistrictAdmin(districtId: string, userId: string): Promise<District> {
+  return request<District>(`/api/v1/admin/districts/${districtId}/administrators`, {
+    method: 'POST',
+    body: { user_id: userId },
+    fallback: 'Could not assign this district administrator.',
+  })
+}
+
+export function removeDistrictAdmin(districtId: string, userId: string): Promise<void> {
+  return request<void>(`/api/v1/admin/districts/${districtId}/administrators/${userId}`, {
+    method: 'DELETE',
+    fallback: 'Could not remove this district administrator.',
+  })
+}
+
+export function listYatras(query: string, status: string, offset = 0): Promise<YatraPage> {
+  const params = new URLSearchParams({ limit: '20', offset: String(offset) })
+  const trimmed = query.trim()
+  if (trimmed) params.set('q', trimmed)
+  if (status) params.set('status', status)
+  return request<YatraPage>(`/api/v1/yatras?${params.toString()}`, {
+    fallback: 'Could not load Yatras.',
+  })
+}
+
+export function getYatra(id: string): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}`, {
+    fallback: 'Could not load this Yatra.',
+  })
+}
+
+export function createYatra(body: {
+  name: string
+  description?: string
+  district_id: string
+  starts_at: string
+  ends_at: string
+}): Promise<YatraDetail> {
+  return request<YatraDetail>('/api/v1/yatras', {
+    method: 'POST',
+    body,
+    fallback: 'Could not create this Yatra.',
+  })
+}
+
+export function updateYatra(
+  id: string,
+  body: { name?: string; description?: string; starts_at?: string; ends_at?: string },
+): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}`, {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update this Yatra.',
+  })
+}
+
+export function changeYatraStatus(id: string, status: string): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}/status`, {
+    method: 'POST',
+    body: { status },
+    fallback: 'Could not change the Yatra status.',
+  })
+}
+
+export function publishYatra(id: string): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}/publish`, {
+    method: 'POST',
+    fallback: 'Could not publish this Yatra.',
+  })
+}
+
+export function assignYatraAdmin(yatraId: string, userId: string): Promise<AdministratorBrief> {
+  return request<AdministratorBrief>(`/api/v1/yatras/${yatraId}/administrators`, {
+    method: 'POST',
+    body: { user_id: userId },
+    fallback: 'Could not assign this Yatra administrator.',
+  })
+}
+
+export function removeYatraAdmin(yatraId: string, userId: string): Promise<void> {
+  return request<void>(`/api/v1/yatras/${yatraId}/administrators/${userId}`, {
+    method: 'DELETE',
+    fallback: 'Could not remove this Yatra administrator.',
+  })
+}
+
+export function createStop(
+  yatraId: string,
+  body: { name: string; address?: string; latitude?: number; longitude?: number },
+): Promise<YatraStop> {
+  return request<YatraStop>(`/api/v1/yatras/${yatraId}/stops`, {
+    method: 'POST',
+    body,
+    fallback: 'Could not add this stop.',
+  })
+}
+
+export function deleteStop(yatraId: string, stopId: string): Promise<void> {
+  return request<void>(`/api/v1/yatras/${yatraId}/stops/${stopId}`, {
+    method: 'DELETE',
+    fallback: 'Could not remove this stop.',
+  })
+}
+
+export function getYatraRoute(yatraId: string): Promise<YatraRoute> {
+  return request<YatraRoute>(`/api/v1/yatras/${yatraId}/route`, {
+    fallback: 'Could not load the route.',
+  })
+}
+
+export function updateYatraRoute(yatraId: string, body: { label?: string; geometry?: string }): Promise<YatraRoute> {
+  return request<YatraRoute>(`/api/v1/yatras/${yatraId}/route`, {
+    method: 'PUT',
+    body,
+    fallback: 'Could not update the route.',
+  })
+}
+
+export function listProtocol(yatraId: string): Promise<{ items: ProtocolItem[] }> {
+  return request<{ items: ProtocolItem[] }>(`/api/v1/yatras/${yatraId}/protocol`, {
+    fallback: 'Could not load the checklist.',
+  })
+}
+
+export function createProtocolItem(
+  yatraId: string,
+  body: { category: string; title: string; description?: string; required: boolean },
+): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items`, {
+    method: 'POST',
+    body,
+    fallback: 'Could not add this checklist item.',
+  })
+}
+
+export function submitProtocolItem(yatraId: string, itemId: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/submit`, {
+    method: 'POST',
+    fallback: 'Could not submit this item.',
+  })
+}
+
+export function reviewProtocolItem(yatraId: string, itemId: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/review`, {
+    method: 'POST',
+    fallback: 'Could not start the review.',
+  })
+}
+
+export function approveProtocolItem(yatraId: string, itemId: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/approve`, {
+    method: 'POST',
+    fallback: 'Could not approve this item.',
+  })
+}
+
+export function rejectProtocolItem(yatraId: string, itemId: string, reason: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/reject`, {
+    method: 'POST',
+    body: { reason },
+    fallback: 'Could not reject this item.',
+  })
+}
+
+export async function uploadProtocolDocument(yatraId: string, itemId: string, file: File): Promise<ProtocolDocument> {
+  const token = getAccessToken()
+  if (!token) {
+    clearSession()
+    throw new ApiError(401, 'Authentication required.')
+  }
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/yatras/${yatraId}/protocol/items/${itemId}/documents`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        'X-Document-Filename': file.name,
+      },
+      body: file,
+    })
+  } catch {
+    throw new ApiError(0, 'The server could not be reached. Check your connection.')
+  }
+  const payload = await parseJson(response)
+  if (!response.ok) {
+    if (response.status === 401) clearSession()
+    throw new ApiError(response.status, messageFromDetail(payload, 'Could not upload this document.'))
+  }
+  return payload as ProtocolDocument
+}
+
+export async function downloadProtocolDocument(
+  yatraId: string,
+  itemId: string,
+  documentId: string,
+  filename: string,
+): Promise<void> {
+  const token = getAccessToken()
+  if (!token) {
+    clearSession()
+    throw new ApiError(401, 'Authentication required.')
+  }
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/yatras/${yatraId}/protocol/items/${itemId}/documents/${documentId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!response.ok) {
+    const payload = await parseJson(response)
+    if (response.status === 401) clearSession()
+    throw new ApiError(response.status, messageFromDetail(payload, 'Could not download this document.'))
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 export async function logout(): Promise<void> {
