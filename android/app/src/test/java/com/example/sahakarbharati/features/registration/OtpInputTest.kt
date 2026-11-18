@@ -46,7 +46,8 @@ class OtpInputTest {
         listOf("", "12", "12345a", "1234567").forEach { code ->
             viewModel.confirmOtp(code)
             advanceUntilIdle()
-            assertEquals(code, "Enter the 6-digit code from the SMS.", viewModel.otpNote)
+            assertEquals(code, "otpRequired", viewModel.otpNoteKey)
+            assertEquals(code, "", viewModel.otpNote)
         }
         assertEquals(0, repository.confirmCalls)
         assertNull(viewModel.verificationToken)

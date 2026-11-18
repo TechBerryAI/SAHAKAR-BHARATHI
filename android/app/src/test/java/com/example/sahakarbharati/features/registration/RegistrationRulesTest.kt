@@ -49,4 +49,33 @@ class RegistrationRulesTest {
         assertFalse(adultDob(birthdayTomorrow))
         assertEquals(0, ageYearsFromDob("bad"))
     }
+
+    @Test
+    fun backMovesOneStepAndKeepsTheDraft() {
+        val entered = RegistrationDraft(
+            step = 2,
+            mobile = "9876543210",
+            otp = "123456",
+            name = "Anita Rao",
+            addressLine = "12 River Road",
+            pin = "2468",
+            confirmPin = "2468",
+        )
+        val profile = entered.back()
+        assertEquals(1, profile?.step)
+        assertEquals("Anita Rao", profile?.name)
+        assertEquals("12 River Road", profile?.addressLine)
+        assertEquals("2468", profile?.pin)
+        val otp = profile!!.back()
+        assertEquals(0, otp?.step)
+        assertEquals("9876543210", otp?.mobile)
+        assertEquals("123456", otp?.otp)
+        assertNull(otp?.back())
+        assertEquals(1, RegistrationDraft().forward().step)
+        assertEquals(2, entered.forward().step)
+        assertEquals(RegistrationDraft(), entered.afterSuccess())
+        assertEquals(2, REGISTRATION_LAST_STEP)
+        assertNull(previousRegistrationStep(0))
+        assertEquals(1, previousRegistrationStep(2))
+    }
 }

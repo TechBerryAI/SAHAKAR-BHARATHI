@@ -85,11 +85,15 @@ class AttendanceService:
         self.db.refresh(visit)
         return self.to_record(visit, place_name, already_recorded=False)
 
-    def list_mine(self, user: User) -> AttendanceList:
-        rows, total = self.visits.list_for_user(user.id)
+    def list_mine(self, user: User, limit: int, offset: int) -> AttendanceList:
+        rows, total = self.visits.list_for_user(user.id, limit, offset)
+        items = [self.to_record(visit, name, already_recorded=False) for visit, name in rows]
         return AttendanceList(
-            items=[self.to_record(visit, name, already_recorded=False) for visit, name in rows],
+            items=items,
             total=total,
+            limit=limit,
+            offset=offset,
+            has_more=offset + len(items) < total,
         )
 
     def list_for_place(self, place_id: uuid.UUID, limit: int, offset: int) -> AdminAttendanceList:

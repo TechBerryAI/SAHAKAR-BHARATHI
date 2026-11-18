@@ -65,6 +65,7 @@ import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.ui
 import com.example.sahakarbharati.core.copy.uiKnown
+import com.example.sahakarbharati.core.copy.uiText
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.regionLabel
 import com.example.sahakarbharati.core.ui.GhostNavyButton
@@ -93,16 +94,17 @@ fun AttendanceScreen(
     val copy = LocalCopy.current
     val language = LocalLanguage.current
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val hostView = LocalView.current
     SideEffect {
         hostView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
     }
     val viewModel: AttendanceViewModel = sahakarViewModel()
     val ui = viewModel.state
-    var code by remember { mutableStateOf("") }
-    var lockedCode by remember { mutableStateOf("") }
-    var lockedUntil by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) { viewModel.load() }
+    var code by remember(accountEpoch) { mutableStateOf("") }
+    var lockedCode by remember(accountEpoch) { mutableStateOf("") }
+    var lockedUntil by remember(accountEpoch) { mutableLongStateOf(0L) }
+    LaunchedEffect(accountEpoch) { viewModel.load() }
 
     fun submit(raw: String, source: String) {
         val parsed = if (source == "qr") BoothCode.fromQr(raw) else BoothCode.fromManual(raw)
@@ -190,6 +192,12 @@ fun AttendanceScreen(
                                     Text(visit.placeName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
                                     Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate, language), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
                                 }
+                            }
+                            if (ui.hasMore) {
+                                com.example.sahakarbharati.core.ui.GhostNavyButton(
+                                    text = if (ui.loadingMore) uiText(language, "pleaseWait") else uiText(language, "loadMore"),
+                                    onClick = { if (!ui.loadingMore) viewModel.loadMore() },
+                                )
                             }
                         }
                     }

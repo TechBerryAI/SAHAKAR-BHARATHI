@@ -54,7 +54,7 @@ class RathYatraScreenTest {
         }
 
         composeRule.onNodeWithText("Jai Kisan").assertIsDisplayed()
-        composeRule.onNodeWithText("Registered participant").assertIsDisplayed()
+        composeRule.onNodeWithText("REGISTERED PARTICIPANT").assertIsDisplayed()
         assertAbsent("Rath Route & National Map")
         assertAbsent("Rath Track")
         assertAbsent("Track Raths")

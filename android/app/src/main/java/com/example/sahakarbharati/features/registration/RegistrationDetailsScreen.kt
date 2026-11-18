@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -86,6 +87,7 @@ private val TrackIdle = Color(0xFF8A8176)
 
 @Composable
 fun RegistrationDetailsScreen(
+    step: Int,
     name: String,
     onName: (String) -> Unit,
     gender: String,
@@ -237,6 +239,7 @@ fun RegistrationDetailsScreen(
                 }
             }
 
+            if (step <= 1) {
             SectionTitle(1, copy.formTitle, fractions[0] == 1f)
             WhiteCard {
                 Column(Modifier.padding(16.dp)) {
@@ -383,6 +386,8 @@ fun RegistrationDetailsScreen(
                 }
             }
 
+            }
+            if (step >= 2) {
             SectionTitle(4, ui("securityTitle"), fractions[3] == 1f)
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -415,6 +420,7 @@ fun RegistrationDetailsScreen(
                     )
                 }
             }
+            }
         }
         Column(Modifier.padding(16.dp)) {
             if (loading) {
@@ -425,7 +431,7 @@ fun RegistrationDetailsScreen(
                 )
             } else {
                 SaffronButton(
-                    text = copy.createAccount,
+                    text = if (step >= 2) copy.createAccount else ui("continue"),
                     onClick = onCreate,
                     trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
                 )
@@ -515,7 +521,7 @@ private fun WebField(
             if (password) {
                 Icon(
                     imageVector = if (revealed) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                    contentDescription = if (revealed) "Hide" else "Show",
+                    contentDescription = if (revealed) ui("hideSecret") else ui("showSecret"),
                     tint = Muted,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
@@ -553,6 +559,7 @@ private fun WebSelect(
                 .border(1.dp, BorderGold, RoundedCornerShape(12.dp))
                 .background(Color.White)
                 .clickable { open = true }
+                .semantics(mergeDescendants = true) {}
                 .padding(start = 8.dp, end = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -599,6 +606,7 @@ private fun GenderButton(label: String, icon: ImageVector, selected: Boolean, mo
             .border(1.dp, if (selected) Saffron else Color(0xFFEFE6D8), RoundedCornerShape(999.dp))
             .background(if (selected) Cream else Color.White)
             .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {}
             .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,

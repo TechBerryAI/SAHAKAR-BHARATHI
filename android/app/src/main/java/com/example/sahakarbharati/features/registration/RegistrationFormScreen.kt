@@ -76,6 +76,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -128,34 +129,37 @@ fun RegistrationFormScreen(
     val extra = remember(language) { formExtraCopy(language) }
     val context = LocalContext.current
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val scope = rememberCoroutineScope()
     val viewModel: RegistrationViewModel = sahakarViewModel()
 
-    var step by rememberSaveable { mutableStateOf(0) }
-    var showSos by rememberSaveable { mutableStateOf(false) }
-    var showDobPicker by rememberSaveable { mutableStateOf(false) }
-    var name by rememberSaveable { mutableStateOf("") }
-    var dob by rememberSaveable { mutableStateOf("") }
-    var gender by rememberSaveable { mutableStateOf("") }
-    var occupation by rememberSaveable { mutableStateOf("") }
-    var mobile by rememberSaveable { mutableStateOf("") }
-    var email by rememberSaveable { mutableStateOf("") }
-    var addressLine by rememberSaveable { mutableStateOf("") }
-    var locality by rememberSaveable { mutableStateOf("") }
-    var district by rememberSaveable { mutableStateOf("") }
-    var stateName by rememberSaveable { mutableStateOf("") }
-    var pincode by rememberSaveable { mutableStateOf("") }
-    var pin by rememberSaveable { mutableStateOf("") }
-    var confirmPin by rememberSaveable { mutableStateOf("") }
-    var locating by rememberSaveable { mutableStateOf(false) }
-    var locationNote by rememberSaveable { mutableStateOf("") }
-    var stepError by rememberSaveable { mutableStateOf("") }
-    var photoPath by rememberSaveable { mutableStateOf("") }
-    var otp by rememberSaveable { mutableStateOf("") }
+    var step by rememberSaveable(accountEpoch) { mutableStateOf(0) }
+    var showSos by rememberSaveable(accountEpoch) { mutableStateOf(false) }
+    var showDobPicker by rememberSaveable(accountEpoch) { mutableStateOf(false) }
+    var name by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var dob by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var gender by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var occupation by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var mobile by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var email by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var addressLine by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var locality by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var district by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var stateName by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var pincode by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var pin by remember(accountEpoch) { mutableStateOf("") }
+    var confirmPin by remember(accountEpoch) { mutableStateOf("") }
+    var locating by rememberSaveable(accountEpoch) { mutableStateOf(false) }
+    var locationNote by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var stepError by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var photoPath by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var otp by rememberSaveable(accountEpoch) { mutableStateOf("") }
 
     LaunchedEffect(viewModel.state) {
         val current = viewModel.state
         if (current is UiState.Success) {
+            pin = ""
+            confirmPin = ""
             viewModel.consumeSuccess()
             onContinue()
         }
@@ -223,7 +227,13 @@ fun RegistrationFormScreen(
 
     fun goBack() {
         stepError = ""
-        if (step == 0) onBack() else restartFromMobile()
+        val previous = previousRegistrationStep(step)
+        if (previous == null) {
+            restartFromMobile()
+            onBack()
+        } else {
+            step = previous
+        }
     }
 
     fun fillFromLocation() {
@@ -281,15 +291,12 @@ fun RegistrationFormScreen(
                 else -> ""
             }
             1 -> when {
-                name.isBlank() -> extra.nameRequired
+                name.trim().length < 2 -> extra.nameRequired
                 gender.isBlank() -> extra.genderRequired
-                dob.isBlank() -> extra.dobRequired
-                ageYears in 1..17 -> extra.ageTooYoung
+                isoDob(dob) == null -> extra.dobRequired
+                ageYears in 0..17 -> extra.ageTooYoung
                 occupation.isBlank() -> extra.occupationRequired
-                else -> ""
-            }
-            2 -> when {
-                addressLine.isBlank() && locality.isBlank() -> extra.addressRequired
+                district.isBlank() || stateName.isBlank() || pincode.length != 6 -> extra.addressRequired
                 else -> ""
             }
             else -> when {
@@ -299,12 +306,12 @@ fun RegistrationFormScreen(
             }
         }
         if (stepError.isNotEmpty()) return
-        if (step < 3) {
+        if (step < REGISTRATION_LAST_STEP) {
             step += 1
-        } else {
+        } else if (viewModel.state !is UiState.Loading) {
             viewModel.submit(
                 RegistrationRequest(
-                    fullName = name,
+                    fullName = name.trim(),
                     gender = gender.ifBlank { null },
                     dateOfBirth = isoDob(dob),
                     occupation = occupation.ifBlank { null },
@@ -339,25 +346,30 @@ fun RegistrationFormScreen(
             onOtp = { otp = it.filter(Char::isDigit).take(6) },
             otpSent = viewModel.otpSent,
             otpBusy = viewModel.otpBusy,
-            note = viewModel.otpNote.ifBlank { stepError },
-            noteIsError = viewModel.otpIsError || (viewModel.otpNote.isBlank() && stepError.isNotBlank()),
+            note = when {
+                viewModel.otpNoteKey != null -> ui(viewModel.otpNoteKey!!)
+                viewModel.otpNote.isNotBlank() -> uiKnown(viewModel.otpNote)
+                else -> stepError
+            },
+            noteIsError = viewModel.otpIsError || (viewModel.otpNote.isBlank() && viewModel.otpNoteKey == null && stepError.isNotBlank()),
             accountExists = viewModel.accountExists ||
                 viewModel.otpNote.contains("already exists for this mobile", ignoreCase = true),
             onBack = { goBack() },
             onSignIn = { onOpenSignIn(mobile, false) },
             onResend = { viewModel.sendOtp(mobile) },
+            verified = !viewModel.verificationToken.isNullOrBlank(),
             onSubmit = {
-                if (!isIndianMobile(mobile)) {
-                    stepError = extra.mobileRequired
-                } else if (!viewModel.otpSent) {
-                    viewModel.sendOtp(mobile)
-                } else {
-                    viewModel.confirmOtp(otp)
+                when {
+                    !isIndianMobile(mobile) -> stepError = extra.mobileRequired
+                    !viewModel.verificationToken.isNullOrBlank() -> step = 1
+                    !viewModel.otpSent -> viewModel.sendOtp(mobile)
+                    else -> viewModel.confirmOtp(otp)
                 }
             },
             modifier = modifier,
         )
     } else RegistrationDetailsScreen(
+        step = step,
         name = name,
         onName = { name = it },
         gender = gender,
@@ -387,37 +399,7 @@ fun RegistrationFormScreen(
         loading = viewModel.state is UiState.Loading,
         onBack = { goBack() },
         onSos = { showSos = true },
-        onCreate = {
-            stepError = when {
-                name.trim().length < 2 -> extra.nameRequired
-                gender.isBlank() -> extra.genderRequired
-                isoDob(dob) == null -> extra.dobRequired
-                ageYears in 0..17 -> extra.ageTooYoung
-                occupation.isBlank() -> extra.occupationRequired
-                district.isBlank() || stateName.isBlank() || pincode.length != 6 -> extra.addressRequired
-                pin.length < 4 -> extra.pinRequired
-                pin != confirmPin -> extra.pinMismatch
-                else -> ""
-            }
-            if (stepError.isNotEmpty()) return@RegistrationDetailsScreen
-            viewModel.submit(
-                com.example.sahakarbharati.data.remote.RegistrationRequest(
-                    fullName = name.trim(),
-                    gender = gender.ifBlank { null },
-                    dateOfBirth = isoDob(dob),
-                    occupation = occupation.ifBlank { null },
-                    mobile = mobile,
-                    email = email.ifBlank { null },
-                    addressLine = addressLine.ifBlank { null },
-                    locality = locality.ifBlank { null },
-                    district = district.ifBlank { null },
-                    state = stateName.ifBlank { null },
-                    pincode = pincode.ifBlank { null },
-                    pin = pin,
-                    verificationToken = viewModel.verificationToken.orEmpty(),
-                ),
-            )
-        },
+        onCreate = { advance() },
         modifier = modifier,
     )
     if (showSos) {
@@ -640,6 +622,7 @@ private fun VerifyMobileScreen(
     note: String,
     noteIsError: Boolean,
     accountExists: Boolean,
+    verified: Boolean = false,
     onBack: () -> Unit,
     onSignIn: () -> Unit,
     onResend: () -> Unit,
@@ -743,6 +726,7 @@ private fun VerifyMobileScreen(
             SaffronButton(
                 text = when {
                     otpBusy -> ui("pleaseWait")
+                    verified -> ui("continue")
                     otpSent -> ui("verifyOtp")
                     else -> ui("sendOtp")
                 },
@@ -940,6 +924,7 @@ private fun GenderChip(
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) RathYatraColors.Navy else RathYatraColors.SurfaceContainerLow)
             .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {}
             .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,

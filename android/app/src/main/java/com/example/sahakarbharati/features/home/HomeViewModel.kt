@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.SessionWatch
 import com.example.sahakarbharati.data.model.ParticipantProfile
 import com.example.sahakarbharati.data.repository.ProfileRepository
 import com.example.sahakarbharati.data.repository.SessionStore
@@ -20,12 +21,15 @@ class HomeViewModel(
     )
         private set
 
+    private val watch = SessionWatch(sessionStore, viewModelScope, onChange = ::clearAccount)
+
     fun load() {
+        val started = watch.stamp()
         viewModelScope.launch {
             if (state !is UiState.Success) {
                 state = UiState.Loading
             }
-            state = profileRepository.me().fold(
+            val next = profileRepository.me().fold(
                 onSuccess = { UiState.Success(it) },
                 onFailure = { error ->
                     // Offline or server trouble: keep showing the cached profile. A rejected
@@ -38,6 +42,16 @@ class HomeViewModel(
                     }
                 },
             )
+            if (watch.still(started)) state = next
         }
+    }
+
+    override fun onCleared() {
+        watch.close()
+    }
+
+    private fun clearAccount() {
+        val cached = sessionStore.cachedProfile()?.takeIf { sessionStore.isLoggedIn() }
+        state = if (cached != null) UiState.Success(cached) else UiState.Idle
     }
 }

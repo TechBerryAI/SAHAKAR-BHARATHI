@@ -24,9 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -66,10 +68,11 @@ fun CitizenHomeScreen(
     val copy = LocalCopy.current
     val text = participantCopy(LocalLanguage.current)
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val homeViewModel: HomeViewModel = sahakarViewModel()
     val profile = (homeViewModel.state as? UiState.Success)?.data ?: session.cachedProfile()
     val staff = isStaffRole(profile?.role)
-    LaunchedEffect(Unit) { homeViewModel.load() }
+    LaunchedEffect(accountEpoch) { homeViewModel.load() }
 
     val name = profile?.fullName?.ifBlank { session.name }.orEmpty().ifBlank { session.name }
     val first = name.trim().split(Regex("\\s+")).firstOrNull().orEmpty()
@@ -139,7 +142,7 @@ fun CitizenHomeScreen(
                 }
                 Surface(
                     onClick = onOpenAttendance,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
                     shape = RoundedCornerShape(22.dp),
                     color = Color.Transparent,
                     shadowElevation = 6.dp,
@@ -222,7 +225,10 @@ fun CitizenHomeScreen(
                         )
                     }
                 }
-                WhiteCard(onClick = { onSelectTab(RathYatraDestinations.PROFILE) }) {
+                WhiteCard(
+                    onClick = { onSelectTab(RathYatraDestinations.PROFILE) },
+                    modifier = Modifier.semantics(mergeDescendants = true) {},
+                ) {
                     Row(
                         Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,

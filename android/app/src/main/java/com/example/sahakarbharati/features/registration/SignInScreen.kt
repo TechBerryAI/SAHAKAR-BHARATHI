@@ -57,6 +57,7 @@ import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.core.ui.StackTopBar
 import com.example.sahakarbharati.ui.theme.RathYatraColors
@@ -72,14 +73,17 @@ fun SignInScreen(
 ) {
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
+    val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: SignInViewModel = sahakarViewModel()
-    var mobile by rememberSaveable { mutableStateOf(presetMobile.filter(Char::isDigit).take(10)) }
-    var pin by rememberSaveable { mutableStateOf("") }
-    var error by rememberSaveable { mutableStateOf("") }
+    var mobile by rememberSaveable(accountEpoch) { mutableStateOf(presetMobile.filter(Char::isDigit).take(10)) }
+    var pin by remember(accountEpoch) { mutableStateOf("") }
+    var error by rememberSaveable(accountEpoch) { mutableStateOf("") }
 
     LaunchedEffect(viewModel.state) {
         when (val current = viewModel.state) {
             is UiState.Success -> {
+                pin = ""
                 viewModel.consumeSuccess()
                 onSignedIn()
             }

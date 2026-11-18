@@ -94,7 +94,9 @@ class PageLanguageTest {
         ),
         "Verify mobile" to listOf(
             "verifyMobile", "mobileLabel", "mobileHint", "otpLabel", "otpSmsHint",
-            "resendOtp", "signIn", "pleaseWait", "verifyOtp", "sendOtp",
+            "resendOtp", "signIn", "pleaseWait", "continue", "verifyOtp", "sendOtp",
+            "otpSent", "otpSendFirst", "otpVerified", "otpRequired", "otpSendFailed",
+            "otpVerifyFailed", "otpInvalid", "otpVerifyRequired",
         ),
         "Registration" to listOf(
             "registrationTitle", "formProgress", "stepPersonalTrack", "stepContactTrack",
@@ -105,7 +107,7 @@ class PageLanguageTest {
             "contactVerifiedHint", "emailOptional", "contactEmailHint", "profileTitle",
             "addressCardBody", "houseLabel", "localityLabel", "districtLabel", "stateLabel",
             "pincodeLabel", "securityTitle", "securityCardTitle", "securityCardBody",
-            "securityPinLabel", "securityPinHint", "securityConfirmPin", "createAccountBtn",
+            "securityPinLabel", "securityPinHint", "securityConfirmPin", "continue", "createAccountBtn",
             "fullNameRequired", "genderRequired", "dobRequired", "minAge", "occupationRequired",
             "addressRequired", "passwordLength", "passwordMatch", "ok", "cancel",
         ),

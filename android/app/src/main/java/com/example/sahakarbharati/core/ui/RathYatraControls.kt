@@ -305,7 +305,7 @@ fun LanguageChips(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(copy.searchLanguages) },
                     leadingIcon = {
-                        Icon(Icons.Outlined.Search, contentDescription = null)
+                        Icon(Icons.Outlined.Search, contentDescription = copy.searchLanguages)
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
@@ -345,6 +345,7 @@ fun LanguageChips(
                                     expanded = false
                                     query = ""
                                 }
+                                .semantics(mergeDescendants = true) {}
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,

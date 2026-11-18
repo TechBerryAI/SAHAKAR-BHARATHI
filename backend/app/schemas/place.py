@@ -53,6 +53,10 @@ class PlaceResponse(ORMModel):
 
 class PlaceList(ORMModel):
     items: list[PlaceResponse]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class BoothCode(ORMModel):

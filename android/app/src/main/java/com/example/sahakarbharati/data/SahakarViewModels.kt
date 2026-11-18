@@ -26,23 +26,23 @@ class SahakarViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(RegistrationViewModel::class.java) ->
-                RegistrationViewModel(container.authRepository) as T
+                RegistrationViewModel(container.authRepository, container.session) as T
             modelClass.isAssignableFrom(SignInViewModel::class.java) ->
-                SignInViewModel(container.authRepository) as T
+                SignInViewModel(container.authRepository, container.session) as T
             modelClass.isAssignableFrom(ProfileViewModel::class.java) ->
-                ProfileViewModel(container.profileRepository, container.authRepository) as T
+                ProfileViewModel(container.profileRepository, container.authRepository, container.session) as T
             modelClass.isAssignableFrom(HomeViewModel::class.java) ->
                 HomeViewModel(container.profileRepository, container.session) as T
             modelClass.isAssignableFrom(AdminUsersViewModel::class.java) ->
-                AdminUsersViewModel(container.adminRepository) as T
+                AdminUsersViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AdminUserViewModel::class.java) ->
-                AdminUserViewModel(container.adminRepository) as T
+                AdminUserViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AdminPlacesViewModel::class.java) ->
-                AdminPlacesViewModel(container.adminRepository) as T
+                AdminPlacesViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AdminPlaceViewModel::class.java) ->
-                AdminPlaceViewModel(container.adminRepository) as T
+                AdminPlaceViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AttendanceViewModel::class.java) ->
-                AttendanceViewModel(container.attendanceRepository) as T
+                AttendanceViewModel(container.attendanceRepository, container.session) as T
             modelClass.isAssignableFrom(YatraListViewModel::class.java) ->
                 YatraListViewModel(container.yatraRepository) as T
             modelClass.isAssignableFrom(YatraDetailViewModel::class.java) ->

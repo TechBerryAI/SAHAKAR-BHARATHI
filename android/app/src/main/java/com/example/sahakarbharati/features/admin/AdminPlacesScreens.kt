@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -126,7 +127,9 @@ fun AdminPlacesScreen(
     modifier: Modifier = Modifier,
 ) {
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: AdminPlacesViewModel = sahakarViewModel()
+    LaunchedEffect(accountEpoch) { viewModel.refresh() }
     SignedInScaffold(
         title = "Booths",
         selectedTab = RathYatraDestinations.ADMIN_PLACES,
@@ -176,6 +179,12 @@ fun AdminPlacesScreen(
                 viewModel.places.forEach { place ->
                     PlaceRow(place, onClick = { onOpenPlace(place.id) })
                 }
+                if (viewModel.hasMore) {
+                    GhostNavyButton(
+                        text = if (viewModel.loadingMore) ui("pleaseWait") else ui("loadMore"),
+                        onClick = { if (!viewModel.loadingMore) viewModel.loadMore() },
+                    )
+                }
             }
         }
     }
@@ -183,7 +192,7 @@ fun AdminPlacesScreen(
 
 @Composable
 private fun PlaceRow(place: PlaceDto, onClick: () -> Unit) {
-    WhiteCard(onClick = onClick) {
+    WhiteCard(onClick = onClick, modifier = Modifier.semantics(mergeDescendants = true) {}) {
         Row(
             Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
