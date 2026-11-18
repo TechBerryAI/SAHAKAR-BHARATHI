@@ -67,7 +67,7 @@ def test_alembic_head_is_applied(engine) -> None:
 
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "20261114_0009"
+    assert version == "20261117_0011"
 
 
 def test_production_disables_openapi_docs(monkeypatch) -> None:

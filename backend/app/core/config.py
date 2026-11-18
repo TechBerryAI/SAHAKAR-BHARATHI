@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     otp_confirm_rate_limit: int = 30
     otp_confirm_rate_window_seconds: int = 15 * 60
 
+    # Empty in production rejects uploads. "local" stores bytes on DOCUMENT_STORAGE_DIR.
+    # That directory is not an object store and is ephemeral on a host such as Render.
+    document_storage_backend: str = ""
+    document_storage_dir: str = ""
+    document_max_bytes: int = 5_242_880
+
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in _PRODUCTION_ENVIRONMENTS
@@ -178,6 +184,12 @@ class Settings(BaseSettings):
         if source not in {"peer", "cf-connecting-ip"}:
             raise ValueError("CLIENT_IP_SOURCE must be peer or cf-connecting-ip")
         self.client_ip_source = source
+        backend = self.document_storage_backend.strip().lower()
+        if backend not in {"", "local"}:
+            raise ValueError("DOCUMENT_STORAGE_BACKEND must be empty or local")
+        self.document_storage_backend = backend
+        if self.document_max_bytes <= 0 or self.document_max_bytes > 5_242_880:
+            raise ValueError("DOCUMENT_MAX_BYTES must be from 1 to 5242880")
         for name, value in (
             ("SESSION_TTL_SECONDS", self.session_ttl_seconds),
             ("MAX_REQUEST_BYTES", self.max_request_bytes),
@@ -232,7 +244,22 @@ class Settings(BaseSettings):
             raise ValueError(
                 "CLIENT_IP_SOURCE=cf-connecting-ip is required when ENVIRONMENT=production"
             )
+        if self.document_storage_backend == "local" and not self.document_storage_dir.strip():
+            raise ValueError("DOCUMENT_STORAGE_DIR is required when DOCUMENT_STORAGE_BACKEND=local")
         return self
+
+    def document_backend(self) -> str:
+        if self.document_storage_backend:
+            return self.document_storage_backend
+        if self.is_production:
+            return ""
+        return "local"
+
+    def document_directory(self) -> Path:
+        raw = self.document_storage_dir.strip()
+        if raw:
+            return Path(raw)
+        return _BACKEND_ROOT / "var" / "documents"
 
     @property
     def uses_shared_rate_limits(self) -> bool:

@@ -34,8 +34,31 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.phone_verifications TO saha
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.rate_limit_buckets TO sahakar_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.places TO sahakar_api;
 GRANT SELECT, INSERT ON TABLE public.attendance TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.districts TO sahakar_api;
+GRANT SELECT, INSERT, DELETE ON TABLE public.district_administrators TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatras TO sahakar_api;
+GRANT SELECT, INSERT, DELETE ON TABLE public.yatra_administrators TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.yatra_stops TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_routes TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.protocol_templates TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.protocol_items TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.protocol_documents TO sahakar_api;
 
-REVOKE DELETE ON TABLE public.users, public.places FROM sahakar_api;
+REVOKE DELETE ON TABLE
+    public.users,
+    public.places,
+    public.districts,
+    public.yatras,
+    public.yatra_routes,
+    public.protocol_templates,
+    public.protocol_items,
+    public.protocol_documents
+FROM sahakar_api;
+REVOKE UPDATE ON TABLE
+    public.district_administrators,
+    public.yatra_administrators,
+    public.protocol_documents
+FROM sahakar_api;
 REVOKE UPDATE, DELETE ON TABLE
     public.registrations,
     public.audit_events,
@@ -51,7 +74,9 @@ DECLARE
     table_name text;
 BEGIN
     FOREACH table_name IN ARRAY ARRAY[
-        'users', 'sessions', 'phone_verifications', 'rate_limit_buckets', 'places'
+        'users', 'sessions', 'phone_verifications', 'rate_limit_buckets', 'places',
+        'districts', 'district_administrators', 'yatras', 'yatra_administrators',
+        'yatra_stops', 'yatra_routes', 'protocol_templates', 'protocol_items'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS sahakar_api_access ON public.%I', table_name);
@@ -63,7 +88,9 @@ BEGIN
         );
     END LOOP;
 
-    FOREACH table_name IN ARRAY ARRAY['registrations', 'audit_events', 'attendance']
+    FOREACH table_name IN ARRAY ARRAY[
+        'registrations', 'audit_events', 'attendance', 'protocol_documents'
+    ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS sahakar_api_access ON public.%I', table_name);
         EXECUTE format('DROP POLICY IF EXISTS sahakar_api_select ON public.%I', table_name);

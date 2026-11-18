@@ -10,12 +10,15 @@ import { AdminPlacesScreen } from './screens/AdminPlacesScreen.tsx'
 import { AdminUserScreen } from './screens/AdminUserScreen.tsx'
 import { AdminUsersScreen } from './screens/AdminUsersScreen.tsx'
 import { CheckInScreen } from './screens/CheckInScreen.tsx'
+import { DistrictsScreen } from './screens/DistrictsScreen.tsx'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { ProfileScreen } from './screens/ProfileScreen.tsx'
 import { RegisterScreen } from './screens/RegisterScreen.tsx'
 import { RegisterSuccessScreen } from './screens/RegisterSuccessScreen.tsx'
 import { SignInScreen } from './screens/SignInScreen.tsx'
 import { StartScreen } from './screens/StartScreen.tsx'
+import { YatraScreen } from './screens/YatraScreen.tsx'
+import { YatrasScreen } from './screens/YatrasScreen.tsx'
 
 function GuestRoute({ children }: { children: ReactNode }) {
   const { uid } = useSession()
@@ -148,6 +151,46 @@ function AppRoutes() {
             </AdminRoute>
           }
         />
+        <Route
+          path="/yatras"
+          element={
+            <ProtectedRoute>
+              <YatrasScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/yatras/:yatraId"
+          element={
+            <ProtectedRoute>
+              <YatraScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/yatras"
+          element={
+            <AdminRoute>
+              <YatrasScreen admin />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/yatras/:yatraId"
+          element={
+            <AdminRoute>
+              <YatraScreen admin />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/districts"
+          element={
+            <AdminRoute>
+              <DistrictsScreen />
+            </AdminRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
@@ -162,7 +205,9 @@ export default function App() {
     (location.pathname === '/' ||
       location.pathname === '/profile' ||
       location.pathname === '/check-in' ||
-      location.pathname.startsWith('/admin'))
+      location.pathname.startsWith('/admin') ||
+      location.pathname === '/yatras' ||
+      location.pathname.startsWith('/yatras/'))
 
   return (
     <AppShell showNav={showNav}>

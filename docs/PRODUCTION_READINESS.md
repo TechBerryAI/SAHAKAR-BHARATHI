@@ -8,7 +8,7 @@ Earlier audits (2026-10-23 and 2026-10-27) closed with "not ready" because of pr
 
 ## Repository / implementation status
 
-Phase 1 is complete in this repository. Production operation is not. Launch still depends on the operator checklist below.
+Phase 1 is complete in this repository. Phase 2A (districts, Rath Yatras, stops, and protocol approvals) is also implemented here; see `docs/PHASE_2A.md`. Phase 2 overall is not. Production operation is not. Launch still depends on the operator checklist below. Local protocol-document files under `backend/var/documents` are ephemeral and are not a production object store. Production without `DOCUMENT_STORAGE_BACKEND` rejects uploads.
 
 | Area | Repository status | Production action |
 |---|---|---|
@@ -16,10 +16,10 @@ Phase 1 is complete in this repository. Production operation is not. Launch stil
 | Authentication | Implemented. Mobile or login id plus PIN, Argon2id, dummy verification for an unknown user, the same error either way, identifier limit and a separate IP limit. | Sign in against the deployed API. |
 | Sessions | Implemented. Random opaque bearer, SHA-256 hash stored, expiry, revocation, disabled users lose their sessions. | Confirm logout and a disabled account on the deployed API. |
 | Authorization | Implemented on the API. A participant cannot call admin routes. An admin cannot grant `super_admin`. | Confirm with a real participant and admin token after deploy. |
-| Rate limiting | Implemented. Sliding window in PostgreSQL (`hit_times`, migration `20261114_0009`), hashed keys, fail closed. `render.yaml` sets `RATE_LIMIT_BACKEND=postgres`. The code default `memory` is for one local process and production startup rejects it. | Confirm the running service still has `postgres`, and that the database is at `20261114_0009`. |
+| Rate limiting | Implemented. Sliding window in PostgreSQL (`hit_times`, migration `20261114_0009`), hashed keys, fail closed. `render.yaml` sets `RATE_LIMIT_BACKEND=postgres`. The code default `memory` is for one local process and production startup rejects it. | Confirm the running service still has `postgres`, and that the database is at `20261117_0011`. |
 | Trusted proxy / client IP | Implemented. Production requires `CLIENT_IP_SOURCE=cf-connecting-ip`. Identity is Cloudflare's `CF-Connecting-IP`. `X-Forwarded-For` and `X-Real-IP` are not read. A missing or malformed value falls back to the TCP peer. Local `peer` ignores every forwarding header. The start command is `uvicorn app.main:app --host 0.0.0.0 --port $PORT` with no `--proxy-headers` and no `--forwarded-allow-ips`. | From outside Cloudflare, confirm a spoofed `X-Forwarded-For` does not change the throttle identity. Do not put another CDN in front of the Render hostname. |
 | Runtime DB role | Defined in `infra/supabase/runtime_role.sql`. Not applied by Alembic or by Render. | Run it as the table owner after `alembic upgrade head`, set the password outside git, and point web and cron `DATABASE_URL` at `sahakar_api`. |
-| RLS | Implemented in migration `20261023_0005`. Supabase `anon` / `authenticated` have no policies on app tables. | On the live database, `has_table_privilege('anon','public.users','SELECT')` must be false, and `alembic current` must be `20261114_0009`. |
+| RLS | Implemented in migration `20261023_0005` and repeated for tables added later, including Phase 2A. Supabase `anon` / `authenticated` have no policies on app tables. | On the live database, `has_table_privilege('anon','public.users','SELECT')` must be false, and `alembic current` must be `20261117_0011`. Re-run `runtime_role.sql` after 0010 and 0011. |
 | Retention | Implemented. `python -m app.core.retention` deletes old phone-verification rows, expired or long-revoked sessions, and idle rate-limit buckets. It does not delete `audit_events`. The limiter also calls it about once per 200 checks. `render.yaml` defines cron `sahakar-bharati-retention` at 02:15 UTC. | Create that cron in the Render account and set its `DATABASE_URL` to the runtime role. The blueprint entry is not an enabled job until then. |
 | Audit | Implemented. Security and admin events are appended. Rows store `identifier_hash` (SHA-256 of the identifier: a pseudonym, not anonymization). The runtime role cannot update or delete `audit_events`. | Archive after 365 days is an operator choice. It is not automated. |
 | Backups / PITR | Documented in `docs/DATABASE.md` only. | Turn on Supabase daily backups and PITR, then run the restore drill and record the time it took. |
@@ -28,7 +28,8 @@ Phase 1 is complete in this repository. Production operation is not. Launch stil
 | Web | Implemented. Bearer token in `localStorage` (`sahakar_access_token`). CSP, `nosniff`, frame denial, and HSTS are in `web/firebase.json`. API responses use `Cache-Control: no-store`. Logout and HTTP 401 clear the token. `localStorage` is not an HttpOnly cookie. | Deploy Hosting and repeat sign-in, logout, and a 401 against production. |
 | Android | Implemented. Session in `EncryptedSharedPreferences`, excluded from backup and device transfer. Logout and HTTP 401 clear it. Release builds refuse a missing or non-HTTPS API URL. Application id is still `com.example.sahakarbharati`. | Run Android CI (`testDebugUnitTest`, release assemble). Play will reject `com.example.*` on a new listing; choose a real id before the first upload. |
 | Event check-in | Implemented (`places`, `attendance`) on the API, web, and Android. | Confirm a booth check-in on the deployed API. |
-| Not in Phase 1 | Live chariot tracking, a QR pass, benefits, and notifications have no API and are shown as unavailable. | Out of scope until a product spec exists. |
+| Phase 2A | Implemented in the repository: districts, Yatra lifecycle, stops, route label, protocol checklist, and document metadata. See `docs/PHASE_2A.md`. | Migrate to `20261117_0011` and re-run `runtime_role.sql` before sending Yatra traffic. Do not treat local document files as durable. |
+| Not in this release | Live chariot tracking, QR counters, subsidies, a QR pass, benefits, notifications, WhatsApp, and AI scheduling have no API. Phase 2 overall is not complete. | Deferred to Phase 2B and later. |
 | CI | Workflows exist for backend, web, Android, secret scan, and Firebase deploy. | They have not been executed from this documentation pass. Confirm a green run on the release commit, and configure GitHub environments and reviewers. |
 
 ## Production configuration in the repository
@@ -47,7 +48,7 @@ Phase 1 is complete in this repository. Production operation is not. Launch stil
 
 These items are not done by this repository:
 
-- [ ] Exposure check: `anon` cannot `SELECT` from app tables; `alembic current` is `20261114_0009`
+- [ ] Exposure check: `anon` cannot `SELECT` from app tables; `alembic current` is `20261117_0011`
 - [ ] `runtime_role.sql` applied; web and cron `DATABASE_URL` use `sahakar_api`; owner URL only in `MIGRATION_DATABASE_URL`
 - [ ] Supabase backups and PITR on; restore drill recorded
 - [ ] Render cron `sahakar-bharati-retention` created
@@ -72,7 +73,7 @@ The table records defects found on 2026-10-23 and what the repository did about 
 | F9 | P1 | Rate limiter was in-process only. | Fixed. Production config is PostgreSQL sliding window. Local default remains `memory` and production rejects it. |
 | F10, F11 | P1 | Production accepted bad environment, TLS, and CORS settings; chunked bodies were uncapped. | Fixed. |
 | F13 | P1 | No web or Android CI, unprotected deploy, no secret scan. | Workflows are in `.github/workflows`. They were not run for this documentation pass. |
-| F18 | P2 | `schema.sql` could insert a second `alembic_version` row. | Fixed. It refuses to run when a row exists. Head stamp is `20261114_0009`. |
+| F18 | P2 | `schema.sql` could insert a second `alembic_version` row. | Fixed. It refuses to run when a row exists. Head stamp is `20261117_0011`. |
 | F20 | P2 | `--forwarded-allow-ips='*'` trusted caller-supplied `X-Forwarded-For`. | Fixed. That flag is not in the start command. Production uses `CF-Connecting-IP`. |
 | F21 | P3 | Git history had no live credentials. Local `backend/.env` is gitignored. | Unchanged. Do not commit or archive that file. |
 

@@ -97,3 +97,13 @@ class SmsDeliveryError(AppError):
 class ServiceUnavailableError(AppError):
     def __init__(self, detail: str = "Please try again in a moment.") -> None:
         super().__init__(status.HTTP_503_SERVICE_UNAVAILABLE, detail)
+
+
+class ConflictError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(status.HTTP_409_CONFLICT, detail)
+
+
+class InvalidStateError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(status.HTTP_400_BAD_REQUEST, detail)

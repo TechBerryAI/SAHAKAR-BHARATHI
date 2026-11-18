@@ -40,6 +40,15 @@ APP_TABLES = (
     "rate_limit_buckets",
     "places",
     "attendance",
+    "districts",
+    "district_administrators",
+    "yatras",
+    "yatra_administrators",
+    "yatra_stops",
+    "yatra_routes",
+    "protocol_templates",
+    "protocol_items",
+    "protocol_documents",
 )
 
 

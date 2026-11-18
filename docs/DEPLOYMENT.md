@@ -86,9 +86,10 @@ Not needed and must not be set: Supabase anon key, service-role key, JWT secret.
 ### Roll back
 
 - Render dashboard → service → **Events / Deploys** → "Rollback" to the previous deploy.
-- Current Alembic head is `20261114_0009`. Do **not** run `alembic downgrade`.
+- Current Alembic head is `20261117_0011`. Do **not** run `alembic downgrade`.
   0005's downgrade is a no-op; 0008's downgrade drops `places` and `attendance`;
-  0009's downgrade drops `hit_times` and the limiter will fail. For a bad data
+  0009's downgrade drops `hit_times` and the limiter will fail. 0010 and 0011 drop
+  the Yatra, district, and protocol tables. For a bad data
   change, restore to a scratch project and repair forward.
 - Client IP throttles use `CF-Connecting-IP` (see below). The start command
   does not enable Uvicorn's `--forwarded-allow-ips`.

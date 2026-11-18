@@ -9,7 +9,7 @@ and the app does not use Supabase Auth, PostgREST, or the Supabase JS client.
 |---|---|
 | `backend/app/models/` | SQLAlchemy models, the source of truth for code. |
 | `backend/migrations/versions/` | Alembic migrations, the **preferred** way to create and evolve a database. |
-| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261114_0009`) for the Supabase SQL Editor. **Empty databases only.** |
+| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261117_0011`) for the Supabase SQL Editor. **Empty databases only.** |
 | `infra/supabase/runtime_role.sql` | Optional least-privilege role for the running API. |
 
 The two init paths produce the same schema. `backend/tests/test_database_schema.py`
@@ -35,7 +35,9 @@ production schema.
 | `20261023_0006` | `rate_limit_buckets` for `RATE_LIMIT_BACKEND=postgres` |
 | `20261026_0007` | `users.role` (`participant`, `admin`, `super_admin`) |
 | `20261103_0008` | `places` and `attendance` |
-| `20261114_0009` | `rate_limit_buckets.hit_times` for the sliding window (current head) |
+| `20261114_0009` | `rate_limit_buckets.hit_times` for the sliding window |
+| `20261117_0010` | `districts`, district administrators, `yatras`, Yatra administrators, stops, and routes |
+| `20261117_0011` | Protocol templates, checklist items, and document metadata (current head) |
 
 **Why 0005 matters:** Supabase grants the public `anon` and `authenticated` roles
 full privileges on new tables in `public`, and exposes them over PostgREST with the
@@ -63,7 +65,7 @@ proves 0005 removes it.
    role password outside the file, and point Render `DATABASE_URL` at `sahakar_api`.
 
 Alternative when Alembic cannot reach the database: run `infra/supabase/schema.sql`
-once in the SQL Editor on the **empty** database. It stamps `20261114_0009`, so
+once in the SQL Editor on the **empty** database. It stamps `20261117_0011`, so
 later releases use `alembic upgrade head` as normal.
 
 ## Existing database (every release)
@@ -80,11 +82,12 @@ MIGRATION_DATABASE_URL='<owner connection string, sslmode=require>' alembic upgr
    `alembic stamp <matching revision>` (for the pre-0005 snapshot that is
    `20261022_0004`) and `alembic upgrade head`.
 3. Run migrations **before** deploying code that needs them. Head is
-   `20261114_0009`. Login, `/me`, and admin read `users.role` (0007). Check-in
+   `20261117_0011`. Login, `/me`, and admin read `users.role` (0007). Check-in
    reads `places` and `attendance` (0008). The rate limiter reads
-   `rate_limit_buckets.hit_times` (0009). A database still at 0008 or earlier
+   `rate_limit_buckets.hit_times` (0009). Rath Yatra, district, and protocol
+   routes read `20261117_0010` and `20261117_0011`. A database still at 0009
    will fail those reads after this code is deployed. 0005 (RLS), 0006 (rate-limit table),
-   0007, 0008, and 0009 are additive and must be present on production. Do not edit
+   0007, 0008, 0009, 0010, and 0011 are additive and must be present on production. Do not edit
    migrations that have already been applied.
 4. Never run `alembic downgrade`, `alembic stamp` with a guessed revision, or any
    reset against production. 0005's downgrade is intentionally a no-op.
@@ -119,6 +122,10 @@ its `DATABASE_URL` points at Supabase unless you intend to migrate production.
   - `phone_verifications`, `rate_limit_buckets`: SELECT, INSERT, UPDATE, DELETE.
   - `places`: SELECT, INSERT, UPDATE. No DELETE.
   - `attendance`: SELECT, INSERT. No UPDATE, no DELETE.
+  - `districts`, `yatras`, `yatra_routes`, `protocol_templates`, `protocol_items`: SELECT, INSERT, UPDATE. No DELETE.
+  - `district_administrators`, `yatra_administrators`: SELECT, INSERT, DELETE. No UPDATE.
+  - `yatra_stops`: SELECT, INSERT, UPDATE, DELETE.
+  - `protocol_documents`: SELECT, INSERT. No UPDATE, no DELETE.
   No CREATE on `public`, no access to `alembic_version`. Verified by
   `test_runtime_role_can_run_the_api_but_not_change_schema`.
   **Implemented in the repository. Not applied by deploy.**
@@ -167,7 +174,7 @@ Do this on a scratch project every quarter, and again before the first productio
 
 1. Note the Supabase backup or PITR time you intend to restore. If the plan has neither, use a `pg_dump` taken that day.
 2. Restore into a new project or scratch database. Do not restore over production.
-3. `MIGRATION_DATABASE_URL=… alembic current` prints `20261114_0009`.
+3. `MIGRATION_DATABASE_URL=… alembic current` prints `20261117_0011`.
 4. Confirm RLS is on for every application table and `anon` cannot `SELECT` from `users`.
 5. Re-run `runtime_role.sql` if that role is used, then sign in once against the scratch API and confirm a revoked session stays revoked.
 6. Discard the scratch project. Record the date and who ran the drill.

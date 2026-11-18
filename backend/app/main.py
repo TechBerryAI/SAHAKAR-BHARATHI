@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -26,8 +27,11 @@ from app.schemas.common import HealthResponse
 
 logger = logging.getLogger(__name__)
 
-_CORS_METHODS = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
-_CORS_HEADERS = ["Authorization", "Content-Type"]
+_CORS_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+_CORS_HEADERS = ["Authorization", "Content-Type", "X-Document-Filename"]
+_DOCUMENT_UPLOAD = re.compile(
+    r"^/api/v1/yatras/[0-9a-fA-F-]{36}/protocol/items/[0-9a-fA-F-]{36}/documents$"
+)
 _READY_TIMEOUT_MS = 2000
 _SENSITIVE_FIELDS = frozenset(
     {"pin", "password", "token", "access_token", "authorization", "code", "verification_token"}
@@ -66,7 +70,12 @@ class RequestSizeLimitMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        limit = get_settings().max_request_bytes
+        settings = get_settings()
+        path = scope.get("path", "")
+        if scope.get("method") == "POST" and _DOCUMENT_UPLOAD.fullmatch(path):
+            limit = settings.document_max_bytes
+        else:
+            limit = settings.max_request_bytes
         headers = {key.decode("latin-1").lower(): value.decode("latin-1") for key, value in scope.get("headers", [])}
         content_length = headers.get("content-length")
         if content_length is not None:
