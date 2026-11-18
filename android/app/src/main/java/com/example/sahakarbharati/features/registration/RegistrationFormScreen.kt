@@ -90,6 +90,9 @@ import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.RathYatraCopy
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
+import com.example.sahakarbharati.core.copy.uiText
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.ProfilePhoto
 import com.example.sahakarbharati.core.ui.SaffronButton
@@ -181,8 +184,7 @@ fun RegistrationFormScreen(
     val ageYears = remember(dob) { ageYearsFromDob(dob) }
     val ageText = when {
         dob.isBlank() -> "—"
-        language == AppLanguage.HI -> "$ageYears वर्ष"
-        else -> "$ageYears Years"
+        else -> uiText(language, "ageYears", mapOf("age" to ageYears.toString()))
     }
     val formScroll = rememberScrollState()
 
@@ -324,7 +326,6 @@ fun RegistrationFormScreen(
 
     if (step == 0) {
         VerifyMobileScreen(
-            hindi = language == AppLanguage.HI || AppLanguage.usesHindiCopy(language),
             mobile = mobile,
             onMobile = {
                 val next = it.filter(Char::isDigit).take(10)
@@ -357,7 +358,6 @@ fun RegistrationFormScreen(
             modifier = modifier,
         )
     } else RegistrationDetailsScreen(
-        hindi = language == AppLanguage.HI || AppLanguage.usesHindiCopy(language),
         name = name,
         onName = { name = it },
         gender = gender,
@@ -559,9 +559,7 @@ private fun ColumnScope.PersonalStep(
                     modifier = Modifier.fillMaxWidth(),
                     shape = FieldShape,
                     trailingIcon = {
-                        IconButton(onClick = onOpenDob) {
-                            Icon(Icons.Outlined.CalendarMonth, contentDescription = "Date of birth")
-                        }
+                        Icon(Icons.Outlined.CalendarMonth, contentDescription = ui("dateOfBirth"))
                     },
                     colors = fieldColors(),
                 )
@@ -633,7 +631,6 @@ private fun ColumnScope.PersonalStep(
 
 @Composable
 private fun VerifyMobileScreen(
-    hindi: Boolean,
     mobile: String,
     onMobile: (String) -> Unit,
     otp: String,
@@ -658,10 +655,7 @@ private fun VerifyMobileScreen(
             .windowInsetsPadding(WindowInsets.navigationBars)
             .windowInsetsPadding(WindowInsets.ime),
     ) {
-        StackTopBar(
-            title = if (hindi) "मोबाइल सत्यापित करें" else "Verify mobile",
-            onBack = onBack,
-        )
+        StackTopBar(title = ui("verifyMobile"), onBack = onBack)
         Column(
             Modifier
                 .weight(1f)
@@ -672,7 +666,7 @@ private fun VerifyMobileScreen(
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        if (hindi) "मोबाइल नंबर" else "MOBILE NUMBER",
+                        ui("mobileLabel"),
                         style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.4.sp),
                         color = Color(0xFF0F3D2E),
                         fontWeight = FontWeight.Medium,
@@ -699,14 +693,14 @@ private fun VerifyMobileScreen(
                         )
                     }
                     Text(
-                        if (hindi) "10 अंकों का भारतीय मोबाइल नंबर।" else "10-digit Indian mobile number.",
+                        ui("mobileHint"),
                         style = MaterialTheme.typography.bodySmall,
                         color = RathYatraColors.OnSurfaceVariant,
                     )
                     if (otpSent) {
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            if (hindi) "ओटीपी" else "OTP",
+                            ui("otpLabel"),
                             style = MaterialTheme.typography.labelLarge,
                             color = RathYatraColors.OnSurfaceVariant,
                         )
@@ -720,26 +714,26 @@ private fun VerifyMobileScreen(
                             colors = fieldColors(),
                         )
                         Text(
-                            if (hindi) "एसएमएस से मिला 6 अंकों का कोड।" else "6-digit code from the SMS.",
+                            ui("otpSmsHint"),
                             style = MaterialTheme.typography.bodySmall,
                             color = RathYatraColors.OnSurfaceVariant,
                         )
                         TextButton(onClick = { if (!otpBusy) onResend() }, enabled = !otpBusy) {
-                            Text(if (hindi) "ओटीपी फिर भेजें" else "Resend OTP", color = RathYatraColors.Navy)
+                            Text(ui("resendOtp"), color = RathYatraColors.Navy)
                         }
                     }
                 }
             }
             if (note.isNotBlank()) {
                 Text(
-                    note,
+                    uiKnown(note),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (noteIsError) RathYatraColors.Emergency else RathYatraColors.OnSurfaceVariant,
                 )
             }
             if (accountExists || otpSent) {
                 SaffronButton(
-                    text = if (hindi) "साइन इन" else "Sign In",
+                    text = ui("signIn"),
                     onClick = onSignIn,
                     trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
                 )
@@ -748,9 +742,9 @@ private fun VerifyMobileScreen(
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             SaffronButton(
                 text = when {
-                    otpBusy -> if (hindi) "कृपया प्रतीक्षा करें…" else "Please wait…"
-                    otpSent -> if (hindi) "ओटीपी सत्यापित करें" else "Verify OTP"
-                    else -> if (hindi) "ओटीपी भेजें" else "Send OTP"
+                    otpBusy -> ui("pleaseWait")
+                    otpSent -> ui("verifyOtp")
+                    else -> ui("sendOtp")
                 },
                 onClick = { if (!otpBusy) onSubmit() },
                 trailingIcon = Icons.AutoMirrored.Outlined.ArrowForward,
@@ -1063,116 +1057,64 @@ private data class FormExtraCopy(
     val pinMismatch: String,
 )
 
-private fun formExtraCopy(language: AppLanguage): FormExtraCopy =
-    if (AppLanguage.usesHindiCopy(language)) FormExtraCopy(
-        contactTitle = "मोबाइल नंबर",
-        contactStep = "चरण 1 / 4: मोबाइल नंबर (25%)",
-        contactCard = "साइन इन के लिए मोबाइल",
-        contactBody = "जो मोबाइल नंबर साइन इन के लिए उपयोग करेंगे, वह लिखें। उसके बाद नाम और पता आएगा।",
-        mobileLabel = "मोबाइल नंबर",
-        mobileHint = "10 अंकों का भारतीय मोबाइल नंबर। यही आपका लॉगिन है।",
-        emailLabel = "ईमेल (वैकल्पिक)",
-        emailHint = "वैकल्पिक। साइन इन मोबाइल नंबर से होगा।",
-        profileTitle = "पता",
-        profileStep = "चरण 3 / 4: पता (75%)",
-        profileCard = "पता",
-        profileBody = "उत्सव पास के लिए अपना पता लिखें।",
-        addressLabel = "पता",
-        houseLabel = "मकान / गली / पता पंक्ति",
-        houseHint = "लोकेशन से भरा जा सकता है, फिर ठीक करें।",
-        localityLabel = "गाँव / वार्ड / इलाका",
-        districtLabel = "ज़िला",
-        stateLabel = "राज्य",
-        pincodeLabel = "पिनकोड",
-        useMyLocation = "वर्तमान लोकेशन से पता भरें",
-        useMyLocationHint = "सटीक पता के लिए डिवाइस लोकेशन की अनुमति दें।",
-        locatingAddress = "लोकेशन और पता खोजा जा रहा है…",
-        locationFilled = "पता लोकेशन से भरा गया। जाँच कर ठीक करें।",
-        locationDenied = "लोकेशन अनुमति नहीं मिली। पता स्वयं लिखें।",
-        locationUnavailable = "लोकेशन नहीं मिली। पता स्वयं लिखें।",
-        securityTitle = "सुरक्षा",
-        securityStep = "चरण 4 / 4: सुरक्षा (100%)",
-        securityCard = "ऐप पिन",
-        securityBody = "4 से 6 अंकों का पिन बनाएँ। खाता बनाने से पहले यह चरण पूरा करें।",
-        pinLabel = "पिन",
-        pinHint = "कम से कम 4 अंक।",
-        confirmPinLabel = "पिन की पुष्टि",
-        photoTitle = "प्रोफ़ाइल फ़ोटो",
-        photoHint = "गैलरी से फ़ोटो चुनें। फ़ोटो वैकल्पिक है और इसी उपकरण पर रहती है।",
-        photoReady = "फ़ोटो जुड़ गई। बदलने के लिए फिर टैप करें।",
-        photoRequired = "आगे बढ़ने से पहले प्रोफ़ाइल फ़ोटो जोड़ें।",
-        photoGallery = "गैलरी से चुनें",
-        nameRequired = "पूरा नाम लिखें।",
-        genderRequired = "लिंग चुनें।",
-        dobRequired = "जन्म तिथि चुनें।",
-        occupationRequired = "व्यवसाय चुनें।",
-        ageTooYoung = "स्वतंत्र पास के लिए न्यूनतम आयु 18 वर्ष है।",
-        mobileRequired = "10 अंकों का मोबाइल नंबर लिखें।",
-        sendOtp = "मोबाइल पर OTP भेजें",
-        sendingOtp = "OTP भेजा जा रहा है…",
-        otpLabel = "OTP",
-        otpHint = "SMS में आया 6 अंकों का कोड।",
-        verifyOtp = "OTP जाँचें",
-        otpVerified = "मोबाइल नंबर जाँच लिया गया",
-        otpRequired = "आगे बढ़ने से पहले OTP जाँचें।",
-        addressRequired = "पता लिखें या लोकेशन से भरें।",
-        pinRequired = "कम से कम 4 अंकों का पिन बनाएँ।",
-        pinMismatch = "पिन मेल नहीं खाते।",
-    ) else FormExtraCopy(
-        contactTitle = "Mobile number",
-        contactStep = "STEP 1 OF 4: MOBILE NUMBER (25%)",
-        contactCard = "Sign in with your mobile",
-        contactBody = "Enter the mobile number you will use to sign in. Name, address, and other KYC details come next.",
-        mobileLabel = "MOBILE NUMBER",
-        mobileHint = "10-digit Indian mobile number. This is your login.",
-        emailLabel = "EMAIL (OPTIONAL)",
-        emailHint = "Optional. You sign in with your mobile number.",
-        profileTitle = "Address",
-        profileStep = "STEP 3 OF 4: ADDRESS (75%)",
-        profileCard = "Address",
-        profileBody = "Add the address for your participant pass.",
-        addressLabel = "ADDRESS",
-        houseLabel = "HOUSE / STREET / ADDRESS LINE",
-        houseHint = "Filled from location when possible. Edit if needed.",
-        localityLabel = "VILLAGE / WARD / LOCALITY",
-        districtLabel = "DISTRICT",
-        stateLabel = "STATE",
-        pincodeLabel = "PINCODE",
-        useMyLocation = "Fill address from current location",
-        useMyLocationHint = "Allow location so the address matches where you are.",
-        locatingAddress = "Finding location and address…",
-        locationFilled = "Address filled from location. Check and correct it.",
-        locationDenied = "Location permission denied. Enter the address yourself.",
-        locationUnavailable = "Location unavailable. Enter the address yourself.",
-        securityTitle = "Security",
-        securityStep = "STEP 4 OF 4: SECURITY (100%)",
-        securityCard = "App PIN",
-        securityBody = "Create a 4 to 6 digit PIN. The account is created only after this step.",
-        pinLabel = "PIN",
-        pinHint = "At least 4 digits.",
-        confirmPinLabel = "CONFIRM PIN",
-        photoTitle = "PROFILE PHOTO",
-        photoHint = "Pick a photo from the gallery. Photos stay on this device and are optional.",
-        photoReady = "Photo added. Tap again to change it.",
-        photoRequired = "Add a profile photo before continuing.",
-        photoGallery = "Pick from gallery",
-        nameRequired = "Enter your full name.",
-        genderRequired = "Select a gender.",
-        dobRequired = "Select your date of birth.",
-        occupationRequired = "Select an occupation.",
-        ageTooYoung = "Minimum age is 18 for an independent pass.",
-        mobileRequired = "Enter a 10-digit mobile number.",
-        sendOtp = "Send OTP",
-        sendingOtp = "Sending OTP…",
-        otpLabel = "OTP",
-        otpHint = "6-digit code from the SMS.",
-        verifyOtp = "Verify OTP",
-        otpVerified = "Mobile number verified",
-        otpRequired = "Verify the OTP before continuing.",
-        addressRequired = "Enter an address or fill it from location.",
-        pinRequired = "Create a PIN of at least 4 digits.",
-        pinMismatch = "PIN values do not match.",
+private fun formExtraCopy(language: AppLanguage): FormExtraCopy {
+    fun s(key: String) = uiText(language, key)
+    return FormExtraCopy(
+        contactTitle = s("mobileLabel"),
+        contactStep = s("contactStep"),
+        contactCard = s("contactCard"),
+        contactBody = s("contactBody"),
+        mobileLabel = s("mobileLabel"),
+        mobileHint = s("mobileHint"),
+        emailLabel = s("emailOptional"),
+        emailHint = s("contactEmailHint"),
+        profileTitle = s("profileTitle"),
+        profileStep = s("profileStep"),
+        profileCard = s("profileTitle"),
+        profileBody = s("addressCardBody"),
+        addressLabel = s("address"),
+        houseLabel = s("houseLabel"),
+        houseHint = s("houseHint"),
+        localityLabel = s("localityLabel"),
+        districtLabel = s("districtLabel"),
+        stateLabel = s("stateLabel"),
+        pincodeLabel = s("pincodeLabel"),
+        useMyLocation = s("useMyLocation"),
+        useMyLocationHint = s("useMyLocationHint"),
+        locatingAddress = s("locatingAddress"),
+        locationFilled = s("locationFilled"),
+        locationDenied = s("locationDenied"),
+        locationUnavailable = s("locationUnavailable"),
+        securityTitle = s("securityTitle"),
+        securityStep = s("securityStep"),
+        securityCard = s("securityCardTitle"),
+        securityBody = s("securityCardBody"),
+        pinLabel = s("securityPinLabel"),
+        pinHint = s("securityPinHint"),
+        confirmPinLabel = s("securityConfirmPin"),
+        photoTitle = s("photoTitle"),
+        photoHint = s("photoHint"),
+        photoReady = s("photoReady"),
+        photoRequired = s("photoRequired"),
+        photoGallery = s("photoGallery"),
+        nameRequired = s("fullNameRequired"),
+        genderRequired = s("genderRequired"),
+        dobRequired = s("dobRequired"),
+        occupationRequired = s("occupationRequired"),
+        ageTooYoung = s("minAge"),
+        mobileRequired = s("mobileRequired"),
+        sendOtp = s("sendOtp"),
+        sendingOtp = s("sendingOtp"),
+        otpLabel = s("otpLabel"),
+        otpHint = s("otpSmsHint"),
+        verifyOtp = s("verifyOtp"),
+        otpVerified = s("otpVerified"),
+        otpRequired = s("otpVerifyRequired"),
+        addressRequired = s("addressRequired"),
+        pinRequired = s("passwordLength"),
+        pinMismatch = s("passwordMatch"),
     )
+}
 
 private data class AddressResult(
     val line: String? = null,

@@ -62,6 +62,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.sahakarbharati.core.copy.LocalCopy
+import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.regionLabel
 import com.example.sahakarbharati.core.ui.GhostNavyButton
@@ -88,6 +91,7 @@ fun AttendanceScreen(
     modifier: Modifier = Modifier,
 ) {
     val copy = LocalCopy.current
+    val language = LocalLanguage.current
     val session = rememberAppSession()
     val hostView = LocalView.current
     SideEffect {
@@ -128,7 +132,7 @@ fun AttendanceScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             WhiteCard {
                 Column(
@@ -138,7 +142,7 @@ fun AttendanceScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(copy.scannerActive, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
                         Text(
-                            "Scan the QR on the booth banner, or type the 6-digit code printed under it.",
+                            ui("scanBanner"),
                             color = RathYatraColors.Navy.copy(alpha = 0.7f),
                             fontSize = 14.sp,
                         )
@@ -184,7 +188,7 @@ fun AttendanceScreen(
                             ui.history.forEach { visit ->
                                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                     Text(visit.placeName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
-                                    Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
+                                    Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate, language), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
                                 }
                             }
                         }
@@ -197,6 +201,7 @@ fun AttendanceScreen(
 
 @Composable
 private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
+    val language = LocalLanguage.current
     val copy = LocalCopy.current
     val region = regionLabel(visit.district, visit.state)
     WhiteCard {
@@ -208,7 +213,7 @@ private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
                 fontSize = 20.sp,
             )
             Text(visit.placeName, color = RathYatraColors.Saffron, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+            Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate, language), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
             Text(copy.recordedDetails, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
             Text(visit.fullName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
             Text(formatMobile(visit.mobile), color = RathYatraColors.Navy, fontSize = 14.sp)

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.example.sahakarbharati.core.copy.LocalCopy
+import com.example.sahakarbharati.core.copy.ui
 import com.example.sahakarbharati.ui.navigation.RathYatraDestinations
 import com.example.sahakarbharati.ui.theme.RathYatraColors
 
@@ -200,6 +201,9 @@ fun StackTopBar(
     titleSize: TextUnit = TextUnit.Unspecified,
     titleWeight: FontWeight = FontWeight.Bold,
 ) {
+    val backLabel = ui("navigateBack")
+    val helpLabel = ui("sosTitle")
+    val sosLabel = ui("sos")
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -208,7 +212,7 @@ fun StackTopBar(
     ) {
         IconButton(
             onClick = onBack,
-            modifier = Modifier.semantics { contentDescription = "Navigate back" },
+            modifier = Modifier.semantics { contentDescription = backLabel },
         ) {
             Icon(
                 Icons.AutoMirrored.Outlined.ArrowBack,
@@ -238,10 +242,10 @@ fun StackTopBar(
                     .padding(end = 4.dp)
                     .clip(CircleShape)
                     .background(RathYatraColors.Emergency)
-                    .semantics { contentDescription = "Help" },
+                    .semantics { contentDescription = helpLabel },
             ) {
                 androidx.compose.material3.TextButton(onClick = onSosClick) {
-                    Text("SOS", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                    Text(sosLabel, color = Color.White, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -279,11 +283,12 @@ fun RathBottomBar(
     showAdmin: Boolean = false,
 ) {
     val copy = LocalCopy.current
+    val adminLabel = ui("adminRole")
     val items = buildList {
         add(Triple(RathYatraDestinations.HOME, copy.tabHome, Icons.Filled.Home))
         add(Triple(RathYatraDestinations.PROFILE, copy.tabProfile, Icons.Filled.Person))
         if (showAdmin) {
-            add(Triple(RathYatraDestinations.ADMIN, "Admin", Icons.Filled.Groups))
+            add(Triple(RathYatraDestinations.ADMIN, adminLabel, Icons.Filled.Groups))
         }
     }
     Column(
@@ -436,7 +441,7 @@ fun DemoAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(ui("close"))
             }
         },
         title = { Text(title) },

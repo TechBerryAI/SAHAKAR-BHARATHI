@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.IntrinsicSize
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.participantCopy
 import com.example.sahakarbharati.core.copy.personInitials
@@ -95,7 +97,7 @@ fun CitizenHomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (!error.isNullOrBlank() && profile == null) {
-                Text(error, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(error), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (loading) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -207,14 +209,14 @@ fun CitizenHomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         HomeShortcut(
-                            title = "Registered users",
-                            body = "Open the directory to read registration details.",
+                            title = ui("registeredUsers"),
+                            body = ui("registeredUsersBody"),
                             onClick = onOpenAdmin,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         HomeShortcut(
-                            title = "Booths",
-                            body = "Create a booth, print its QR, and see who checked in.",
+                            title = ui("booths"),
+                            body = ui("boothsBody"),
                             onClick = onOpenBooths,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
@@ -281,7 +283,7 @@ private fun HomeShortcut(
     WhiteCard(modifier = modifier, onClick = onClick) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "ADMIN",
+                ui("adminKicker"),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.6.sp,

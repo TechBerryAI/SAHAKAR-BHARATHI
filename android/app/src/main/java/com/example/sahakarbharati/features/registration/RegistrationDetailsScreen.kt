@@ -59,7 +59,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
+import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
+import com.example.sahakarbharati.core.copy.uiText
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.StackTopBar
@@ -79,18 +84,8 @@ private val Saffron = Color(0xFFE9872A)
 private val SaffronText = Color(0xFFB85D12)
 private val TrackIdle = Color(0xFF8A8176)
 
-private val EnglishMonths = listOf(
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-)
-private val HindiMonths = listOf(
-    "जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून",
-    "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर",
-)
-
 @Composable
 fun RegistrationDetailsScreen(
-    hindi: Boolean,
     name: String,
     onName: (String) -> Unit,
     gender: String,
@@ -125,11 +120,13 @@ fun RegistrationDetailsScreen(
 ) {
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
+    val language = LocalLanguage.current
     val parts = dob.split("/")
     val day = parts.getOrNull(0).orEmpty()
     val month = parts.getOrNull(1).orEmpty()
     val year = parts.getOrNull(2).orEmpty()
-    val months = if (hindi) HindiMonths else EnglishMonths
+    val monthNames = uiText(language, "monthNames").split(Regex("\\s+")).filter { it.isNotBlank() }
+    val months = if (monthNames.size == 12) monthNames else uiText(AppLanguage.EN, "monthNames").split(" ")
     val currentYear = Calendar.getInstance().get(Calendar.YEAR)
     val years = (0 until 90).map { (currentYear - 10 - it).toString() }
     val emailOk = email.isBlank() || Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email.trim())
@@ -142,16 +139,8 @@ fun RegistrationDetailsScreen(
     val fractions = checks.map { row -> row.count { it } / row.size.toFloat() }
     val done = fractions.count { it == 1f }
     val percent = ((fractions.sum() / fractions.size) * 100).roundToInt()
-    val progress = if (hindi) {
-        "$done / 4 खंड पूर्ण ($percent%)"
-    } else {
-        "$done OF 4 SECTIONS COMPLETE ($percent%)"
-    }
-    val tracks = if (hindi) {
-        listOf("1 व्यक्तिगत", "2 संपर्क", "3 पता", "4 सुरक्षा")
-    } else {
-        listOf("1 Personal", "2 Contact", "3 Address", "4 Security")
-    }
+    val progress = ui("formProgress", mapOf("done" to done.toString(), "percent" to percent.toString()))
+    val tracks = listOf(ui("stepPersonalTrack"), ui("stepContactTrack"), ui("stepProfileTrack"), ui("stepSecurityTrack"))
     val active = fractions.indexOfFirst { it < 1f }.let { if (it < 0) tracks.lastIndex else it }
 
     Column(
@@ -163,7 +152,7 @@ fun RegistrationDetailsScreen(
     ) {
         Column(Modifier.background(Cream).windowInsetsPadding(WindowInsets.statusBars)) {
             StackTopBar(
-                title = if (hindi) "पंजीकरण" else "Registration",
+                title = ui("registrationTitle"),
                 onBack = onBack,
                 onSosClick = onSos,
             )
@@ -182,7 +171,7 @@ fun RegistrationDetailsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (error.isNotBlank()) {
-                Text(error, color = RathYatraColors.Emergency, fontSize = 14.sp)
+                Text(uiKnown(error), color = RathYatraColors.Emergency, fontSize = 14.sp)
             }
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -256,7 +245,7 @@ fun RegistrationDetailsScreen(
                         value = name,
                         onValue = onName,
                         required = true,
-                        hint = if (hindi) "आधार कार्ड के अनुसार नाम" else "Name as per Aadhaar card",
+                        hint = ui("nameAadhaarHint"),
                     )
                 }
             }
@@ -281,14 +270,14 @@ fun RegistrationDetailsScreen(
                     RequiredLabel(copy.dob, required = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         WebSelect(
-                            placeholder = if (hindi) "दिन" else "Day",
+                            placeholder = ui("dobDay"),
                             selected = day,
                             options = (1..31).map { "%02d".format(it) },
                             onSelect = { onDob(joinDob(it, month, year)) },
                             modifier = Modifier.weight(0.88f),
                         )
                         WebSelect(
-                            placeholder = if (hindi) "माह" else "Month",
+                            placeholder = ui("dobMonth"),
                             selected = month,
                             options = (1..12).map { "%02d".format(it) },
                             labels = months,
@@ -296,7 +285,7 @@ fun RegistrationDetailsScreen(
                             modifier = Modifier.weight(1.82f),
                         )
                         WebSelect(
-                            placeholder = if (hindi) "वर्ष" else "Year",
+                            placeholder = ui("dobYear"),
                             selected = year,
                             options = years,
                             onSelect = { onDob(joinDob(day, month, it)) },
@@ -311,7 +300,7 @@ fun RegistrationDetailsScreen(
                     RequiredLabel(copy.occupation, required = true)
                     Text(copy.occupationHint, fontSize = 12.sp, color = Muted)
                     WebSelect(
-                        placeholder = if (hindi) "चुनें" else "Select",
+                        placeholder = ui("occupationSelect"),
                         selected = occupation,
                         options = listOf("Farmer", "Fisherman", "Both", "Allied"),
                         labels = listOf(copy.farmer, copy.fisherman, copy.both, copy.allied),
@@ -321,10 +310,10 @@ fun RegistrationDetailsScreen(
                 }
             }
 
-            SectionTitle(2, if (hindi) "संपर्क विवरण" else "Contact Details", fractions[1] == 1f)
+            SectionTitle(2, ui("contactTitle"), fractions[1] == 1f)
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RequiredLabel(if (hindi) "मोबाइल नंबर" else "MOBILE NUMBER", required = false)
+                    RequiredLabel(ui("mobileLabel"), required = false)
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -337,47 +326,39 @@ fun RegistrationDetailsScreen(
                         Text("+91", color = Color(0xFF5C665F), fontSize = 16.sp)
                         Text(mobile, color = FieldInk, fontSize = 16.sp)
                     }
-                    Text(
-                        if (hindi) "यह नंबर ओटीपी से सत्यापित है।" else "This number is verified with OTP.",
-                        fontSize = 12.sp,
-                        color = Muted,
-                    )
+                    Text(ui("contactVerifiedHint"), fontSize = 12.sp, color = Muted)
                 }
             }
             WhiteCard {
                 Column(Modifier.padding(16.dp)) {
                     WebField(
-                        label = if (hindi) "ईमेल (वैकल्पिक)" else "EMAIL (OPTIONAL)",
+                        label = ui("emailOptional"),
                         value = email,
                         onValue = onEmail,
                         keyboard = KeyboardType.Email,
-                        hint = if (hindi) "केवल पास और सूचनाएँ भेजने के लिए।" else "Used only to send the pass and notices.",
+                        hint = ui("contactEmailHint"),
                     )
                 }
             }
 
-            SectionTitle(3, if (hindi) "पता" else "Address", fractions[2] == 1f)
+            SectionTitle(3, ui("profileTitle"), fractions[2] == 1f)
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        if (hindi) "अपने प्रतिभागी पास के लिए पता लिखें।" else "Add the address for your participant pass.",
-                        fontSize = 13.sp,
-                        color = Muted,
-                    )
+                    Text(ui("addressCardBody"), fontSize = 13.sp, color = Muted)
                     WebField(
-                        label = if (hindi) "मकान / गली / पता पंक्ति" else "HOUSE / STREET / ADDRESS LINE",
+                        label = ui("houseLabel"),
                         value = addressLine,
                         onValue = onAddressLine,
                     )
                     WebField(
-                        label = if (hindi) "गाँव / वार्ड / इलाका" else "VILLAGE / WARD / LOCALITY",
+                        label = ui("localityLabel"),
                         value = locality,
                         onValue = onLocality,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.weight(1f)) {
                             WebField(
-                                label = if (hindi) "ज़िला" else "DISTRICT",
+                                label = ui("districtLabel"),
                                 value = district,
                                 onValue = onDistrict,
                                 required = true,
@@ -385,7 +366,7 @@ fun RegistrationDetailsScreen(
                         }
                         Box(Modifier.weight(1f)) {
                             WebField(
-                                label = if (hindi) "राज्य" else "STATE",
+                                label = ui("stateLabel"),
                                 value = stateName,
                                 onValue = onState,
                                 required = true,
@@ -393,7 +374,7 @@ fun RegistrationDetailsScreen(
                         }
                     }
                     WebField(
-                        label = if (hindi) "पिनकोड" else "PINCODE",
+                        label = ui("pincodeLabel"),
                         value = pincode,
                         onValue = { onPincode(it.filter(Char::isDigit).take(6)) },
                         required = true,
@@ -402,39 +383,30 @@ fun RegistrationDetailsScreen(
                 }
             }
 
-            SectionTitle(4, if (hindi) "सुरक्षा" else "Security", fractions[3] == 1f)
+            SectionTitle(4, ui("securityTitle"), fractions[3] == 1f)
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        if (hindi) "ऐप पिन" else "App PIN",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Ink,
-                    )
-                    Text(
-                        if (hindi) "4 से 6 अंकों का पिन बनाएँ। खाता इस चरण के बाद ही बनेगा।" else "Create a 4 to 6 digit PIN. The account is created only after this step.",
-                        fontSize = 13.sp,
-                        color = Muted,
-                    )
+                    Text(ui("securityCardTitle"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    Text(ui("securityCardBody"), fontSize = 13.sp, color = Muted)
                 }
             }
             WhiteCard {
                 Column(Modifier.padding(16.dp)) {
                     WebField(
-                        label = if (hindi) "पिन" else "PIN",
+                        label = ui("securityPinLabel"),
                         value = pin,
                         onValue = { onPin(it.filter(Char::isDigit).take(6)) },
                         required = true,
                         password = true,
                         keyboard = KeyboardType.NumberPassword,
-                        hint = if (hindi) "कम से कम 4 अंक।" else "At least 4 digits.",
+                        hint = ui("securityPinHint"),
                     )
                 }
             }
             WhiteCard {
                 Column(Modifier.padding(16.dp)) {
                     WebField(
-                        label = if (hindi) "पिन की पुष्टि" else "CONFIRM PIN",
+                        label = ui("securityConfirmPin"),
                         value = confirmPin,
                         onValue = { onConfirmPin(it.filter(Char::isDigit).take(6)) },
                         required = true,

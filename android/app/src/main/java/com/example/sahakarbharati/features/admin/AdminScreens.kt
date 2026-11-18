@@ -28,10 +28,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sahakarbharati.core.copy.LocalCopy
+import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.formatMobile
+import com.example.sahakarbharati.core.copy.genderLabel
 import com.example.sahakarbharati.core.copy.personInitials
 import com.example.sahakarbharati.core.copy.regionLabel
+import com.example.sahakarbharati.core.copy.roleLabel
 import com.example.sahakarbharati.core.copy.titleCase
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiCount
+import com.example.sahakarbharati.core.copy.uiKnown
+import com.example.sahakarbharati.core.ui.occupationLabel
 import com.example.sahakarbharati.core.ui.InitialAvatar
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SignedInScaffold
@@ -57,7 +65,7 @@ fun AdminUsersScreen(
     val session = rememberAppSession()
     val viewModel: AdminUsersViewModel = sahakarViewModel()
     SignedInScaffold(
-        title = "Registered users",
+        title = ui("registeredUsers"),
         selectedTab = RathYatraDestinations.ADMIN,
         showAdmin = isStaffRole(session.role()),
         onSelectTab = onSelectTab,
@@ -83,15 +91,14 @@ fun AdminUsersScreen(
                 keyboardActions = KeyboardActions(onSearch = { viewModel.search() }),
             )
             Text(
-                if (viewModel.loading) "Loading…" else {
-                    val noun = if (viewModel.total == 1) "person" else "people"
-                    "${viewModel.total} $noun"
+                if (viewModel.loading) ui("loading") else {
+                    uiCount(LocalLanguage.current, viewModel.total, "onePerson", "manyPeople")
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = RathYatraColors.OnSurfaceVariant,
             )
             viewModel.error?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (viewModel.loading) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -99,9 +106,9 @@ fun AdminUsersScreen(
                 }
             } else if (viewModel.users.isEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("No one matches this search.", fontWeight = FontWeight.SemiBold)
+                    Text(ui("noSearchMatch"), fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Try a login ID, a mobile number, or part of a name.",
+                        ui("searchTry"),
                         color = RathYatraColors.OnSurfaceVariant,
                     )
                 }
@@ -115,7 +122,7 @@ fun AdminUsersScreen(
                         enabled = !viewModel.loadingMore,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(if (viewModel.loadingMore) "Please wait…" else "Load more")
+                        Text(if (viewModel.loadingMore) ui("pleaseWait") else ui("loadMore"))
                     }
                 }
             }
@@ -148,7 +155,7 @@ private fun AdminUserRow(user: AdminUserSummary, onClick: () -> Unit) {
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(user.loginId, style = MaterialTheme.typography.labelMedium)
-                    StatusChip(roleLabel(user.role))
+                    StatusChip(roleLabel(LocalLanguage.current, user.role))
                 }
             }
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = RathYatraColors.OnSurfaceVariant)
@@ -176,7 +183,7 @@ fun AdminUserScreen(
         profile.loginId != session.loginId
 
     SignedInScaffold(
-        title = "User details",
+        title = ui("userDetails"),
         selectedTab = RathYatraDestinations.ADMIN_USER,
         showAdmin = isStaffRole(session.role()),
         onSelectTab = onSelectTab,
@@ -193,7 +200,7 @@ fun AdminUserScreen(
         ) {
             AdminSectionSwitch(places = false, onPeople = onOpenPeople, onBooths = onOpenBooths)
             viewModel.error?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (viewModel.loading && person == null) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -203,43 +210,45 @@ fun AdminUserScreen(
                 WhiteCard {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(titleCase(profile.fullName), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text(roleLabel(profile.role), color = RathYatraColors.OnSurfaceVariant)
+                        Text(roleLabel(LocalLanguage.current, profile.role), color = RathYatraColors.OnSurfaceVariant)
                         StatusChip(profile.loginId)
                     }
                 }
+                val language = LocalLanguage.current
+                val copy = LocalCopy.current
                 DetailCard(
-                    "Account",
+                    ui("account"),
                     listOf(
-                        "Participant ID" to profile.loginId,
-                        "Mobile" to formatMobile(profile.mobile),
-                        "Email" to shown(profile.email),
-                        "Gender" to profile.gender?.let(::titleCase).let(::shown),
-                        "Occupation" to profile.occupation?.let(::titleCase).let(::shown),
+                        ui("loginId") to profile.loginId,
+                        ui("mobile") to formatMobile(profile.mobile),
+                        ui("email") to shown(profile.email),
+                        ui("gender") to genderLabel(language, profile.gender),
+                        ui("occupation") to (occupationLabel(copy, profile.occupation) ?: shown(profile.occupation)),
                     ),
                 )
                 DetailCard(
-                    "Address",
+                    ui("address"),
                     listOf(
-                        "Address" to shown(profile.addressLine),
-                        "Locality" to profile.locality?.let(::titleCase).let(::shown),
-                        "District" to profile.district?.let(::titleCase).let(::shown),
-                        "State" to profile.state?.let(::titleCase).let(::shown),
-                        "PIN code" to shown(profile.pincode),
+                        ui("address") to shown(profile.addressLine),
+                        ui("locality") to profile.locality?.let(::titleCase).let(::shown),
+                        ui("district") to profile.district?.let(::titleCase).let(::shown),
+                        ui("state") to profile.state?.let(::titleCase).let(::shown),
+                        ui("pincode") to shown(profile.pincode),
                     ),
                 )
                 if (canGrant) {
                     WhiteCard {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                if (profile.role == ROLE_ADMIN) "Admin access is on" else "Participant only",
+                                if (profile.role == ROLE_ADMIN) ui("adminAccessOn") else ui("participantOnly"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 if (profile.role == ROLE_ADMIN) {
-                                    "This person can open the directory. They cannot grant access to anyone else."
+                                    ui("adminAccessOnBody")
                                 } else {
-                                    "Give admin access so this person can open the directory and read registrations."
+                                    ui("giveAdminBody")
                                 },
                                 color = RathYatraColors.OnSurfaceVariant,
                             )
@@ -248,11 +257,11 @@ fun AdminUserScreen(
                                     onClick = { viewModel.setRole(userId, ROLE_PARTICIPANT) },
                                     enabled = !viewModel.busy,
                                 ) {
-                                    Text(if (viewModel.busy) "Please wait…" else "Remove admin access")
+                                    Text(if (viewModel.busy) ui("pleaseWait") else ui("removeAdmin"))
                                 }
                             } else {
                                 SaffronButton(
-                                    text = if (viewModel.busy) "Please wait…" else "Give admin access",
+                                    text = if (viewModel.busy) ui("pleaseWait") else ui("giveAdmin"),
                                     onClick = { if (!viewModel.busy) viewModel.setRole(userId, ROLE_ADMIN) },
                                 )
                             }
@@ -277,12 +286,6 @@ private fun DetailCard(title: String, rows: List<Pair<String, String>>) {
             }
         }
     }
-}
-
-private fun roleLabel(role: String): String = when (role) {
-    ROLE_SUPER_ADMIN -> "Super admin"
-    ROLE_ADMIN -> "Admin"
-    else -> "Participant"
 }
 
 private fun shown(value: String?): String = value?.trim()?.ifBlank { null } ?: "—"
