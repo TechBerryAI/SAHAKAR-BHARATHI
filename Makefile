@@ -51,7 +51,7 @@ test-scripts: ## Run the Node tests under scripts/
 lint: lint-backend lint-web ## Run backend ruff, web ESLint, and the web typecheck
 
 lint-backend: ## Run ruff on the backend
-	cd backend && $(VENV_PY) -m ruff check
+	$(VENV_PY) -m ruff check backend
 
 lint-web: ## Run ESLint and the TypeScript check
 	npm --prefix web run lint

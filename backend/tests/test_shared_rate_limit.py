@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -26,8 +28,56 @@ def test_postgres_limiter_restarts_after_window(engine: Engine) -> None:
     assert limiter.allow("register:9.9.9.9", 1, 60) is True
     assert limiter.allow("register:9.9.9.9", 1, 60) is False
     with engine.begin() as connection:
-        connection.execute(text("UPDATE rate_limit_buckets SET window_start = now() - interval '2 minutes'"))
+        connection.execute(
+            text(
+                """
+                UPDATE rate_limit_buckets
+                SET window_start = now() - interval '2 minutes',
+                    hit_times = ARRAY(
+                        SELECT t - interval '2 minutes' FROM unnest(hit_times) AS t
+                    )
+                """
+            )
+        )
     assert limiter.allow("register:9.9.9.9", 1, 60) is True
+
+
+def test_postgres_limiter_does_not_double_at_a_window_boundary(engine: Engine) -> None:
+    """A fixed window would reset when window_start is old and allow another full quota."""
+    limiter = PostgresRateLimiter(engine)
+    key = "otp-send-boundary"
+    assert limiter.allow(key, 2, 60) is True
+    assert limiter.allow(key, 2, 60) is True
+    assert limiter.allow(key, 2, 60) is False
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                UPDATE rate_limit_buckets
+                SET window_start = window_start - interval '2 minutes',
+                    hit_times = ARRAY(
+                        SELECT t - interval '30 seconds' FROM unnest(hit_times) AS t
+                    )
+                WHERE key_hash = :key_hash
+                """
+            ),
+            {"key_hash": hashlib.sha256(key.encode()).hexdigest()},
+        )
+    assert limiter.allow(key, 2, 60) is False
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                UPDATE rate_limit_buckets
+                SET hit_times = ARRAY(
+                    SELECT t - interval '2 minutes' FROM unnest(hit_times) AS t
+                )
+                WHERE key_hash = :key_hash
+                """
+            ),
+            {"key_hash": hashlib.sha256(key.encode()).hexdigest()},
+        )
+    assert limiter.allow(key, 2, 60) is True
 
 
 def test_postgres_limiter_stores_only_hashed_keys(engine: Engine) -> None:
@@ -48,7 +98,8 @@ def test_postgres_limiter_is_atomic_under_concurrency(engine: Engine) -> None:
     assert results.count(True) == 10
     with engine.connect() as connection:
         hits = connection.execute(text("SELECT hits FROM rate_limit_buckets")).scalar_one()
-    assert hits == 40
+    # Accepted timestamps only. Denied attempts are not stored, so the array cannot grow without bound.
+    assert hits == 10
 
 
 def test_app_uses_postgres_limiter_when_configured(engine: Engine, monkeypatch) -> None:
@@ -70,8 +121,13 @@ def test_app_uses_postgres_limiter_when_configured(engine: Engine, monkeypatch) 
                     last = client.post("/api/v1/sessions", json={"identifier": "9876543210", "pin": "0000"})
                 assert last is not None and last.status_code == 429
             with engine.connect() as connection:
-                hits = connection.execute(text("SELECT max(hits) FROM rate_limit_buckets")).scalar_one()
-            assert hits == 6
+                identifier_hits = connection.execute(
+                    text("SELECT hits FROM rate_limit_buckets ORDER BY hits")
+                ).scalars().all()
+            # Per-identifier cap is 5. The IP cap is higher, so the sixth request
+            # is stored on the IP key and refused by the identifier key.
+            assert 5 in identifier_hits
+            assert max(identifier_hits) == 6
         finally:
             db_session.engine = original_engine
     finally:
@@ -89,8 +145,11 @@ class _DownEngine:
         raise SQLAlchemyError("database is down")
 
 
-def test_postgres_limiter_fails_open_when_the_database_errors() -> None:
-    assert PostgresRateLimiter(_DownEngine()).allow("otp-send:127.0.0.1", 1, 60) is True  # type: ignore[arg-type]
+def test_postgres_limiter_fails_closed_when_the_database_errors() -> None:
+    from app.core.rate_limit import RateLimitUnavailable
+
+    with pytest.raises(RateLimitUnavailable):
+        PostgresRateLimiter(_DownEngine()).allow("otp-send:127.0.0.1", 1, 60)  # type: ignore[arg-type]
 
 
 def test_postgres_limiter_reset_clears_buckets(engine: Engine) -> None:

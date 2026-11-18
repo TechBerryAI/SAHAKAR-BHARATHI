@@ -10,11 +10,20 @@ from app.models import (  # noqa: F401
     Attendance,
     AuditEvent,
     AuthSession,
+    District,
+    DistrictAdministrator,
     PhoneVerification,
     Place,
+    ProtocolDocument,
+    ProtocolItem,
+    ProtocolTemplate,
     RateLimitBucket,
     Registration,
     User,
+    Yatra,
+    YatraAdministrator,
+    YatraRoute,
+    YatraStop,
 )
 
 config = context.config

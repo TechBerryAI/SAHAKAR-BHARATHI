@@ -37,6 +37,7 @@ local.properties
 .claude/
 
 # Logs and dumps
+backend/var/
 *.log
 logs/
 *.hprof

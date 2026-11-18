@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <exclude domain="sharedpref" path="sahakar_secure_session" />
+    <exclude domain="sharedpref" path="sahakar_secure_session.xml" />
     <exclude domain="sharedpref" path="sahakar_session" />
+    <exclude domain="sharedpref" path="sahakar_session.xml" />
     <exclude domain="file" path="profile_photo.jpg" />
 </full-backup-content>

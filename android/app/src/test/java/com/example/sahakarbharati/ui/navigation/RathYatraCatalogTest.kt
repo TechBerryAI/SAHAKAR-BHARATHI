@@ -25,6 +25,8 @@ class RathYatraNavigationTest {
         assertTrue(ids.contains(RathYatraDestinations.ADMIN_PLACES))
         assertTrue(ids.contains(RathYatraDestinations.ADMIN_PLACE))
         assertTrue(ids.contains(RathYatraDestinations.ATTENDANCE))
+        assertTrue(ids.contains(RathYatraDestinations.YATRAS))
+        assertTrue(ids.contains(RathYatraDestinations.YATRA_DETAIL))
         assertFalse(ids.contains("tracking"))
         assertFalse(ids.contains("qr_attendance"))
         assertFalse(ids.contains("benefits"))

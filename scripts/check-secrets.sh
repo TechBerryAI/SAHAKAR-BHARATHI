@@ -46,6 +46,11 @@ for file in "${files[@]}"; do
   for rule in "${rules[@]}"; do
     name="${rule%%|*}"
     pattern="${rule#*|}"
+    # scripts/dev-database.test.js feeds the parser synthetic URLs (user:secret,
+    # s3cret). Those are fixtures, not credentials. The rule still applies everywhere else.
+    if [[ "$name" == "postgres-url-with-password" && "$file" == "scripts/dev-database.test.js" ]]; then
+      continue
+    fi
     if grep -E -n -- "$pattern" "$file" | grep -E -v -- "$allowed_content" >/dev/null; then
       lines=$(grep -E -n -- "$pattern" "$file" | grep -E -v -- "$allowed_content" | cut -d: -f1 | paste -sd, -)
       echo "secret-check: $name in $file (line $lines)"

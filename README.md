@@ -4,8 +4,12 @@ Participant platform for the Sahakar Bharati Rath Yatra: a native Android app, a
 React web app / PWA, and a FastAPI backend on PostgreSQL (Supabase).
 
 Status and evidence: [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
-Registration, sign-in, profile and sessions work end to end. Tracking, QR
-attendance, benefits and notifications have no backend and are shown as unavailable.
+Phase 1 (registration, sign-in, profile, sessions, and event check-in) and
+Phase 2A (districts, Rath Yatra management, stops, and protocol approvals) are
+implemented in this repository. Phase 2 overall is not: live chariot tracking,
+QR counters, subsidies, benefits, and notifications are not built. See
+[`docs/PHASE_2A.md`](docs/PHASE_2A.md). Backups, alerts, and a live deploy are
+operator work, not something this repository has performed.
 
 ## Architecture
 
@@ -29,7 +33,7 @@ Web / PWA (React, Vite) ─────┘                                      
 | [`backend/`](backend/) | FastAPI app, Alembic migrations, pytest suite (Render root dir) |
 | [`web/`](web/) | Vite + React + TypeScript app, PWA, Firebase Hosting config |
 | [`infra/supabase/`](infra/supabase/) | `schema.sql` snapshot, optional `runtime_role.sql` |
-| [`docs/`](docs/) | Database, deployment, readiness report |
+| [`docs/`](docs/) | Database, deployment, monitoring, readiness, Phase 2A |
 | [`scripts/`](scripts/) | Launchers used by `make start` and `make android`, plus [`check-secrets.sh`](scripts/check-secrets.sh) |
 | [`render.yaml`](render.yaml) | Render Blueprint (service `sahakar-bharati-api`) |
 | [`.github/workflows/`](.github/workflows/) | Backend, web, Android CI; Firebase Hosting deploy |
@@ -107,7 +111,8 @@ Secrets live only in gitignored files (`backend/.env`, `web/.env.local`,
 
 - [`docs/DATABASE.md`](docs/DATABASE.md): init, migrations, roles, Supabase settings, backups
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): CI/CD, branch flow, Render, Firebase, Android release, rollback
-- [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md): findings, changes, test evidence, launch checklist
+- [`docs/MONITORING.md`](docs/MONITORING.md): signals to watch; alerts are not configured
+- [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md): what is implemented in the repository, and what an operator still has to do
 
 ## Identity
 

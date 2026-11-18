@@ -326,6 +326,8 @@ describe('registration and profile', () => {
       ['An account already exists with this email address.', 'emailRegistered'],
       ['The code is incorrect or has expired.', 'otpInvalid'],
       ['Verify this mobile number before registering.', 'verificationExpired'],
+      ['Could not send the SMS. Please try again.', 'otpSendFailed'],
+      ['Please try again in a moment.', 'pleaseWait'],
     ]
     for (const [message, key] of cases) {
       const error = new ApiError(400, message)
