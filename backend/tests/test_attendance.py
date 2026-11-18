@@ -68,6 +68,26 @@ def test_staff_can_load_a_place_by_id(client: TestClient, engine: Engine) -> Non
     assert denied.status_code == 403
 
 
+def test_booth_name_is_required_and_a_real_name_creates_one(client: TestClient, engine: Engine) -> None:
+    staff = _staff_session(client, engine)
+    headers = _headers(str(staff["access_token"]))
+    missing = client.post("/api/v1/admin/places", headers=headers, json={"name": "A"})
+    assert missing.status_code == 422, missing.text
+    padded = client.post("/api/v1/admin/places", headers=headers, json={"name": "  A  "})
+    assert padded.status_code == 422, padded.text
+    assert "Booth name is required." in padded.text
+
+    created = client.post("/api/v1/admin/places", headers=headers, json={"name": "  Gate booth  "})
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["name"] == "Gate booth"
+    assert body["active"] is True
+    assert len(body["code"]) == 6 and body["code"].isdigit()
+    listed = client.get("/api/v1/admin/places", headers=headers)
+    assert listed.status_code == 200, listed.text
+    assert any(item["id"] == body["id"] for item in listed.json()["items"])
+
+
 def test_participant_cannot_create_a_place(client: TestClient) -> None:
     _created, session = register_and_login(client)
     denied = client.post(

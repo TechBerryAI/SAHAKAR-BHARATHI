@@ -489,9 +489,11 @@ function deviceReachesApi(sdk, serial, baseUrl) {
   const url = new URL(baseUrl)
   const port = url.port || (url.protocol === 'https:' ? '443' : '80')
   // The request is written on the device. Piping it through adb stdin drops the reply.
+  // Android nc exits when the request file ends, before the HTTP body arrives,
+  // so keep its stdin open briefly or the check sees an empty reply.
   const probe = adb(sdk, serial, [
     'shell',
-    `printf "GET /health/live HTTP/1.0\\r\\nHost: ${url.hostname}\\r\\nConnection: close\\r\\n\\r\\n" > /data/local/tmp/sahakar-req.txt; nc -W 5 -w 5 ${url.hostname} ${port} < /data/local/tmp/sahakar-req.txt`,
+    `printf "GET /health/live HTTP/1.0\\r\\nHost: ${url.hostname}\\r\\nConnection: close\\r\\n\\r\\n" > /data/local/tmp/sahakar-req.txt; (cat /data/local/tmp/sahakar-req.txt; sleep 1) | nc -w 5 ${url.hostname} ${port}`,
   ])
   return (probe.stdout || '').includes('"status"')
 }
