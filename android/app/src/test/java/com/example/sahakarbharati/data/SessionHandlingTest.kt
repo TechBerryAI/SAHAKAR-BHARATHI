@@ -11,7 +11,6 @@ import com.example.sahakarbharati.data.remote.PlaceCreateRequest
 import com.example.sahakarbharati.data.remote.PlaceDto
 import com.example.sahakarbharati.data.remote.PlaceListDto
 import com.example.sahakarbharati.data.remote.AttendanceListDto
-import com.example.sahakarbharati.data.remote.BoothCodeListDto
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
 import com.example.sahakarbharati.data.remote.CheckInRequest
 import com.example.sahakarbharati.data.remote.AdminUserListDto
@@ -169,7 +168,8 @@ class SessionHandlingTest {
         viewModel.load()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state is UiState.Error)
+        assertTrue(viewModel.state is UiState.Idle)
+        assertFalse(session.isLoggedIn())
     }
 
     @Test
@@ -298,11 +298,9 @@ private class FakeApi(private val sessionFails: Boolean) : SahakarApi {
 
     override suspend fun checkIn(authorization: String, body: CheckInRequest): AttendanceRecordDto = error("unused")
 
-    override suspend fun myAttendance(authorization: String): AttendanceListDto = error("unused")
+    override suspend fun myAttendance(authorization: String, limit: Int, offset: Int): AttendanceListDto = error("unused")
 
-    override suspend fun listBoothCodes(authorization: String): BoothCodeListDto = error("unused")
-
-    override suspend fun listPlaces(authorization: String): PlaceListDto = error("unused")
+    override suspend fun listPlaces(authorization: String, limit: Int, offset: Int): PlaceListDto = error("unused")
 
     override suspend fun getPlace(authorization: String, placeId: String): PlaceDto = error("unused")
 

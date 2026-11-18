@@ -9,7 +9,6 @@ import com.example.sahakarbharati.data.model.RegistrationResult
 import com.example.sahakarbharati.data.remote.AdminAttendanceListDto
 import com.example.sahakarbharati.data.remote.AttendanceListDto
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
-import com.example.sahakarbharati.data.remote.BoothCodeDto
 import com.example.sahakarbharati.data.remote.PlaceDto
 import com.example.sahakarbharati.data.remote.ProfileUpdateRequest
 import com.example.sahakarbharati.data.remote.RegistrationRequest
@@ -18,6 +17,7 @@ import com.example.sahakarbharati.data.repository.AttendanceRepository
 import com.example.sahakarbharati.data.repository.AuthRepository
 import com.example.sahakarbharati.data.repository.ProfileRepository
 import com.example.sahakarbharati.data.repository.SessionStore
+import java.util.concurrent.CopyOnWriteArrayList
 import com.example.sahakarbharati.features.admin.AdminPlaceViewModel
 import com.example.sahakarbharati.features.admin.AdminPlacesViewModel
 import com.example.sahakarbharati.features.admin.AdminUserViewModel
@@ -67,10 +67,9 @@ class FeatureViewModelTest {
                 return gate.await()
             }
 
-            override suspend fun mine(): Result<AttendanceListDto> =
+            override suspend fun mine(offset: Int): Result<AttendanceListDto> =
                 Result.success(AttendanceListDto(listOf(visit("visit-1")), 1))
 
-            override suspend fun boothCodes(): Result<List<BoothCodeDto>> = Result.success(emptyList())
         }
         val viewModel = AttendanceViewModel(repository)
         viewModel.load()
@@ -157,7 +156,8 @@ class FeatureViewModelTest {
         }
         val viewModel = RegistrationViewModel(auth)
         viewModel.confirmOtp("123456")
-        assertEquals("Send an OTP before verifying.", viewModel.otpNote)
+        assertEquals("otpSendFirst", viewModel.otpNoteKey)
+        assertEquals("", viewModel.otpNote)
 
         viewModel.sendOtp("9876543210")
         advanceUntilIdle()
@@ -210,6 +210,7 @@ class FeatureViewModelTest {
             }
         }
         val viewModel = AdminUsersViewModel(repository)
+        viewModel.refresh()
         advanceUntilIdle()
         viewModel.onQueryChange("live text")
         assertEquals("", queries.last().first)
@@ -255,7 +256,8 @@ class FeatureViewModelTest {
     fun adminPlacesCapTheNameAndToggleActive() = runTest {
         var created = 0
         val repository = object : AdminRepository by unusedAdmin() {
-            override suspend fun listPlaces(): Result<List<PlaceDto>> = Result.success(emptyList())
+            override suspend fun listPlaces(offset: Int): Result<com.example.sahakarbharati.data.remote.PlaceListDto> =
+                Result.success(com.example.sahakarbharati.data.remote.PlaceListDto(emptyList()))
             override suspend fun createPlace(name: String): Result<PlaceDto> {
                 created += 1
                 return Result.success(place("place-1", name, true))
@@ -291,6 +293,254 @@ class FeatureViewModelTest {
         assertEquals(false, place.place?.active)
     }
 
+    @Test
+    fun profileSaveIgnoresASecondTapUntilTheFirstRequestFinishes() = runTest {
+        var updates = 0
+        val repository = object : ProfileRepository {
+            override suspend fun me(): Result<ParticipantProfile> = Result.success(profile("Anita"))
+            override suspend fun update(request: ProfileUpdateRequest): Result<ParticipantProfile> {
+                updates += 1
+                return Result.success(profile(request.fullName ?: "Anita"))
+            }
+        }
+        val viewModel = ProfileViewModel(repository, unusedAuth())
+        val request = ProfileUpdateRequest(fullName = "Anita Rao")
+        viewModel.save(request)
+        viewModel.save(request)
+        advanceUntilIdle()
+        assertEquals(1, updates)
+        assertFalse(viewModel.saving)
+        assertTrue(viewModel.saved)
+    }
+
+    @Test
+    fun profileSaveRestoresTheButtonAfterAFailure() = runTest {
+        val repository = object : ProfileRepository {
+            override suspend fun me(): Result<ParticipantProfile> = error("unused")
+            override suspend fun update(request: ProfileUpdateRequest): Result<ParticipantProfile> =
+                Result.failure(Exception("Profile could not be updated."))
+        }
+        val viewModel = ProfileViewModel(repository, unusedAuth())
+        viewModel.save(ProfileUpdateRequest(fullName = "Anita"))
+        advanceUntilIdle()
+        assertFalse(viewModel.saving)
+        assertEquals("Profile could not be updated.", viewModel.saveError)
+    }
+
+    @Test
+    fun attendanceHistoryPagesAppendAndKeepLoadedRows() = runTest {
+        var calls = 0
+        var failNext = false
+        val repository = object : AttendanceRepository {
+            override suspend fun checkIn(code: String, source: String): Result<AttendanceRecordDto> = error("unused")
+            override suspend fun mine(offset: Int): Result<AttendanceListDto> {
+                calls += 1
+                if (failNext && offset > 0) return Result.failure(Exception("page failed"))
+                val items = List(if (offset == 0) 50 else 1) { index -> visit("visit-${offset + index}") }
+                return Result.success(
+                    AttendanceListDto(items, total = 51, limit = 50, offset = offset, hasMore = offset == 0),
+                )
+            }
+        }
+        val viewModel = AttendanceViewModel(repository)
+        viewModel.load()
+        advanceUntilIdle()
+        assertEquals(50, viewModel.state.history.size)
+        assertTrue(viewModel.state.hasMore)
+        val first = viewModel.state.history.first().id
+
+        viewModel.loadMore()
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertEquals(2, calls)
+        assertEquals(51, viewModel.state.history.size)
+        assertEquals(first, viewModel.state.history.first().id)
+        assertFalse(viewModel.state.hasMore)
+        assertFalse(viewModel.state.loadingMore)
+
+        val before = viewModel.state.history
+        failNext = true
+        calls = 0
+        val stuck = AttendanceViewModel(object : AttendanceRepository {
+            override suspend fun checkIn(code: String, source: String) = error("unused")
+            override suspend fun mine(offset: Int): Result<AttendanceListDto> {
+                calls += 1
+                return if (offset == 0) {
+                    Result.success(AttendanceListDto(listOf(visit("visit-1")), total = 2, limit = 50, offset = 0, hasMore = true))
+                } else {
+                    Result.failure(Exception("page failed"))
+                }
+            }
+        })
+        stuck.load()
+        advanceUntilIdle()
+        stuck.loadMore()
+        stuck.loadMore()
+        advanceUntilIdle()
+        assertEquals(2, calls)
+        assertEquals(listOf("visit-1"), stuck.state.history.map { it.id })
+        assertEquals("page failed", stuck.state.error)
+        assertEquals(before.first().id, viewModel.state.history.first().id)
+    }
+
+    @Test
+    fun attendanceHistoryCoversEmptyAndAFullLastPage() = runTest {
+        val empty = AttendanceViewModel(object : AttendanceRepository {
+            override suspend fun checkIn(code: String, source: String): Result<AttendanceRecordDto> = error("unused")
+            override suspend fun mine(offset: Int): Result<AttendanceListDto> =
+                Result.success(AttendanceListDto(emptyList(), total = 0, limit = 50, offset = 0, hasMore = false))
+        })
+        empty.load()
+        advanceUntilIdle()
+        assertTrue(empty.state.history.isEmpty())
+        assertFalse(empty.state.hasMore)
+        empty.loadMore()
+        advanceUntilIdle()
+        assertTrue(empty.state.history.isEmpty())
+
+        var offsets = mutableListOf<Int>()
+        val exact = AttendanceViewModel(object : AttendanceRepository {
+            override suspend fun checkIn(code: String, source: String): Result<AttendanceRecordDto> = error("unused")
+            override suspend fun mine(offset: Int): Result<AttendanceListDto> {
+                offsets += offset
+                val items = List(50) { visit("visit-$it") }
+                return Result.success(AttendanceListDto(items, total = 50, limit = 50, offset = offset, hasMore = false))
+            }
+        })
+        exact.load()
+        advanceUntilIdle()
+        exact.loadMore()
+        advanceUntilIdle()
+        assertEquals(listOf(0), offsets)
+        assertEquals(50, exact.state.history.size)
+        assertFalse(exact.state.hasMore)
+    }
+
+    @Test
+    fun openingPeopleRefreshesPageOneWithoutRepeatingOnTheSameEntry() = runTest {
+        var calls = 0
+        val repository = object : AdminRepository by unusedAdmin() {
+            override suspend fun listUsers(query: String, offset: Int): Result<AdminUserPage> {
+                calls += 1
+                val item = summary(if (offset == 0) "user-1" else "user-2")
+                return Result.success(AdminUserPage(listOf(item), total = 2, limit = 20, offset = offset))
+            }
+        }
+        val viewModel = AdminUsersViewModel(repository)
+        viewModel.refresh()
+        viewModel.refresh()
+        advanceUntilIdle()
+        assertEquals(1, calls)
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertEquals(2, viewModel.users.size)
+        viewModel.refresh()
+        advanceUntilIdle()
+        assertEquals(listOf("user-1"), viewModel.users.map { it.id })
+        assertEquals(3, calls)
+    }
+
+    @Test
+    fun logoutClearsProfileAttendanceAndAdminStateBeforeTheNextAccount() = runTest {
+        val profiles = object : ProfileRepository {
+            override suspend fun me(): Result<ParticipantProfile> = Result.success(profile("Anita"))
+            override suspend fun update(request: ProfileUpdateRequest): Result<ParticipantProfile> =
+                Result.success(profile(request.fullName ?: "Anita"))
+        }
+        val attendance = object : AttendanceRepository {
+            override suspend fun checkIn(code: String, source: String): Result<AttendanceRecordDto> = error("unused")
+            override suspend fun mine(offset: Int): Result<AttendanceListDto> =
+                Result.success(AttendanceListDto(listOf(visit("visit-a")), total = 1))
+        }
+        val admin = object : AdminRepository by unusedAdmin() {
+            override suspend fun listUsers(query: String, offset: Int): Result<AdminUserPage> =
+                Result.success(AdminUserPage(listOf(summary("user-a")), total = 1, limit = 20, offset = 0))
+            override suspend fun listPlaces(offset: Int): Result<com.example.sahakarbharati.data.remote.PlaceListDto> =
+                Result.success(com.example.sahakarbharati.data.remote.PlaceListDto(listOf(place("place-a", "Gate", true)), total = 1))
+        }
+        val session = NotifyingSession()
+        session.saveSession("token-a", profile("Anita"))
+        val profileViewModel = ProfileViewModel(profiles, unusedAuth(), session)
+        val homeViewModel = HomeViewModel(profiles, session)
+        val attendanceViewModel = AttendanceViewModel(attendance, session)
+        val peopleViewModel = AdminUsersViewModel(admin, session)
+        val boothsViewModel = AdminPlacesViewModel(admin, session)
+        profileViewModel.load()
+        homeViewModel.load()
+        attendanceViewModel.load()
+        peopleViewModel.refresh()
+        boothsViewModel.refresh()
+        advanceUntilIdle()
+        assertEquals("Anita", (profileViewModel.state as UiState.Success).data.fullName)
+        assertEquals("Anita", (homeViewModel.state as UiState.Success).data.fullName)
+        assertEquals(1, attendanceViewModel.state.history.size)
+        assertEquals(1, peopleViewModel.users.size)
+        assertEquals(1, boothsViewModel.places.size)
+
+        session.clearSession()
+        assertTrue(profileViewModel.state is UiState.Idle)
+        assertTrue(homeViewModel.state is UiState.Idle)
+        assertTrue(attendanceViewModel.state.history.isEmpty())
+        assertTrue(peopleViewModel.users.isEmpty())
+        assertTrue(boothsViewModel.places.isEmpty())
+        assertNull(session.cachedProfile())
+
+        session.saveSession("token-b", profile("Bina"))
+        val bina = object : ProfileRepository {
+            override suspend fun me(): Result<ParticipantProfile> = Result.success(profile("Bina"))
+            override suspend fun update(request: ProfileUpdateRequest): Result<ParticipantProfile> = error("unused")
+        }
+        val nextProfile = ProfileViewModel(bina, unusedAuth(), session)
+        nextProfile.load()
+        advanceUntilIdle()
+        assertEquals("Bina", (nextProfile.state as UiState.Success).data.fullName)
+        assertTrue(profileViewModel.state is UiState.Idle)
+    }
+
+    @Test
+    fun aDelayedPreviousAccountResponseCannotFillTheNextAccount() = runTest {
+        val gate = CompletableDeferred<Result<ParticipantProfile>>()
+        var calls = 0
+        val profiles = object : ProfileRepository {
+            override suspend fun me(): Result<ParticipantProfile> {
+                calls += 1
+                return if (calls == 1) gate.await() else Result.success(profile("Bina"))
+            }
+            override suspend fun update(request: ProfileUpdateRequest): Result<ParticipantProfile> = error("unused")
+        }
+        val session = NotifyingSession()
+        session.saveSession("token-a", profile("Anita"))
+        val viewModel = ProfileViewModel(profiles, unusedAuth(), session)
+        viewModel.load()
+        runCurrent()
+        session.saveSession("token-b", profile("Bina"))
+        gate.complete(Result.success(profile("Anita")))
+        viewModel.load()
+        advanceUntilIdle()
+        assertEquals("Bina", (viewModel.state as UiState.Success).data.fullName)
+
+        val historyGate = CompletableDeferred<Result<AttendanceListDto>>()
+        var historyCalls = 0
+        val attendance = object : AttendanceRepository {
+            override suspend fun checkIn(code: String, source: String): Result<AttendanceRecordDto> = error("unused")
+            override suspend fun mine(offset: Int): Result<AttendanceListDto> {
+                historyCalls += 1
+                return if (historyCalls == 1) {
+                    historyGate.await()
+                } else {
+                    Result.success(AttendanceListDto(listOf(visit("visit-b")), total = 1))
+                }
+            }
+        }
+        val attendanceViewModel = AttendanceViewModel(attendance, session)
+        attendanceViewModel.load()
+        runCurrent()
+        session.clearSession()
+        historyGate.complete(Result.success(AttendanceListDto(listOf(visit("visit-a")), total = 1)))
+        advanceUntilIdle()
+        assertTrue(attendanceViewModel.state.history.isEmpty())
+    }
+
     private fun profile(name: String) = ParticipantProfile(loginId = "SB-1", fullName = name, mobile = "9876543210")
 
     private fun visit(id: String) = AttendanceRecordDto(
@@ -319,6 +569,42 @@ class FeatureViewModelTest {
 
     private fun place(id: String, name: String, active: Boolean) =
         PlaceDto(id, name, "004218", active, "2026-11-03T00:00:00Z")
+}
+
+private class NotifyingSession : SessionStore {
+    private val listeners = CopyOnWriteArrayList<(Int) -> Unit>()
+    private var epoch = 0
+    private var token: String? = null
+    private var profile: ParticipantProfile? = null
+
+    override fun isLoggedIn(): Boolean = !token.isNullOrBlank()
+    override fun accessToken(): String? = token
+    override fun cachedProfile(): ParticipantProfile? = profile
+    override fun epoch(): Int = epoch
+    override fun addEpochListener(listener: (Int) -> Unit) {
+        listeners.add(listener)
+    }
+    override fun removeEpochListener(listener: (Int) -> Unit) {
+        listeners.remove(listener)
+    }
+    override fun saveSession(token: String, profile: ParticipantProfile) {
+        this.token = token
+        this.profile = profile
+        advance()
+    }
+    override fun saveProfile(profile: ParticipantProfile) {
+        this.profile = profile
+    }
+    override fun clearSession() {
+        token = null
+        profile = null
+        advance()
+    }
+    private fun advance() {
+        epoch += 1
+        val current = epoch
+        listeners.forEach { listener -> listener(current) }
+    }
 }
 
 private class MemorySession(start: ParticipantProfile?) : SessionStore {
@@ -353,7 +639,7 @@ private fun unusedAdmin(): AdminRepository = object : AdminRepository {
     override suspend fun listUsers(query: String, offset: Int): Result<AdminUserPage> = error("unused")
     override suspend fun getUser(id: String): Result<AdminUserDetail> = error("unused")
     override suspend fun setRole(id: String, role: String): Result<AdminUserDetail> = error("unused")
-    override suspend fun listPlaces(): Result<List<PlaceDto>> = error("unused")
+    override suspend fun listPlaces(offset: Int): Result<com.example.sahakarbharati.data.remote.PlaceListDto> = error("unused")
     override suspend fun getPlace(id: String): Result<PlaceDto> = error("unused")
     override suspend fun createPlace(name: String): Result<PlaceDto> = error("unused")
     override suspend fun setPlaceActive(id: String, active: Boolean): Result<PlaceDto> = error("unused")

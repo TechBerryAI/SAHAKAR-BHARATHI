@@ -22,8 +22,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -63,7 +66,9 @@ fun AdminUsersScreen(
     modifier: Modifier = Modifier,
 ) {
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: AdminUsersViewModel = sahakarViewModel()
+    LaunchedEffect(accountEpoch) { viewModel.refresh() }
     SignedInScaffold(
         title = ui("registeredUsers"),
         selectedTab = RathYatraDestinations.ADMIN,
@@ -86,7 +91,7 @@ fun AdminUsersScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = { Text("Search name, mobile, or login ID") },
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = ui("searchPeople")) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { viewModel.search() }),
             )
@@ -136,7 +141,7 @@ private fun AdminUserRow(user: AdminUserSummary, onClick: () -> Unit) {
         user.district?.let(::titleCase),
         user.state?.let(::titleCase),
     )
-    WhiteCard(onClick = onClick) {
+    WhiteCard(onClick = onClick, modifier = Modifier.semantics(mergeDescendants = true) {}) {
         Row(
             Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,

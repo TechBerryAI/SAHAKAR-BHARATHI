@@ -219,7 +219,7 @@ def test_failed_codes_are_rate_limited(client: TestClient) -> None:
     assert blocked.status_code == 429
 
 
-def test_booth_directory_lists_only_active_codes_for_a_signed_in_user(
+def test_booth_directory_is_staff_only_and_lists_active_codes(
     client: TestClient, engine: Engine
 ) -> None:
     _created, participant = register_and_login(client)
@@ -242,11 +242,50 @@ def test_booth_directory_lists_only_active_codes_for_a_signed_in_user(
     denied = client.get("/api/v1/admin/places", headers=_headers(participant["access_token"]))
     assert denied.status_code == 403
 
-    listed = client.get("/api/v1/places", headers=_headers(participant["access_token"]))
+    denied_codes = client.get("/api/v1/places", headers=_headers(participant["access_token"]))
+    assert denied_codes.status_code == 403
+    assert "code" not in denied_codes.text
+
+    listed = client.get("/api/v1/places", headers=staff_headers)
     assert listed.status_code == 200, listed.text
     names = [item["name"] for item in listed.json()["items"]]
     assert names == ["Apple stall", "Mango stall"]
     assert all(len(item["code"]) == 6 and item["code"].isdigit() for item in listed.json()["items"])
+
+
+def test_check_in_belongs_to_the_authenticated_user(client: TestClient, engine: Engine) -> None:
+    created, participant = register_and_login(client)
+    _other, other = register_and_login(
+        client,
+        mobile="9000000099",
+        email="other-checkin@example.com",
+        full_name="Other Person",
+    )
+    staff = _staff_session(client, engine)
+    place = client.post(
+        "/api/v1/admin/places",
+        headers=_headers(staff["access_token"]),
+        json={"name": "Owned stall"},
+    )
+    assert place.status_code == 201, place.text
+    checked = client.post(
+        "/api/v1/attendance",
+        headers=_headers(participant["access_token"]),
+        json={
+            "code": place.json()["code"],
+            "source": "code",
+            "user_id": "someone-else",
+            "login_id": "SB-OTHER",
+            "mobile": "9000000099",
+        },
+    )
+    assert checked.status_code == 200, checked.text
+    assert checked.json()["login_id"] == created["login_id"]
+    assert checked.json()["mobile"] == "9876543210"
+    assert checked.json()["full_name"] == "Anita Desai"
+    other_history = client.get("/api/v1/attendance", headers=_headers(other["access_token"]))
+    assert other_history.status_code == 200
+    assert other_history.json()["items"] == []
 
 
 def test_place_rename_empty_update_and_unknown_attendance_page(client: TestClient, engine: Engine) -> None:
@@ -456,3 +495,95 @@ def test_check_in_reraises_when_the_raced_visit_is_gone(client: TestClient, engi
             pass
     finally:
         db.close()
+
+
+def test_attendance_history_pages_do_not_stop_at_the_first_page(client: TestClient, engine: Engine) -> None:
+    _created, participant = register_and_login(client)
+    staff = _staff_session(client, engine)
+    headers = _headers(participant["access_token"])
+    staff_headers = _headers(staff["access_token"])
+
+    empty = client.get("/api/v1/attendance", headers=headers)
+    assert empty.status_code == 200, empty.text
+    assert empty.json()["items"] == []
+    assert empty.json()["total"] == 0
+    assert empty.json()["limit"] == 50
+    assert empty.json()["offset"] == 0
+    assert empty.json()["has_more"] is False
+
+    for name in ("One stall", "Two stall", "Three stall"):
+        created = client.post("/api/v1/admin/places", headers=staff_headers, json={"name": name})
+        assert created.status_code == 201, created.text
+        checked = client.post(
+            "/api/v1/attendance",
+            headers=headers,
+            json={"code": created.json()["code"], "source": "code"},
+        )
+        assert checked.status_code == 200, checked.text
+
+    first = client.get("/api/v1/attendance?limit=1&offset=0", headers=headers)
+    assert first.status_code == 200, first.text
+    assert first.json()["total"] == 3
+    assert first.json()["limit"] == 1
+    assert first.json()["offset"] == 0
+    assert first.json()["has_more"] is True
+    assert len(first.json()["items"]) == 1
+
+    second = client.get("/api/v1/attendance?limit=1&offset=1", headers=headers)
+    assert second.status_code == 200, second.text
+    assert second.json()["has_more"] is True
+    assert second.json()["items"][0]["id"] != first.json()["items"][0]["id"]
+
+    last = client.get("/api/v1/attendance?limit=1&offset=2", headers=headers)
+    assert last.json()["has_more"] is False
+    assert len(last.json()["items"]) == 1
+
+    beyond = client.get("/api/v1/attendance?limit=1&offset=3", headers=headers)
+    assert beyond.json()["items"] == []
+    assert beyond.json()["total"] == 3
+    assert beyond.json()["has_more"] is False
+
+    full = client.get("/api/v1/attendance", headers=headers)
+    assert full.json()["limit"] == 50
+    assert len(full.json()["items"]) == 3
+    assert full.json()["has_more"] is False
+
+    exact = client.get("/api/v1/attendance?limit=3&offset=0", headers=headers)
+    assert exact.json()["has_more"] is False
+    assert len(exact.json()["items"]) == 3
+
+    rejected = client.get("/api/v1/attendance?limit=51", headers=headers)
+    assert rejected.status_code == 422
+
+
+def test_booth_list_pages_past_the_first_hundred_cap(client: TestClient, engine: Engine) -> None:
+    staff = _staff_session(client, engine)
+    headers = _headers(staff["access_token"])
+    for name in ("Alpha booth", "Beta booth", "Gamma booth"):
+        created = client.post("/api/v1/admin/places", headers=headers, json={"name": name})
+        assert created.status_code == 201, created.text
+
+    first = client.get("/api/v1/admin/places?limit=1&offset=0", headers=headers)
+    assert first.status_code == 200, first.text
+    assert first.json()["total"] == 3
+    assert first.json()["limit"] == 1
+    assert first.json()["offset"] == 0
+    assert first.json()["has_more"] is True
+    assert len(first.json()["items"]) == 1
+    assert first.json()["items"][0]["name"] == "Gamma booth"
+
+    second = client.get("/api/v1/admin/places?limit=1&offset=1", headers=headers)
+    assert second.json()["has_more"] is True
+    assert second.json()["items"][0]["name"] == "Beta booth"
+
+    last = client.get("/api/v1/admin/places?limit=2&offset=1", headers=headers)
+    assert last.json()["has_more"] is False
+    assert [item["name"] for item in last.json()["items"]] == ["Beta booth", "Alpha booth"]
+
+    default = client.get("/api/v1/admin/places", headers=headers)
+    assert default.json()["limit"] == 100
+    assert default.json()["has_more"] is False
+    assert len(default.json()["items"]) == 3
+
+    rejected = client.get("/api/v1/admin/places?limit=101", headers=headers)
+    assert rejected.status_code == 422

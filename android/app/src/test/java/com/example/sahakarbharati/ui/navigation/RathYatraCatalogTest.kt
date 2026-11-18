@@ -14,9 +14,9 @@ class RathYatraNavigationTest {
         val ids = RathYatraDestinations.all
         assertEquals(ids.size, ids.toSet().size)
         assertTrue(ids.contains(RathYatraDestinations.SPLASH))
-        assertTrue(ids.contains(RathYatraDestinations.WELCOME))
-        assertTrue(ids.contains(RathYatraDestinations.REGISTRATION_INTRO))
         assertTrue(ids.contains(RathYatraDestinations.REGISTRATION_FORM))
+        assertFalse(ids.contains("welcome"))
+        assertFalse(ids.contains("registration_intro"))
         assertTrue(ids.contains(RathYatraDestinations.REGISTRATION_SUCCESS))
         assertTrue(ids.contains(RathYatraDestinations.HOME))
         assertTrue(ids.contains(RathYatraDestinations.PROFILE))
@@ -41,18 +41,18 @@ class RathYatraNavigationTest {
     @Test
     fun navigateStack_pushesAndPopsOnboardingFlow() {
         var stack = listOf(RathYatraDestinations.SPLASH)
-        stack = navigateStack(stack, RathYatraDestinations.WELCOME)
+        stack = navigateStack(stack, RathYatraDestinations.SIGN_IN)
         stack = navigateStack(stack, RathYatraDestinations.REGISTRATION_FORM)
         assertEquals(
             listOf(
                 RathYatraDestinations.SPLASH,
-                RathYatraDestinations.WELCOME,
+                RathYatraDestinations.SIGN_IN,
                 RathYatraDestinations.REGISTRATION_FORM,
             ),
             stack,
         )
         stack = popStack(stack)
-        assertEquals(RathYatraDestinations.WELCOME, stack.last())
+        assertEquals(RathYatraDestinations.SIGN_IN, stack.last())
     }
 
     @Test

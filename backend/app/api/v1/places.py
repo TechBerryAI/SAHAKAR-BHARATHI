@@ -23,10 +23,12 @@ def create_place(
 
 @router.get("", response_model=PlaceList)
 def list_places(
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     _staff: User = Depends(require_staff),
     service: PlaceService = Depends(get_place_service),
 ) -> PlaceList:
-    return service.list_places()
+    return service.list_places(limit, offset)
 
 
 @router.patch("/{place_id}", response_model=PlaceResponse)
