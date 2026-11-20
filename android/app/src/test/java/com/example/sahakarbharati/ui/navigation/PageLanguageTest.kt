@@ -123,7 +123,7 @@ class PageLanguageTest {
         "Profile" to listOf(
             "profile", "registeredParticipant", "formTitle", "fullName", "farmer", "fisherman",
             "both", "allied", "profileTitle", "address", "locality", "district", "state",
-            "pincode", "saveChanges", "saving", "saved", "account", "loginId", "mobile", "email",
+            "pincode", "editDetails", "saveChanges", "saving", "saved", "account", "loginId", "mobile", "email",
             "logOut", "logOutConfirm", "logOutBody", "cancel", "fullNameRequired", "pinDigits",
         ),
         "Check-in" to listOf(

@@ -286,10 +286,10 @@ fun RathBottomBar(
     val adminLabel = ui("adminRole")
     val items = buildList {
         add(Triple(RathYatraDestinations.HOME, copy.tabHome, Icons.Filled.Home))
-        add(Triple(RathYatraDestinations.PROFILE, copy.tabProfile, Icons.Filled.Person))
         if (showAdmin) {
             add(Triple(RathYatraDestinations.ADMIN, adminLabel, Icons.Filled.Groups))
         }
+        add(Triple(RathYatraDestinations.PROFILE, copy.tabProfile, Icons.Filled.Person))
     }
     Column(
         modifier

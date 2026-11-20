@@ -104,10 +104,14 @@ fun ProfileScreen(
     var stateName by rememberSaveable(accountEpoch) { mutableStateOf("") }
     var pincode by rememberSaveable(accountEpoch) { mutableStateOf("") }
     var dirty by rememberSaveable(accountEpoch) { mutableStateOf(false) }
+    var editing by rememberSaveable(accountEpoch) { mutableStateOf(false) }
     var formError by rememberSaveable(accountEpoch) { mutableStateOf("") }
     var confirmLogout by rememberSaveable(accountEpoch) { mutableStateOf(false) }
 
     LaunchedEffect(accountEpoch) { viewModel.load() }
+    LaunchedEffect(viewModel.saved) {
+        if (viewModel.saved) editing = false
+    }
     LaunchedEffect(loaded) {
         val profile = loaded ?: return@LaunchedEffect
         if (!dirty) {
@@ -154,76 +158,112 @@ fun ProfileScreen(
                 if (viewModel.saved && formError.isBlank() && viewModel.saveError == null) {
                     Text(text.saved, color = RathYatraColors.Success, style = MaterialTheme.typography.bodyMedium)
                 }
-                WhiteCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PanelTitle(text.personalDetails, Icons.Outlined.Person)
-                        ProfileField(text.fullName, fullName) {
-                            fullName = it
-                            dirty = true
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FieldLabel(copy.occupation)
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                occupations.forEach { code ->
-                                    OccupationChip(
-                                        label = occupationLabel(copy, code) ?: code,
-                                        selected = occupation == code,
-                                        onClick = {
-                                            occupation = if (occupation == code) "" else code
-                                            dirty = true
-                                        },
-                                    )
+                if (editing) {
+                    WhiteCard {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            PanelTitle(text.personalDetails, Icons.Outlined.Person)
+                            ProfileField(text.fullName, fullName) {
+                                fullName = it
+                                dirty = true
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FieldLabel(copy.occupation)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    occupations.forEach { code ->
+                                        OccupationChip(
+                                            label = occupationLabel(copy, code) ?: code,
+                                            selected = occupation == code,
+                                            onClick = {
+                                                occupation = if (occupation == code) "" else code
+                                                dirty = true
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                WhiteCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PanelTitle(text.addressTitle, Icons.Outlined.Place)
-                        ProfileField(text.address, addressLine) { addressLine = it; dirty = true }
-                        ProfileField(text.locality, locality) { locality = it; dirty = true }
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Box(Modifier.weight(1f)) {
-                                ProfileField(text.district, district) { district = it; dirty = true }
+                    WhiteCard {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            PanelTitle(text.addressTitle, Icons.Outlined.Place)
+                            ProfileField(text.address, addressLine) { addressLine = it; dirty = true }
+                            ProfileField(text.locality, locality) { locality = it; dirty = true }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(Modifier.weight(1f)) {
+                                    ProfileField(text.district, district) { district = it; dirty = true }
+                                }
+                                Box(Modifier.weight(1f)) {
+                                    ProfileField(text.stateName, stateName) { stateName = it; dirty = true }
+                                }
                             }
-                            Box(Modifier.weight(1f)) {
-                                ProfileField(text.stateName, stateName) { stateName = it; dirty = true }
+                            ProfileField(text.pincode, pincode, KeyboardType.Number) {
+                                pincode = it.filter(Char::isDigit).take(6)
+                                dirty = true
                             }
-                        }
-                        ProfileField(text.pincode, pincode, KeyboardType.Number) {
-                            pincode = it.filter(Char::isDigit).take(6)
-                            dirty = true
                         }
                     }
-                }
-                SaffronButton(
-                    text = if (viewModel.saving) text.saving else text.saveChanges,
-                    onClick = {
-                        if (viewModel.saving) return@SaffronButton
-                        if (fullName.trim().length < 2) {
-                            formError = text.fullNameRequired
-                            return@SaffronButton
+                    SaffronButton(
+                        text = if (viewModel.saving) text.saving else text.saveChanges,
+                        onClick = {
+                            if (viewModel.saving) return@SaffronButton
+                            if (fullName.trim().length < 2) {
+                                formError = text.fullNameRequired
+                                return@SaffronButton
+                            }
+                            if (pincode.isNotEmpty() && !Regex("^\\d{6}$").matches(pincode)) {
+                                formError = text.pinDigits
+                                return@SaffronButton
+                            }
+                            formError = ""
+                            dirty = false
+                            viewModel.save(
+                                ProfileUpdateRequest(
+                                    fullName = fullName.trim(),
+                                    occupation = occupation.ifBlank { null },
+                                    addressLine = blankToNull(addressLine),
+                                    locality = blankToNull(locality),
+                                    district = blankToNull(district),
+                                    state = blankToNull(stateName),
+                                    pincode = blankToNull(pincode),
+                                ),
+                            )
+                        },
+                    )
+                    QuietButton(text.cancel, enabled = !viewModel.saving) {
+                        val profile = loaded
+                        if (profile != null) {
+                            fullName = profile.fullName
+                            occupation = profile.occupation.orEmpty()
+                            addressLine = profile.addressLine.orEmpty()
+                            locality = profile.locality.orEmpty()
+                            district = profile.district.orEmpty()
+                            stateName = profile.state.orEmpty()
+                            pincode = profile.pincode.orEmpty()
                         }
-                        if (pincode.isNotEmpty() && !Regex("^\\d{6}$").matches(pincode)) {
-                            formError = text.pinDigits
-                            return@SaffronButton
-                        }
-                        formError = ""
                         dirty = false
-                        viewModel.save(
-                            ProfileUpdateRequest(
-                                fullName = fullName.trim(),
-                                occupation = occupation.ifBlank { null },
-                                addressLine = blankToNull(addressLine),
-                                locality = blankToNull(locality),
-                                district = blankToNull(district),
-                                state = blankToNull(stateName),
-                                pincode = blankToNull(pincode),
-                            ),
-                        )
-                    },
-                )
+                        formError = ""
+                        editing = false
+                    }
+                } else {
+                    WhiteCard {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            PanelTitle(text.personalDetails, Icons.Outlined.Person)
+                            InfoLine(Icons.Outlined.Person, text.fullName, shown(loaded?.fullName))
+                            InfoLine(Icons.Outlined.Badge, copy.occupation, occupationLabel(copy, loaded?.occupation) ?: "—")
+                        }
+                    }
+                    WhiteCard {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            PanelTitle(text.addressTitle, Icons.Outlined.Place)
+                            InfoLine(Icons.Outlined.Place, text.address, shown(loaded?.addressLine))
+                            InfoLine(Icons.Outlined.Place, text.locality, shown(loaded?.locality))
+                            InfoLine(Icons.Outlined.Place, text.district, shown(loaded?.district))
+                            InfoLine(Icons.Outlined.Place, text.stateName, shown(loaded?.state))
+                            InfoLine(Icons.Outlined.Place, text.pincode, shown(loaded?.pincode))
+                        }
+                    }
+                    SaffronButton(text = text.editDetails, onClick = { editing = true })
+                }
                 Surface(
                     onClick = { confirmLogout = true },
                     modifier = Modifier.fillMaxWidth().height(48.dp).semantics(mergeDescendants = true) {},
@@ -347,6 +387,23 @@ private fun InfoLine(icon: ImageVector, label: String, value: String) {
         }
     }
 }
+
+@Composable
+private fun QuietButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Surface(
+        onClick = { if (enabled) onClick() },
+        modifier = Modifier.fillMaxWidth().height(48.dp).semantics(mergeDescendants = true) {},
+        shape = RoundedCornerShape(14.dp),
+        color = RathYatraColors.White,
+        shadowElevation = 1.dp,
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(label, color = if (enabled) Ink else Muted, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+private fun shown(value: String?): String = value?.trim()?.ifBlank { null } ?: "—"
 
 @Composable
 private fun FieldLabel(label: String) {
