@@ -97,6 +97,7 @@ export type DistrictPage = {
   total: number
   limit: number
   offset: number
+  has_more: boolean
 }
 
 export type ProtocolDocument = {
@@ -182,4 +183,44 @@ export function toApiInstant(localValue: string): string {
 
 export function documentOpen(status: ProtocolStatus): boolean {
   return status === 'pending' || status === 'rejected' || status === 'submitted' || status === 'resubmitted'
+}
+
+export function isPublicCatalogYatra(yatra: { published: boolean; status: string }): boolean {
+  return yatra.published && yatra.status !== 'archived'
+}
+
+export function publicStops<T extends { active: boolean }>(stops: T[]): T[] {
+  return stops.filter((stop) => stop.active)
+}
+
+export function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
+  const seen = new Set(current.map((item) => item.id))
+  return current.concat(incoming.filter((item) => !seen.has(item.id)))
+}
+
+export function createActionGate() {
+  let busy = false
+  return {
+    tryEnter(): boolean {
+      if (busy) return false
+      busy = true
+      return true
+    },
+    leave() {
+      busy = false
+    },
+  }
+}
+
+export function createSearchGate() {
+  let latest = 0
+  return {
+    start(): number {
+      latest += 1
+      return latest
+    },
+    isCurrent(id: number): boolean {
+      return id === latest
+    },
+  }
 }

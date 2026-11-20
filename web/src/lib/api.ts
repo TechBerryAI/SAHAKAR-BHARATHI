@@ -391,8 +391,9 @@ export function setAdminUserRole(id: string, role: 'admin' | 'participant'): Pro
   })
 }
 
-export function listDistricts(): Promise<DistrictPage> {
-  return request<DistrictPage>('/api/v1/admin/districts?limit=100', {
+export function listDistricts(offset = 0): Promise<DistrictPage> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<DistrictPage>(`/api/v1/admin/districts?${params.toString()}`, {
     fallback: 'Could not load districts.',
   })
 }

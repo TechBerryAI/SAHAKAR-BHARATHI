@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { AdminSections } from '../components/AdminSections.tsx'
 import { AppBar } from '../components/AppBar.tsx'
@@ -6,7 +6,17 @@ import { Button, ErrorBanner, Field, Screen, SelectField } from '../components/u
 import { useLanguage } from '../contexts/language.tsx'
 import { useSession } from '../hooks/useSession.ts'
 import { ApiError, apiErrorText, createYatra, isStaffRole, listDistricts, listYatras } from '../lib/api.ts'
-import { formatWhen, toApiInstant, yatraStatusLabel, type District, type YatraSummary } from '../lib/yatra.ts'
+import {
+  createActionGate,
+  createSearchGate,
+  formatWhen,
+  isPublicCatalogYatra,
+  mergeById,
+  toApiInstant,
+  yatraStatusLabel,
+  type District,
+  type YatraSummary,
+} from '../lib/yatra.ts'
 
 export function YatrasScreen({ admin = false }: { admin?: boolean }) {
   const { copy } = useLanguage()
@@ -23,44 +33,62 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const searchGate = useRef(createSearchGate())
+  const createGate = useRef(createActionGate())
 
   function load(nextQuery = query, nextStatus = status) {
+    const requestId = searchGate.current.start()
     setLoading(true)
     listYatras(nextQuery, nextStatus)
       .then((page) => {
+        if (!searchGate.current.isCurrent(requestId)) return
         setItems(page.items)
         setError('')
       })
       .catch((err: unknown) => {
+        if (!searchGate.current.isCurrent(requestId)) return
         if (err instanceof ApiError && err.status === 401) return
         setError(apiErrorText(err, copy, 'Could not load Yatras.'))
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (searchGate.current.isCurrent(requestId)) setLoading(false)
+      })
   }
 
   useEffect(() => {
+    const requestId = searchGate.current.start()
     let cancelled = false
     listYatras('', '')
       .then((page) => {
-        if (cancelled) return
+        if (cancelled || !searchGate.current.isCurrent(requestId)) return
         setItems(page.items)
         setError('')
       })
       .catch((err: unknown) => {
-        if (cancelled || (err instanceof ApiError && err.status === 401)) return
+        if (cancelled || !searchGate.current.isCurrent(requestId)) return
+        if (err instanceof ApiError && err.status === 401) return
         setError(apiErrorText(err, copy, 'Could not load Yatras.'))
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && searchGate.current.isCurrent(requestId)) setLoading(false)
       })
     if (staff) {
-      listDistricts()
-        .then((page) => {
-          if (!cancelled) setDistricts(page.items.filter((district) => district.active))
-        })
-        .catch(() => {
+      void (async () => {
+        const collected: District[] = []
+        let offset = 0
+        try {
+          for (let pageNumber = 0; pageNumber < 100; pageNumber += 1) {
+            const page = await listDistricts(offset)
+            if (cancelled) return
+            collected.splice(0, collected.length, ...mergeById(collected, page.items.filter((district) => district.active)))
+            if (!page.has_more) break
+            offset += page.items.length
+          }
+          if (!cancelled) setDistricts(collected)
+        } catch {
           if (!cancelled) setDistricts([])
-        })
+        }
+      })()
     }
     return () => {
       cancelled = true
@@ -70,6 +98,7 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
   async function onCreate(event: FormEvent) {
     event.preventDefault()
     if (saving || name.trim().length < 2 || !districtId || !startsAt || !endsAt) return
+    if (!createGate.current.tryEnter()) return
     setSaving(true)
     setError('')
     try {
@@ -86,6 +115,7 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'Could not create this Yatra.'))
     } finally {
+      createGate.current.leave()
       setSaving(false)
     }
   }
@@ -145,13 +175,13 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
           <div className="center-state">
             <div className="spinner" aria-label={copy.pleaseWait} />
           </div>
-        ) : items.length === 0 ? (
+        ) : (admin ? items : items.filter(isPublicCatalogYatra)).length === 0 ? (
           <div className="admin-empty">
             <p>No Yatras to show.</p>
           </div>
         ) : (
           <ul className="admin-list">
-            {items.map((yatra) => (
+            {(admin ? items : items.filter(isPublicCatalogYatra)).map((yatra) => (
               <li key={yatra.id}>
                 <Link className="admin-row" to={`${admin ? '/admin/yatras' : '/yatras'}/${yatra.id}`}>
                   <span className="admin-row__body">

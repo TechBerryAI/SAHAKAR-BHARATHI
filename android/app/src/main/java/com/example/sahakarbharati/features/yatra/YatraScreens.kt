@@ -16,11 +16,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
+import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.WhiteCard
 import com.example.sahakarbharati.data.model.isStaffRole
@@ -38,12 +42,13 @@ fun YatraListScreen(
     modifier: Modifier = Modifier,
 ) {
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: YatraListViewModel = sahakarViewModel()
-    val ui = viewModel.state
-    LaunchedEffect(Unit) { viewModel.load() }
+    val listState = viewModel.state
+    LaunchedEffect(accountEpoch) { viewModel.load() }
 
     SignedInScaffold(
-        title = "Rath Yatras",
+        title = ui("yatrasTitle"),
         selectedTab = RathYatraDestinations.HOME,
         showAdmin = isStaffRole(session.role()),
         onSelectTab = onSelectTab,
@@ -58,16 +63,26 @@ fun YatraListScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
-            }
-            if (ui.loading) {
+            if (listState.loading && listState.items.isEmpty()) {
                 CircularProgressIndicator(color = RathYatraColors.Saffron)
-            } else if (ui.items.isEmpty() && ui.error == null) {
-                Text("No published Yatras yet.", color = RathYatraColors.OnSurfaceVariant)
             }
-            ui.items.forEach { yatra ->
+            listState.error?.takeIf { it.isNotBlank() && listState.items.isEmpty() }?.let { message ->
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                SaffronButton(text = ui("retry"), onClick = viewModel::load)
+            }
+            if (!listState.loading && listState.items.isEmpty() && listState.error == null) {
+                Text(ui("noPublishedYatras"), color = RathYatraColors.OnSurfaceVariant)
+            }
+            listState.items.forEach { yatra ->
                 YatraRow(yatra, onClick = { onOpenYatra(yatra.id) })
+            }
+            listState.nextPageError?.takeIf { it.isNotBlank() }?.let { message ->
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                SaffronButton(text = ui("retry"), onClick = viewModel::loadMore)
+            }
+            if (listState.hasMore && listState.nextPageError == null) {
+                val moreLabel = if (listState.loadingMore) ui("pleaseWait") else ui("yatrasLoadMore")
+                SaffronButton(text = moreLabel, onClick = viewModel::loadMore)
             }
         }
     }
@@ -75,7 +90,9 @@ fun YatraListScreen(
 
 @Composable
 private fun YatraRow(yatra: YatraSummaryDto, onClick: () -> Unit) {
-    WhiteCard(onClick = onClick) {
+    val whenLabel = yatraDateRange(yatra.startsAt, yatra.endsAt)
+    val status = yatraStatusLabel(yatra.status)
+    WhiteCard(onClick = onClick, semanticsLabel = yatraRowLabel(yatra)) {
         Row(
             Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -84,14 +101,14 @@ private fun YatraRow(yatra: YatraSummaryDto, onClick: () -> Unit) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(yatra.name, color = RathYatraColors.Navy, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 Text(yatra.district.name, color = RathYatraColors.OnSurfaceVariant, fontSize = 14.sp)
-                Text(
-                    "${yatraWhen(yatra.startsAt)} to ${yatraWhen(yatra.endsAt)}",
-                    color = RathYatraColors.OnSurfaceVariant,
-                    fontSize = 13.sp,
-                )
-                Text(yatraStatusLabel(yatra.status), color = RathYatraColors.DeepGreen, fontSize = 13.sp)
+                Text(whenLabel, color = RathYatraColors.OnSurfaceVariant, fontSize = 13.sp)
+                Text(status, color = RathYatraColors.DeepGreen, fontSize = 13.sp)
             }
-            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = RathYatraColors.OnSurfaceVariant)
+            Icon(
+                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = RathYatraColors.OnSurfaceVariant,
+            )
         }
     }
 }
@@ -104,13 +121,14 @@ fun YatraDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: YatraDetailViewModel = sahakarViewModel()
-    val ui = viewModel.state
-    LaunchedEffect(yatraId) { viewModel.load(yatraId) }
-    val yatra = ui.yatra
+    val detailState = viewModel.state
+    LaunchedEffect(accountEpoch, yatraId) { viewModel.load(yatraId) }
+    val yatra = detailState.yatra?.takeIf { it.id == yatraId }
 
     SignedInScaffold(
-        title = yatra?.name ?: "Rath Yatra",
+        title = yatra?.name ?: ui("yatrasTitle"),
         selectedTab = RathYatraDestinations.HOME,
         showAdmin = isStaffRole(session.role()),
         onSelectTab = onSelectTab,
@@ -125,19 +143,22 @@ fun YatraDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
-            }
-            if (ui.loading && yatra?.id != yatraId) {
+            if (detailState.loading && yatra == null) {
                 CircularProgressIndicator(color = RathYatraColors.Saffron)
             }
-            if (yatra != null && yatra.id == yatraId) {
+            detailState.error?.takeIf { it.isNotBlank() && yatra == null }?.let { message ->
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                SaffronButton(text = ui("retry"), onClick = { viewModel.load(yatraId) })
+            }
+            if (yatra != null) {
                 WhiteCard {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(yatra.district.name, color = RathYatraColors.DeepGreenSoft, fontSize = 13.sp)
+                        Text(ui("yatraCode"), color = RathYatraColors.OnSurfaceVariant, fontSize = 13.sp)
+                        Text(yatra.publicCode, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
                         Text(yatraStatusLabel(yatra.status), color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
                         Text(
-                            "${yatraWhen(yatra.startsAt)} to ${yatraWhen(yatra.endsAt)}",
+                            yatraDateRange(yatra.startsAt, yatra.endsAt),
                             color = RathYatraColors.OnSurfaceVariant,
                         )
                         yatra.description?.takeIf { it.isNotBlank() }?.let { description ->
@@ -145,9 +166,9 @@ fun YatraDetailScreen(
                         }
                     }
                 }
-                Text("Stops", color = RathYatraColors.Navy, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                Text(ui("stopsHeading"), color = RathYatraColors.Navy, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 if (yatra.stops.isEmpty()) {
-                    Text("No stops have been published.", color = RathYatraColors.OnSurfaceVariant)
+                    Text(ui("noPublishedStops"), color = RathYatraColors.OnSurfaceVariant)
                 }
                 yatra.stops.forEach { stop ->
                     WhiteCard {
@@ -155,6 +176,9 @@ fun YatraDetailScreen(
                             Text("${stop.sequence}. ${stop.name}", color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
                             stop.address?.takeIf { it.isNotBlank() }?.let { address ->
                                 Text(address, color = RathYatraColors.OnSurfaceVariant, fontSize = 14.sp)
+                            }
+                            stopTimeLabel(stop)?.let { times ->
+                                Text(times, color = RathYatraColors.OnSurfaceVariant, fontSize = 14.sp)
                             }
                         }
                     }

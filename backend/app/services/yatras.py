@@ -98,6 +98,7 @@ class YatraService:
         district_id: UUID | None,
         status: str | None,
         query: str | None,
+        published: bool | None = None,
     ) -> YatraList:
         if status is not None and status not in YATRA_STATUSES:
             raise InvalidStateError("That status is not valid.")
@@ -108,12 +109,14 @@ class YatraService:
             district_id=district_id,
             status=status,
             query=query,
+            published=published,
         )
         return YatraList(
             items=[self._summary(row) for row in rows],
             total=total,
             limit=limit,
             offset=offset,
+            has_more=offset + len(rows) < total,
         )
 
     def get(self, actor: User, yatra_id: UUID) -> YatraDetail:
@@ -213,8 +216,8 @@ class YatraService:
         self.db.commit()
 
     def list_stops(self, actor: User, yatra_id: UUID) -> StopList:
-        yatra, _level = self._visible(actor, yatra_id)
-        return StopList(items=[self._stop(stop) for stop in self.yatras.stops(yatra.id)])
+        yatra, level = self._visible(actor, yatra_id)
+        return StopList(items=[self._stop(stop) for stop in self._visible_stops(yatra.id, level)])
 
     def add_stop(self, actor: User, yatra_id: UUID, payload: StopWrite) -> StopResponse:
         yatra, _level = self._locked(actor, yatra_id, OPERATE_ACCESS)
@@ -370,6 +373,12 @@ class YatraService:
             raise ForbiddenError()
         return yatra, level
 
+    def _visible_stops(self, yatra_id: UUID, level: str) -> list[YatraStop]:
+        stops = self.yatras.stops(yatra_id)
+        if level == "public":
+            return [stop for stop in stops if stop.active]
+        return stops
+
     def _route(self, yatra_id: UUID) -> YatraRoute:
         route = self.yatras.route(yatra_id)
         if route is None:
@@ -388,7 +397,7 @@ class YatraService:
                 AdministratorBrief(user_id=person.id, login_id=person.login_id, full_name=person.full_name)
                 for person in people
             ],
-            stops=[self._stop(stop) for stop in self.yatras.stops(yatra.id)],
+            stops=[self._stop(stop) for stop in self._visible_stops(yatra.id, level)],
             created_at=yatra.created_at,
             updated_at=yatra.updated_at,
         )

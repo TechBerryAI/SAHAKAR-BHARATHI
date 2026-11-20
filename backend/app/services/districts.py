@@ -62,6 +62,7 @@ class DistrictService:
             total=total,
             limit=limit,
             offset=offset,
+            has_more=offset + len(rows) < total,
         )
 
     def update(self, actor: User, district_id: UUID, payload: DistrictUpdate) -> DistrictResponse:

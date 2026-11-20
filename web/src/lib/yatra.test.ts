@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { listYatras, publishYatra } from './api.ts'
+import { listDistricts, listYatras, publishYatra } from './api.ts'
 import { clearSession } from './session.ts'
 import {
+  createActionGate,
+  createSearchGate,
   documentOpen,
+  isPublicCatalogYatra,
+  mergeById,
   protocolCategoryLabel,
   protocolStatusLabel,
+  publicStops,
   yatraStatusLabel,
 } from './yatra.ts'
 
@@ -63,5 +68,63 @@ describe('yatra API calls', () => {
     expect(calls[0].url).toBe(`${API}/api/v1/yatras/yatra-1/publish`)
     expect(calls[0].init.method).toBe('POST')
     expect(calls[0].init.body).toBeUndefined()
+  })
+
+  it('requests the next district page instead of a larger first page', async () => {
+    const calls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        calls.push(url)
+        return new Response(JSON.stringify({ items: [], total: 120, limit: 50, offset: 50, has_more: true }), {
+          status: 200,
+        })
+      }),
+    )
+    await listDistricts(50)
+    expect(calls[0]).toBe(`${API}/api/v1/admin/districts?limit=50&offset=50`)
+  })
+})
+
+describe('phase 2A action and search guards', () => {
+  it('lets the first mutation through and ignores a second click until it finishes', () => {
+    const gate = createActionGate()
+    expect(gate.tryEnter()).toBe(true)
+    expect(gate.tryEnter()).toBe(false)
+    gate.leave()
+    expect(gate.tryEnter()).toBe(true)
+  })
+
+  it('keeps only the latest search response', async () => {
+    const gate = createSearchGate()
+    const first = gate.start()
+    const second = gate.start()
+    let shown = ''
+    const finish = async (id: number, value: string) => {
+      await Promise.resolve()
+      if (gate.isCurrent(id)) shown = value
+    }
+    await finish(second, 'B')
+    await finish(first, 'A')
+    expect(gate.isCurrent(first)).toBe(false)
+    expect(shown).toBe('B')
+  })
+
+  it('hides archived Yatras and inactive stops from the public catalog', () => {
+    expect(isPublicCatalogYatra({ published: true, status: 'upcoming' })).toBe(true)
+    expect(isPublicCatalogYatra({ published: true, status: 'archived' })).toBe(false)
+    const stops = publicStops([
+      { id: 'open', active: true },
+      { id: 'closed', active: false },
+    ])
+    expect(stops.map((stop) => stop.id)).toEqual(['open'])
+  })
+
+  it('appends a later district page without duplicating ids', () => {
+    const page = mergeById(
+      [{ id: 'd1' }, { id: 'd2' }],
+      [{ id: 'd2' }, { id: 'd3' }],
+    )
+    expect(page.map((district) => district.id)).toEqual(['d1', 'd2', 'd3'])
   })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AdminSections } from '../components/AdminSections.tsx'
 import { AppBar } from '../components/AppBar.tsx'
 import { Button, ErrorBanner, Field, Screen } from '../components/ui.tsx'
@@ -14,7 +14,7 @@ import {
   removeDistrictAdmin,
   updateDistrict,
 } from '../lib/api.ts'
-import type { District } from '../lib/yatra.ts'
+import { createActionGate, mergeById, type District } from '../lib/yatra.ts'
 
 export function DistrictsScreen() {
   const { copy } = useLanguage()
@@ -26,22 +26,31 @@ export function DistrictsScreen() {
   const [stateName, setStateName] = useState('')
   const [assignTo, setAssignTo] = useState<string | null>(null)
   const [loginQuery, setLoginQuery] = useState('')
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const actionGate = useRef(createActionGate())
 
-  function load() {
-    setLoading(true)
-    listDistricts()
+  function load(offset = 0) {
+    const append = offset > 0
+    if (append) setLoadingMore(true)
+    else setLoading(true)
+    listDistricts(offset)
       .then((page) => {
-        setDistricts(page.items)
+        setDistricts((current) => (append ? mergeById(current, page.items) : page.items))
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
         if (err instanceof ApiError && err.status === 401) return
         setError(apiErrorText(err, copy, 'Could not load districts.'))
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        setLoading(false)
+        setLoadingMore(false)
+      })
   }
 
   useEffect(() => {
@@ -50,6 +59,7 @@ export function DistrictsScreen() {
       .then((page) => {
         if (cancelled) return
         setDistricts(page.items)
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
@@ -67,6 +77,7 @@ export function DistrictsScreen() {
   async function onCreate(event: FormEvent) {
     event.preventDefault()
     if (!superAdmin || saving || name.trim().length < 2 || code.trim().length < 2) return
+    if (!actionGate.current.tryEnter()) return
     setSaving(true)
     setError('')
     try {
@@ -82,6 +93,22 @@ export function DistrictsScreen() {
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'Could not create this district.'))
     } finally {
+      actionGate.current.leave()
+      setSaving(false)
+    }
+  }
+
+  async function mutate(action: () => Promise<unknown>) {
+    if (!actionGate.current.tryEnter()) return
+    setSaving(true)
+    setError('')
+    try {
+      await action()
+      load()
+    } catch (err: unknown) {
+      setError(apiErrorText(err, copy, 'Could not update this district.'))
+    } finally {
+      actionGate.current.leave()
       setSaving(false)
     }
   }
@@ -89,6 +116,7 @@ export function DistrictsScreen() {
   async function onAssign(event: FormEvent) {
     event.preventDefault()
     if (!assignTo || saving) return
+    if (!actionGate.current.tryEnter()) return
     setSaving(true)
     setError('')
     try {
@@ -107,6 +135,7 @@ export function DistrictsScreen() {
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'Could not assign this district administrator.'))
     } finally {
+      actionGate.current.leave()
       setSaving(false)
     }
   }
@@ -156,10 +185,9 @@ export function DistrictsScreen() {
                         <Button
                           type="button"
                           variant="text"
+                          disabled={saving}
                           onClick={() => {
-                            void removeDistrictAdmin(district.id, person.user_id).then(load).catch((err: unknown) => {
-                              setError(apiErrorText(err, copy, 'Could not remove this district administrator.'))
-                            })
+                            void mutate(() => removeDistrictAdmin(district.id, person.user_id))
                           }}
                         >
                           Remove
@@ -173,8 +201,9 @@ export function DistrictsScreen() {
                     <Button
                       type="button"
                       variant="ghost"
+                      disabled={saving}
                       onClick={() => {
-                        void updateDistrict(district.id, { active: !district.active }).then(load)
+                        void mutate(() => updateDistrict(district.id, { active: !district.active }))
                       }}
                     >
                       {district.active ? 'Deactivate' : 'Activate'}
@@ -202,6 +231,11 @@ export function DistrictsScreen() {
             ))}
           </ul>
         )}
+        {!loading && districts.length < total ? (
+          <Button type="button" variant="ghost" disabled={loadingMore || saving} onClick={() => load(districts.length)}>
+            {loadingMore ? copy.pleaseWait : 'Load more'}
+          </Button>
+        ) : null}
       </Screen>
     </>
   )

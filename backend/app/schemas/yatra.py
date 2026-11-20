@@ -111,6 +111,7 @@ class DistrictList(ORMModel):
     total: int
     limit: int
     offset: int
+    has_more: bool
 
 
 class AssignmentRequest(ORMModel):
@@ -174,6 +175,7 @@ class YatraList(ORMModel):
     total: int
     limit: int
     offset: int
+    has_more: bool
 
 
 class StopList(ORMModel):

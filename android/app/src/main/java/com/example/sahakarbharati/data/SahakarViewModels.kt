@@ -44,9 +44,9 @@ class SahakarViewModelFactory(
             modelClass.isAssignableFrom(AttendanceViewModel::class.java) ->
                 AttendanceViewModel(container.attendanceRepository, container.session) as T
             modelClass.isAssignableFrom(YatraListViewModel::class.java) ->
-                YatraListViewModel(container.yatraRepository) as T
+                YatraListViewModel(container.yatraRepository, container.session) as T
             modelClass.isAssignableFrom(YatraDetailViewModel::class.java) ->
-                YatraDetailViewModel(container.yatraRepository) as T
+                YatraDetailViewModel(container.yatraRepository, container.session) as T
             else -> error("Unknown ViewModel ${modelClass.name}")
         }
     }

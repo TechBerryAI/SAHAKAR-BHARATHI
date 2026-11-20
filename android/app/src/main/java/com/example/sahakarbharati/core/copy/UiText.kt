@@ -56,6 +56,11 @@ private val knownEnglish = mapOf(
     "Booth name is required." to "boothNameRequired",
     "String should have at least 2 characters" to "tooShort",
     "please try again." to "tryAgain",
+    "Yatras could not be loaded." to "yatrasLoadFailed",
+    "Could not load more Yatras." to "yatrasLoadMoreFailed",
+    "This Yatra could not be loaded." to "yatraLoadFailed",
+    "This Yatra is not available." to "yatraUnavailable",
+    "Sign in is required." to "signInRequired",
 )
 
 private val createdAccount = Regex(

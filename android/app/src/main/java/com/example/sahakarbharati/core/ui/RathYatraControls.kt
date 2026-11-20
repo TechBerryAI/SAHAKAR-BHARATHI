@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -475,6 +476,7 @@ fun SectionHeader(
 fun WhiteCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    semanticsLabel: String? = null,
     content: @Composable () -> Unit,
 ) {
     val shape = CardShape
@@ -482,9 +484,17 @@ fun WhiteCard(
     // so their edges line up whatever their content happens to measure.
     val sized = Modifier.fillMaxWidth().then(modifier)
     val cardModifier = if (onClick != null) {
-        sized
+        val clickable = sized
             .clip(shape)
             .clickable(onClick = onClick)
+        if (semanticsLabel != null) {
+            clickable.semantics(mergeDescendants = true) {
+                contentDescription = semanticsLabel
+                role = Role.Button
+            }
+        } else {
+            clickable
+        }
     } else {
         sized
     }

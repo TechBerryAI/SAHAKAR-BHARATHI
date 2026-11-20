@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.roles import ROLE_ADMIN, ROLE_SUPER_ADMIN
@@ -48,7 +48,7 @@ class YatraAccess:
             return "district_admin"
         if yatra.id in current.yatra_ids:
             return "yatra_admin"
-        if yatra.published:
+        if is_public_catalog(yatra):
             return "public"
         return None
 
@@ -56,11 +56,20 @@ class YatraAccess:
         if actor.role == ROLE_SUPER_ADMIN:
             return None
         assigned = select(YatraAdministrator.yatra_id).where(YatraAdministrator.user_id == actor.id)
-        clauses = [Yatra.published.is_(True), Yatra.id.in_(assigned)]
+        clauses = [public_catalog_clause(), Yatra.id.in_(assigned)]
         if actor.role == ROLE_ADMIN:
             districts = select(DistrictAdministrator.district_id).where(DistrictAdministrator.user_id == actor.id)
             clauses.append(Yatra.district_id.in_(districts))
         return or_(*clauses)
+
+
+def is_public_catalog(yatra: Yatra) -> bool:
+    return bool(yatra.published) and yatra.status != "archived"
+
+
+def public_catalog_clause():
+    """Published Yatras that are still in the participant catalog."""
+    return and_(Yatra.published.is_(True), Yatra.status != "archived")
 
 
 def capabilities_for(level: str, yatra: Yatra) -> YatraCapabilities:

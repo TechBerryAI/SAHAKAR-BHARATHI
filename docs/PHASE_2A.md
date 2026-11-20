@@ -19,7 +19,7 @@ Account roles stay `participant`, `admin`, and `super_admin`. Phase 1 staff acce
 | `super_admin` | Every district and Yatra. Creates districts, assigns district administrators, manages protocol templates, and can review protocol. |
 | District administrator | An `admin` with a row in `district_administrators`. Scope is those districts. Creates and edits Yatras there, changes lifecycle, publishes, assigns Yatra administrators, and reviews protocol. A global `admin` with no row cannot create or edit Yatras. |
 | Yatra administrator | Any active user with a row in `yatra_administrators`. Manages that Yatra’s stops, route label, and protocol submissions. Does not gain People, Booths, district-wide access, lifecycle changes, publish, or approval. |
-| Participant | Published Yatras only. |
+| Participant | Published Yatras that are not archived. Inactive stops are omitted. |
 
 A Yatra the caller cannot see returns 404. A Yatra they can see, with an action they cannot take, returns 403.
 
@@ -49,7 +49,7 @@ The global request limit stays 64 KiB. Only `POST /api/v1/yatras/{id}/protocol/i
 
 ## Clients
 
-Web admin, in the same shell as People and Booths, lists districts (super admin), Yatras, stops, lifecycle, publish, and the protocol checklist. Buttons follow the capabilities on the Yatra payload. Android, from Home, shows a read-only list of published Yatras and a detail screen with dates, district, status, and ordered active stops. It does not administer protocol.
+Web admin, in the same shell as People and Booths, lists districts (super admin), Yatras, stops, lifecycle, publish, and the protocol checklist. Buttons follow the capabilities on the Yatra payload. Android, from Home, shows a paged read-only catalog of published Yatras and a detail screen with dates, district, status, and ordered active stops. It does not administer protocol.
 
 ## Deferred
 

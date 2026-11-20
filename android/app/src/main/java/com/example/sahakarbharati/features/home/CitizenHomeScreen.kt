@@ -182,7 +182,9 @@ fun CitizenHomeScreen(
                         )
                     }
                 }
-                WhiteCard(onClick = onOpenYatras) {
+                val yatraTitle = ui("yatrasTitle")
+                val yatraBody = ui("yatrasCardBody")
+                WhiteCard(onClick = onOpenYatras, semanticsLabel = "$yatraTitle. $yatraBody") {
                     Row(
                         Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -190,9 +192,9 @@ fun CitizenHomeScreen(
                     ) {
                         Icon(Icons.Outlined.Map, contentDescription = null, tint = RathYatraColors.DeepGreen)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Rath Yatras", color = Color(0xFF17263F), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                            Text(yatraTitle, color = Color(0xFF17263F), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                             Text(
-                                "See published Yatras, their districts, dates, and stops.",
+                                yatraBody,
                                 fontSize = 14.sp,
                                 color = RathYatraColors.OnSurfaceVariant,
                             )

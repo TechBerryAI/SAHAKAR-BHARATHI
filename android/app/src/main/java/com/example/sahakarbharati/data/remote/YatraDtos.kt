@@ -14,6 +14,8 @@ data class YatraStopDto(
     val name: String,
     val address: String?,
     val active: Boolean,
+    @SerializedName("planned_arrival") val plannedArrival: String? = null,
+    @SerializedName("planned_departure") val plannedDeparture: String? = null,
 )
 
 data class YatraSummaryDto(
@@ -45,4 +47,5 @@ data class YatraPageDto(
     val total: Int,
     val limit: Int,
     val offset: Int,
+    @SerializedName("has_more") val hasMore: Boolean = false,
 )

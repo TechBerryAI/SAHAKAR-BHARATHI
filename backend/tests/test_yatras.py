@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -234,9 +235,15 @@ def test_district_scope_stops_and_state_machine(client: TestClient, engine: Engi
         json={"name": "Again", "sequence": stop.json()["sequence"]},
     )
     assert duplicate_stop.status_code == 409
+    inactive = client.post(
+        f"/api/v1/yatras/{created['id']}/stops",
+        headers=yatra_headers,
+        json={"name": "Closed halt", "active": False},
+    )
+    assert inactive.status_code == 201, inactive.text
     listed = client.get(f"/api/v1/yatras/{created['id']}/stops", headers=yatra_headers)
     assert listed.status_code == 200
-    assert len(listed.json()["items"]) == 1
+    assert {item["name"] for item in listed.json()["items"]} == {"Sinnar", "Closed halt"}
 
     blocked = client.post(
         f"/api/v1/yatras/{created['id']}/status",
@@ -306,7 +313,10 @@ def test_district_scope_stops_and_state_machine(client: TestClient, engine: Engi
     participant, _body = _login(client, mobile="9000000014", email="viewer@example.com", full_name="Viewer")
     visible = client.get(f"/api/v1/yatras/{created['id']}", headers=participant)
     assert visible.status_code == 200
-    assert visible.json()["stops"][0]["name"] == "Sinnar"
+    assert [stop["name"] for stop in visible.json()["stops"]] == ["Sinnar"]
+    public_stops = client.get(f"/api/v1/yatras/{created['id']}/stops", headers=participant)
+    assert public_stops.status_code == 200
+    assert [stop["name"] for stop in public_stops.json()["items"]] == ["Sinnar"]
     assert visible.json()["administrators"] == []
     protocol_hidden = client.get(f"/api/v1/yatras/{created['id']}/protocol", headers=participant)
     assert protocol_hidden.status_code == 403
@@ -332,6 +342,15 @@ def test_district_scope_stops_and_state_machine(client: TestClient, engine: Engi
         json={"name": "Too late"},
     )
     assert frozen.status_code == 400
+    hidden_archive = client.get(f"/api/v1/yatras/{created['id']}", headers=participant)
+    assert hidden_archive.status_code == 404
+    public_page = client.get("/api/v1/yatras", headers=participant, params={"q": "Nashik Rath"})
+    assert public_page.status_code == 200
+    assert created["id"] not in {item["id"] for item in public_page.json()["items"]}
+    history = client.get(f"/api/v1/yatras/{created['id']}", headers=nashik_headers)
+    assert history.status_code == 200
+    assert history.json()["status"] == "archived"
+    assert {stop["name"] for stop in history.json()["stops"]} == {"Sinnar", "Closed halt"}
 
     created_audit = _audit(engine, "yatra_created")
     status_audit = _audit(engine, "yatra_status_changed")
@@ -442,3 +461,172 @@ def test_protocol_rejection_resubmission_and_documents(client: TestClient, engin
     )
     assert unavailable.status_code == 503
     assert "pin" not in unavailable.text.lower()
+
+
+def test_district_pages_stay_inside_the_caller_scope(client: TestClient, engine: Engine) -> None:
+    super_headers = _super(client)
+    created = []
+    for index in range(3):
+        created.append(_district(client, super_headers, f"D{index:02d}"))
+    first = client.get("/api/v1/admin/districts", headers=super_headers, params={"limit": 1, "offset": 0})
+    assert first.status_code == 200, first.text
+    assert first.json()["limit"] == 1
+    assert first.json()["offset"] == 0
+    assert first.json()["total"] >= 3
+    assert first.json()["has_more"] is True
+    assert len(first.json()["items"]) == 1
+    second = client.get("/api/v1/admin/districts", headers=super_headers, params={"limit": 1, "offset": 1})
+    assert second.status_code == 200, second.text
+    assert second.json()["has_more"] is True
+    assert second.json()["items"][0]["id"] != first.json()["items"][0]["id"]
+
+    _login(client, mobile="9000000031", email="scope-admin@example.com", full_name="Scope Admin")
+    _set_role(engine, "9000000031", "admin")
+    admin_id = _user_id(engine, "9000000031")
+    assert (
+        client.post(
+            f"/api/v1/admin/districts/{created[0]['id']}/administrators",
+            headers=super_headers,
+            json={"user_id": admin_id},
+        ).status_code
+        == 201
+    )
+    scoped = _headers(
+        client.post("/api/v1/sessions", json={"identifier": "9000000031", "pin": "2468"}).json()["access_token"]
+    )
+    page = client.get("/api/v1/admin/districts", headers=scoped, params={"limit": 1, "offset": 0})
+    assert page.status_code == 200, page.text
+    assert page.json()["total"] == 1
+    assert page.json()["has_more"] is False
+    assert page.json()["items"][0]["id"] == created[0]["id"]
+    later = client.get("/api/v1/admin/districts", headers=scoped, params={"limit": 1, "offset": 1})
+    assert later.status_code == 200
+    assert later.json()["items"] == []
+    assert later.json()["has_more"] is False
+    denied = client.get("/api/v1/admin/districts", headers=_login(client, mobile="9000000032", email="scope-p@example.com", full_name="Scope Person")[0])
+    assert denied.status_code == 403
+
+
+def test_published_catalog_pages_before_drafts_and_archives(client: TestClient, engine: Engine) -> None:
+    super_headers = _super(client)
+    district = _district(client, super_headers, "PUBCAT")
+    prefix = f"PubCat {uuid.uuid4().hex[:8]}"
+    rows = [
+        ("archived", True, "2026-07-01T00:00:00Z", f"{prefix} archived"),
+        ("draft", False, "2026-06-04T00:00:00Z", f"{prefix} draft 4"),
+        ("draft", False, "2026-06-03T00:00:00Z", f"{prefix} draft 3"),
+        ("draft", False, "2026-06-02T00:00:00Z", f"{prefix} draft 2"),
+        ("draft", False, "2026-06-01T00:00:00Z", f"{prefix} draft 1"),
+        ("upcoming", True, "2026-03-01T00:00:00Z", f"{prefix} public mar"),
+        ("upcoming", True, "2026-02-01T00:00:00Z", f"{prefix} public feb"),
+        ("upcoming", True, "2026-01-01T00:00:00Z", f"{prefix} public jan"),
+    ]
+    with engine.begin() as connection:
+        for status, published, start, name in rows:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO yatras (
+                        id, public_code, name, district_id, starts_at, ends_at, status, published
+                    )
+                    VALUES (
+                        :id, :code, :name, :district, :start, :end, :status, :published
+                    )
+                    """
+                ),
+                {
+                    "id": str(uuid.uuid4()),
+                    "code": f"YT{uuid.uuid4().int % 100_000_000:08d}",
+                    "name": name,
+                    "district": district["id"],
+                    "start": start,
+                    "end": "2026-12-01T00:00:00Z",
+                    "status": status,
+                    "published": published,
+                },
+            )
+    participant, _body = _login(
+        client,
+        mobile="9000000041",
+        email="catalog-viewer@example.com",
+        full_name="Catalog Viewer",
+    )
+    first = client.get(
+        "/api/v1/yatras",
+        headers=participant,
+        params={"published": "true", "limit": 2, "offset": 0, "q": prefix},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["total"] == 3
+    assert first.json()["has_more"] is True
+    assert [item["name"] for item in first.json()["items"]] == [
+        f"{prefix} public mar",
+        f"{prefix} public feb",
+    ]
+    assert all(item["published"] is True and item["status"] != "archived" for item in first.json()["items"])
+    second = client.get(
+        "/api/v1/yatras",
+        headers=participant,
+        params={"published": "true", "limit": 2, "offset": 2, "q": prefix},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["total"] == 3
+    assert second.json()["has_more"] is False
+    assert [item["name"] for item in second.json()["items"]] == [f"{prefix} public jan"]
+    assert {item["id"] for item in first.json()["items"]}.isdisjoint({item["id"] for item in second.json()["items"]})
+
+    hidden = client.get(
+        "/api/v1/yatras",
+        headers=participant,
+        params={"published": "false", "q": prefix},
+    )
+    assert hidden.status_code == 200, hidden.text
+    assert hidden.json()["total"] == 0
+    assert hidden.json()["items"] == []
+    drafts = client.get(
+        "/api/v1/yatras",
+        headers=participant,
+        params={"status": "draft", "q": prefix},
+    )
+    assert drafts.status_code == 200, drafts.text
+    assert drafts.json()["total"] == 0
+
+    staff = client.get("/api/v1/yatras", headers=super_headers, params={"q": prefix, "limit": 20})
+    assert staff.status_code == 200, staff.text
+    assert staff.json()["total"] == 8
+    assert any(item["status"] == "draft" for item in staff.json()["items"])
+    staff_public = client.get(
+        "/api/v1/yatras",
+        headers=super_headers,
+        params={"published": "true", "q": prefix, "limit": 20},
+    )
+    assert staff_public.status_code == 200, staff_public.text
+    assert staff_public.json()["total"] == 3
+    assert {item["name"] for item in staff_public.json()["items"]} == {
+        f"{prefix} public mar",
+        f"{prefix} public feb",
+        f"{prefix} public jan",
+    }
+
+    _login(client, mobile="9000000042", email="catalog-admin@example.com", full_name="Catalog Admin")
+    _set_role(engine, "9000000042", "admin")
+    admin_id = _user_id(engine, "9000000042")
+    assert (
+        client.post(
+            f"/api/v1/admin/districts/{district['id']}/administrators",
+            headers=super_headers,
+            json={"user_id": admin_id},
+        ).status_code
+        == 201
+    )
+    admin = _headers(client.post("/api/v1/sessions", json={"identifier": "9000000042", "pin": "2468"}).json()["access_token"])
+    managed = client.get("/api/v1/yatras", headers=admin, params={"q": prefix, "limit": 20})
+    assert managed.status_code == 200, managed.text
+    assert any(item["status"] == "draft" for item in managed.json()["items"])
+    managed_public = client.get(
+        "/api/v1/yatras",
+        headers=admin,
+        params={"published": "true", "q": prefix, "limit": 20},
+    )
+    assert managed_public.json()["total"] == 3
+    assert all(item["status"] != "draft" for item in managed_public.json()["items"])

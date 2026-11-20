@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.district import District, DistrictAdministrator
 from app.models.user import User
 from app.models.yatra import Yatra, YatraAdministrator, YatraRoute, YatraStop
+from app.services.yatra_access import public_catalog_clause
 
 
 class DistrictRepository:
@@ -97,10 +98,15 @@ class YatraRepository:
         district_id: uuid.UUID | None,
         status: str | None,
         query: str | None,
+        published: bool | None = None,
     ) -> tuple[list[Yatra], int]:
         filters = []
         if visible is not None:
             filters.append(visible)
+        if published is True:
+            filters.append(public_catalog_clause())
+        elif published is False:
+            filters.append(Yatra.published.is_(False))
         if district_id is not None:
             filters.append(Yatra.district_id == district_id)
         if status is not None:
@@ -122,7 +128,9 @@ class YatraRepository:
             listing = listing.where(*filters)
         total = int(self.db.scalar(count) or 0)
         rows = self.db.scalars(
-            listing.order_by(Yatra.starts_at.desc(), Yatra.created_at.desc()).limit(limit).offset(offset)
+            listing.order_by(Yatra.starts_at.desc(), Yatra.created_at.desc(), Yatra.id.desc())
+            .limit(limit)
+            .offset(offset)
         ).unique()
         return list(rows), total
 

@@ -43,10 +43,19 @@ def list_yatras(
     district_id: uuid.UUID | None = None,
     status: YatraStatusQuery | None = None,
     q: str | None = Query(default=None, max_length=160),
+    published: bool | None = None,
     actor: User = Depends(get_current_user),
     service: YatraService = Depends(get_yatra_service),
 ) -> YatraList:
-    return service.list_yatras(actor, limit, offset, district_id=district_id, status=status, query=q)
+    return service.list_yatras(
+        actor,
+        limit,
+        offset,
+        district_id=district_id,
+        status=status,
+        query=q,
+        published=published,
+    )
 
 
 @router.post("", response_model=YatraDetail, status_code=201)

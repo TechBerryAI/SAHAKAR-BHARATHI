@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useRef, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AdminSections } from '../components/AdminSections.tsx'
 import { AppBar } from '../components/AppBar.tsx'
@@ -28,8 +28,10 @@ import {
   uploadProtocolDocument,
 } from '../lib/api.ts'
 import {
+  createActionGate,
   documentOpen,
   formatWhen,
+  publicStops,
   protocolCategoryLabel,
   protocolStatusLabel,
   yatraStatusLabel,
@@ -56,6 +58,8 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState(false)
+  const actionGate = useRef(createActionGate())
 
   function load() {
     setLoading(true)
@@ -122,27 +126,41 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
   }, [yatra?.capabilities.manage_stops, yatraId])
 
   async function run(action: () => Promise<unknown>) {
+    if (!actionGate.current.tryEnter()) return
+    setActing(true)
     setError('')
     try {
       await action()
       load()
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'That change could not be saved.'))
+    } finally {
+      actionGate.current.leave()
+      setActing(false)
     }
   }
 
   async function onAssign(event: FormEvent) {
     event.preventDefault()
-    const found = await listAdminUsers(loginQuery.trim())
-    const match = found.items.find((person) => person.login_id.toLowerCase() === loginQuery.trim().toLowerCase())
-    if (!match) {
-      setError('No account matched that login ID.')
-      return
-    }
-    await run(async () => {
+    if (!actionGate.current.tryEnter()) return
+    setActing(true)
+    setError('')
+    try {
+      const found = await listAdminUsers(loginQuery.trim())
+      const match = found.items.find((person) => person.login_id.toLowerCase() === loginQuery.trim().toLowerCase())
+      if (!match) {
+        setError('No account matched that login ID.')
+        return
+      }
       await assignYatraAdmin(yatraId, match.id)
       setLoginQuery('')
-    })
+      load()
+    } catch (err: unknown) {
+      setError(apiErrorText(err, copy, 'That change could not be saved.'))
+    } finally {
+      actionGate.current.leave()
+      setActing(false)
+    }
   }
 
   if (loading && !yatra) {
@@ -164,6 +182,7 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
   }
 
   const back = admin ? '/admin/yatras' : '/yatras'
+  const stops = admin ? yatra.stops : publicStops(yatra.stops)
 
   return (
     <>
@@ -190,13 +209,13 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
             {yatra.published ? ' · Published' : ' · Not published'}
           </p>
           {yatra.capabilities.transition && yatra.next_status ? (
-            <Button type="button" onClick={() => void run(() => changeYatraStatus(yatraId, yatra.next_status!))}>
-              Mark as {yatraStatusLabel(yatra.next_status)}
+            <Button type="button" disabled={acting} onClick={() => void run(() => changeYatraStatus(yatraId, yatra.next_status!))}>
+              {acting ? copy.pleaseWait : `Mark as ${yatraStatusLabel(yatra.next_status)}`}
             </Button>
           ) : null}
           {yatra.capabilities.publish ? (
-            <Button type="button" variant="ghost" onClick={() => void run(() => publishYatra(yatraId))}>
-              Publish
+            <Button type="button" variant="ghost" disabled={acting} onClick={() => void run(() => publishYatra(yatraId))}>
+              {acting ? copy.pleaseWait : 'Publish'}
             </Button>
           ) : null}
         </section>
@@ -217,21 +236,23 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
-            <Button type="submit">Save</Button>
+            <Button type="submit" disabled={acting || name.trim().length < 2}>
+              {acting ? copy.pleaseWait : 'Save'}
+            </Button>
           </form>
         ) : null}
 
         <section className="card stack">
           <h2 className="card__title">Stops</h2>
-          {yatra.stops.length === 0 ? <p>No stops yet.</p> : null}
+          {stops.length === 0 ? <p>No stops yet.</p> : null}
           <ol>
-            {yatra.stops.map((stop) => (
+            {stops.map((stop) => (
               <li key={stop.id}>
                 {stop.sequence}. {stop.name}
                 {stop.address ? ` — ${stop.address}` : ''}
                 {stop.latitude != null && stop.longitude != null ? ` (${stop.latitude}, ${stop.longitude})` : ''}
                 {yatra.capabilities.manage_stops ? (
-                  <Button type="button" variant="text" onClick={() => void run(() => deleteStop(yatraId, stop.id))}>
+                  <Button type="button" variant="text" disabled={acting} onClick={() => void run(() => deleteStop(yatraId, stop.id))}>
                     Remove
                   </Button>
                 ) : null}
@@ -257,8 +278,8 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
                 value={stopAddress}
                 onChange={(event) => setStopAddress(event.target.value)}
               />
-              <Button type="submit" disabled={stopName.trim().length < 2}>
-                Add stop
+              <Button type="submit" disabled={acting || stopName.trim().length < 2}>
+                {acting ? copy.pleaseWait : 'Add stop'}
               </Button>
             </form>
           ) : null}
@@ -274,7 +295,9 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
           >
             <h2 className="card__title">Route</h2>
             <Field label="Label" name="route-label" value={routeLabel} onChange={(event) => setRouteLabel(event.target.value)} />
-            <Button type="submit">Save route label</Button>
+            <Button type="submit" disabled={acting}>
+              {acting ? copy.pleaseWait : 'Save route label'}
+            </Button>
           </form>
         ) : null}
 
@@ -285,7 +308,7 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
               {yatra.administrators.map((person) => (
                 <li key={person.user_id}>
                   {person.full_name} ({person.login_id})
-                  <Button type="button" variant="text" onClick={() => void run(() => removeYatraAdmin(yatraId, person.user_id))}>
+                  <Button type="button" variant="text" disabled={acting} onClick={() => void run(() => removeYatraAdmin(yatraId, person.user_id))}>
                     Remove
                   </Button>
                 </li>
@@ -298,8 +321,8 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
                 value={loginQuery}
                 onChange={(event) => setLoginQuery(event.target.value)}
               />
-              <Button type="submit" disabled={loginQuery.trim().length < 2}>
-                Assign
+              <Button type="submit" disabled={acting || loginQuery.trim().length < 2}>
+                {acting ? copy.pleaseWait : 'Assign'}
               </Button>
             </form>
           </section>
@@ -338,18 +361,18 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
                   ))}
                 </ul>
                 {yatra.capabilities.submit_protocol && (item.status === 'pending' || item.status === 'rejected') ? (
-                  <Button type="button" onClick={() => void run(() => submitProtocolItem(yatraId, item.id))}>
+                  <Button type="button" disabled={acting} onClick={() => void run(() => submitProtocolItem(yatraId, item.id))}>
                     {item.status === 'rejected' ? 'Resubmit' : 'Submit'}
                   </Button>
                 ) : null}
                 {yatra.capabilities.review_protocol && (item.status === 'submitted' || item.status === 'resubmitted') ? (
-                  <Button type="button" variant="ghost" onClick={() => void run(() => reviewProtocolItem(yatraId, item.id))}>
+                  <Button type="button" variant="ghost" disabled={acting} onClick={() => void run(() => reviewProtocolItem(yatraId, item.id))}>
                     Start review
                   </Button>
                 ) : null}
                 {yatra.capabilities.review_protocol && item.status === 'under_review' ? (
                   <>
-                    <Button type="button" onClick={() => void run(() => approveProtocolItem(yatraId, item.id))}>
+                    <Button type="button" disabled={acting} onClick={() => void run(() => approveProtocolItem(yatraId, item.id))}>
                       Approve
                     </Button>
                     {rejecting === item.id ? (
@@ -365,12 +388,12 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
                         }}
                       >
                         <Field label="Rejection reason" name={`reason-${item.id}`} value={reason} onChange={(event) => setReason(event.target.value)} />
-                        <Button type="submit" variant="danger" disabled={reason.trim().length < 3}>
+                        <Button type="submit" variant="danger" disabled={acting || reason.trim().length < 3}>
                           Reject
                         </Button>
                       </form>
                     ) : (
-                      <Button type="button" variant="danger" onClick={() => setRejecting(item.id)}>
+                      <Button type="button" variant="danger" disabled={acting} onClick={() => setRejecting(item.id)}>
                         Reject
                       </Button>
                     )}
@@ -382,6 +405,7 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
                     <input
                       type="file"
                       accept="application/pdf,image/jpeg,image/png"
+                      disabled={acting}
                       onChange={(event) => {
                         const file = event.target.files?.[0]
                         event.target.value = ''
@@ -415,7 +439,7 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
                   <option value="post">Post-Yatra</option>
                 </SelectField>
                 <Field label="Title" name="item-title" value={itemTitle} onChange={(event) => setItemTitle(event.target.value)} />
-                <Button type="submit" disabled={itemTitle.trim().length < 2}>
+                <Button type="submit" disabled={acting || itemTitle.trim().length < 2}>
                   Add item
                 </Button>
               </form>
