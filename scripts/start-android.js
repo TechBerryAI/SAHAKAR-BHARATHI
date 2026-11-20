@@ -328,17 +328,23 @@ async function waitForEmulator(sdk, watchLog = true) {
   const deadline = Date.now() + 180_000
   let restartedAdb = false
   let sawProcess = false
+  let runningSince = 0
   while (Date.now() < deadline) {
     const devices = connectedDevices(sdk)
     if (devices.length > 0) return devices[0]
     const fatal = watchLog ? emulatorFatal(emulatorLog) : undefined
     const running = IS_WINDOWS || IS_WSL ? windowsEmulatorRunning() : true
-    if (running) sawProcess = true
+    if (running) {
+      sawProcess = true
+      if (!runningSince) runningSince = Date.now()
+    }
     if (fatal && !running) {
       fail(`The emulator stopped: ${fatal}\n  Log: ${emulatorLog}`)
     }
-    // A Windows emulator started from WSL often never appears until adb is restarted.
-    if (running && !restartedAdb) {
+    // Restarting adb the instant the process appears drops the emulator's first
+    // connection ("Unable to connect to adb daemon"). Wait, then reconnect once.
+    if (running && !restartedAdb && Date.now() - runningSince > 15_000) {
+      log('The emulator is open, but adb cannot see it yet. Reconnecting…')
       adb(sdk, undefined, ['kill-server'])
       adb(sdk, undefined, ['start-server'])
       restartedAdb = true
@@ -377,6 +383,8 @@ function dismissFrozenDialogs(sdk, serial) {
 }
 
 async function pickDevice(sdk) {
+  // The emulator connects to adb while it boots. The daemon has to be listening first.
+  adb(sdk, undefined, ['start-server'])
   const wanted = option('--device')
   let devices = connectedDevices(sdk)
   if (wanted) {
@@ -405,8 +413,10 @@ async function pickDevice(sdk) {
 
   if ((IS_WINDOWS || IS_WSL) && windowsEmulatorRunning()) {
     log('An emulator is already open. Connecting to it…')
-    adb(sdk, undefined, ['kill-server'])
-    adb(sdk, undefined, ['start-server'])
+    if (connectedDevices(sdk).length === 0) {
+      adb(sdk, undefined, ['kill-server'])
+      adb(sdk, undefined, ['start-server'])
+    }
     const serial = await waitForEmulator(sdk, false)
     await waitForBoot(sdk, serial, 180)
     await sleep(2000)
@@ -605,6 +615,38 @@ function install(sdk, serial) {
   fail(`Install failed:\n${output.trim()}`)
 }
 
+function currentFocus(sdk, serial) {
+  const dumped = adb(sdk, serial, ['shell', 'dumpsys', 'window'], { timeout: 15000 })
+  const match = `${dumped.stdout || ''}`.match(/mCurrentFocus=\S+ \S+ ([A-Za-z0-9_.]+)\//)
+  return match?.[1] || ''
+}
+
+// One launch. A frozen launcher dialog used to hide the first start, so the
+// script started the activity again. Dismiss that dialog first, then confirm
+// the app is the focused window before this command exits.
+async function openApp(sdk, serial) {
+  adb(sdk, serial, ['shell', 'input', 'keyevent', 'KEYCODE_WAKEUP'])
+  adb(sdk, serial, ['shell', 'wm', 'dismiss-keyguard'])
+  dismissFrozenDialogs(sdk, serial)
+  adb(sdk, serial, ['shell', 'am', 'force-stop', PACKAGE])
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const started = adb(sdk, serial, ['shell', 'am', 'start', '-W', '-n', ACTIVITY], { timeout: 30000 })
+    const output = `${started.stdout || ''}${started.stderr || ''}`
+    if (started.status !== 0 || /Error:/.test(output)) {
+      if (attempt === 3) fail(`Could not open the app.\n${output.trim()}`)
+      dismissFrozenDialogs(sdk, serial)
+      await sleep(1000)
+      continue
+    }
+    await sleep(1000)
+    if (currentFocus(sdk, serial) === PACKAGE) return
+    log('A system dialog is still in front of the app. Closing it and opening the app…')
+    dismissFrozenDialogs(sdk, serial)
+    await sleep(1000)
+  }
+  fail('The app was installed, but it did not stay on screen.')
+}
+
 function streamLogs(sdk, serial) {
   const pid = adb(sdk, serial, ['shell', 'pidof', PACKAGE]).stdout?.trim()
   if (!pid) {
@@ -630,12 +672,7 @@ const code = await gradle(javaHome, sdk, [':app:assembleDebug', `-Psahakar.debug
 if (code !== 0 || !existsSync(APK)) fail('The Android build failed. See the output above.')
 
 install(sdk, serial)
-dismissFrozenDialogs(sdk, serial)
-adb(sdk, serial, ['shell', 'am', 'force-stop', PACKAGE])
-if (adb(sdk, serial, ['shell', 'am', 'start', '-n', ACTIVITY]).status !== 0) fail('Could not open the app.')
-await sleep(1500)
-dismissFrozenDialogs(sdk, serial)
-adb(sdk, serial, ['shell', 'am', 'start', '-n', ACTIVITY])
+await openApp(sdk, serial)
 
 console.log(`
 \x1b[32m  Sahakar Bharati is open on ${serial}\x1b[0m

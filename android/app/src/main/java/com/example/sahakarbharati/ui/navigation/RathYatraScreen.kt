@@ -166,8 +166,6 @@ fun RathYatraScreen(
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.HOME -> CitizenHomeScreen(
-            onOpenAdmin = { go(RathYatraDestinations.ADMIN) },
-            onOpenBooths = { go(RathYatraDestinations.ADMIN_PLACES) },
             onOpenAttendance = { go(RathYatraDestinations.ATTENDANCE) },
             onOpenYatras = { go(RathYatraDestinations.YATRAS) },
             onSelectTab = { go(it) },

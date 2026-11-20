@@ -5,10 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -34,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.IntrinsicSize
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.ui
@@ -43,7 +40,6 @@ import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.participantCopy
 import com.example.sahakarbharati.core.copy.personInitials
 import com.example.sahakarbharati.core.copy.regionLabel
-import com.example.sahakarbharati.core.copy.statusLabel
 import com.example.sahakarbharati.core.ui.InitialAvatar
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.StatusChip
@@ -58,8 +54,6 @@ import com.example.sahakarbharati.ui.theme.RathYatraColors
 
 @Composable
 fun CitizenHomeScreen(
-    onOpenAdmin: () -> Unit,
-    onOpenBooths: () -> Unit,
     onOpenAttendance: () -> Unit,
     onOpenYatras: () -> Unit,
     onSelectTab: (String) -> Unit,
@@ -206,58 +200,6 @@ fun CitizenHomeScreen(
                         )
                     }
                 }
-                if (staff) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Max),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        HomeShortcut(
-                            title = ui("registeredUsers"),
-                            body = ui("registeredUsersBody"),
-                            onClick = onOpenAdmin,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
-                        HomeShortcut(
-                            title = ui("booths"),
-                            body = ui("boothsBody"),
-                            onClick = onOpenBooths,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
-                    }
-                }
-                WhiteCard(
-                    onClick = { onSelectTab(RathYatraDestinations.PROFILE) },
-                    modifier = Modifier.semantics(mergeDescendants = true) {},
-                ) {
-                    Row(
-                        Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text.account.uppercase(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.4.sp,
-                                color = RathYatraColors.DeepGreenSoft,
-                            )
-                            Text(text.yourProfile, color = Color(0xFF17263F), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                text.profileStatus.replace("{status}", statusLabel(text, profile?.status)),
-                                fontSize = 14.sp,
-                                color = RathYatraColors.OnSurfaceVariant,
-                            )
-                        }
-                        Icon(
-                            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = Color(0xFFB7A48A),
-                        )
-                    }
-                }
                 WhiteCard {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
@@ -277,28 +219,6 @@ fun CitizenHomeScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun HomeShortcut(
-    title: String,
-    body: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    WhiteCard(modifier = modifier, onClick = onClick) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                ui("adminKicker"),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.6.sp,
-                color = RathYatraColors.SaffronPressed,
-            )
-            Text(title, color = Color(0xFF17263F), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp)
-            Text(body, fontSize = 12.sp, lineHeight = 16.sp, color = RathYatraColors.OnSurfaceVariant)
         }
     }
 }

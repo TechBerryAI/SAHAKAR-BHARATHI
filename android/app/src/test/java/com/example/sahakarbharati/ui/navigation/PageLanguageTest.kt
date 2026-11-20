@@ -115,10 +115,8 @@ class PageLanguageTest {
             "registered", "accountReady", "keepLoginId", "keepLoginIdBody", "loginId", "goHome",
         ),
         "Home" to listOf(
-            "brandName", "registeredParticipant", "jaiKisan", "account", "yourProfile",
-            "profileStatus", "statusActive", "mobile", "mobileOnFileBody", "scanBoothTitle",
-            "scanBoothBody", "adminKicker", "registeredUsers", "registeredUsersBody", "booths",
-            "boothsBody", "home", "profile", "adminRole",
+            "brandName", "registeredParticipant", "jaiKisan", "mobile", "mobileOnFileBody",
+            "scanBoothTitle", "scanBoothBody", "home", "profile", "adminRole",
         ),
         "Profile" to listOf(
             "profile", "registeredParticipant", "formTitle", "fullName", "farmer", "fisherman",
