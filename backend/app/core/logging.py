@@ -15,6 +15,8 @@ _SENSITIVE = {
     "code",
     "verification_token",
     "api_key",
+    "qr_token",
+    "tracker_token",
 }
 
 

@@ -9,7 +9,7 @@ and the app does not use Supabase Auth, PostgREST, or the Supabase JS client.
 |---|---|
 | `backend/app/models/` | SQLAlchemy models, the source of truth for code. |
 | `backend/migrations/versions/` | Alembic migrations, the **preferred** way to create and evolve a database. |
-| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261117_0011`) for the Supabase SQL Editor. **Empty databases only.** |
+| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261120_0012`) for the Supabase SQL Editor. **Empty databases only.** |
 | `infra/supabase/runtime_role.sql` | Optional least-privilege role for the running API. |
 
 The two init paths produce the same schema. `backend/tests/test_database_schema.py`
@@ -37,7 +37,8 @@ production schema.
 | `20261103_0008` | `places` and `attendance` |
 | `20261114_0009` | `rate_limit_buckets.hit_times` for the sliding window |
 | `20261117_0010` | `districts`, district administrators, `yatras`, Yatra administrators, stops, and routes |
-| `20261117_0011` | Protocol templates, checklist items, and document metadata (current head) |
+| `20261117_0011` | Protocol templates, checklist items, and document metadata |
+| `20261120_0012` | Yatra counters, attendance, trackers, positions, and latest position (current head) |
 
 **Why 0005 matters:** Supabase grants the public `anon` and `authenticated` roles
 full privileges on new tables in `public`, and exposes them over PostgREST with the
@@ -65,7 +66,7 @@ proves 0005 removes it.
    role password outside the file, and point Render `DATABASE_URL` at `sahakar_api`.
 
 Alternative when Alembic cannot reach the database: run `infra/supabase/schema.sql`
-once in the SQL Editor on the **empty** database. It stamps `20261117_0011`, so
+once in the SQL Editor on the **empty** database. It stamps `20261120_0012`, so
 later releases use `alembic upgrade head` as normal.
 
 ## Existing database (every release)
@@ -82,13 +83,14 @@ MIGRATION_DATABASE_URL='<owner connection string, sslmode=require>' alembic upgr
    `alembic stamp <matching revision>` (for the pre-0005 snapshot that is
    `20261022_0004`) and `alembic upgrade head`.
 3. Run migrations **before** deploying code that needs them. Head is
-   `20261117_0011`. Login, `/me`, and admin read `users.role` (0007). Check-in
+   `20261120_0012`. Login, `/me`, and admin read `users.role` (0007). Check-in
    reads `places` and `attendance` (0008). The rate limiter reads
    `rate_limit_buckets.hit_times` (0009). Rath Yatra, district, and protocol
-   routes read `20261117_0010` and `20261117_0011`. A database still at 0009
+   routes read `20261117_0010` and `20261117_0011`. Counters, QR attendance, and
+   GPS read `20261120_0012`. A database still at 0009
    will fail those reads after this code is deployed. 0005 (RLS), 0006 (rate-limit table),
-   0007, 0008, 0009, 0010, and 0011 are additive and must be present on production. Do not edit
-   migrations that have already been applied.
+   0007, 0008, 0009, 0010, 0011, and 0012 are additive and must be present on production. Do not edit
+   migrations that have already been applied. Re-run `runtime_role.sql` after 0012.
 4. Never run `alembic downgrade`, `alembic stamp` with a guessed revision, or any
    reset against production. 0005's downgrade is intentionally a no-op.
 
@@ -174,7 +176,7 @@ Do this on a scratch project every quarter, and again before the first productio
 
 1. Note the Supabase backup or PITR time you intend to restore. If the plan has neither, use a `pg_dump` taken that day.
 2. Restore into a new project or scratch database. Do not restore over production.
-3. `MIGRATION_DATABASE_URL=… alembic current` prints `20261117_0011`.
+3. `MIGRATION_DATABASE_URL=… alembic current` prints `20261120_0012`.
 4. Confirm RLS is on for every application table and `anon` cannot `SELECT` from `users`.
 5. Re-run `runtime_role.sql` if that role is used, then sign in once against the scratch API and confirm a revoked session stays revoked.
 6. Discard the scratch project. Record the date and who ran the drill.
@@ -202,8 +204,9 @@ DELETE FROM rate_limit_buckets WHERE window_start < now() - interval '1 day';
 | `sessions` | 30 days after expiry or revocation | Lets an operator see a recent logout or disable. Live sessions are kept. |
 | `rate_limit_buckets` | 1 day after the last write | Active keys refresh `window_start` on each check. |
 | `audit_events` | Not deleted by the application | Accountability record. Recommended operator archive after 365 days. **Not configured.** Do not `DELETE FROM audit_events` as part of a routine job. |
+| `yatra_positions` | 30 days (`POSITION_RETENTION_DAYS`), except the row still referenced by `yatra_latest_positions` | Older GPS history. Attendance, the latest position, and audit rows are kept. |
 
-`sahakar_api` can delete the three tables above. It cannot update or delete `audit_events`, and it cannot update or delete `attendance` or `registrations`.
+`sahakar_api` can delete the three session tables above. It cannot update or delete `audit_events`, and it cannot update or delete `attendance`, `yatra_attendance`, `yatra_positions`, or `registrations`. Position pruning runs in its own savepoint: the runtime role skips it, and an owner connection deletes expired GPS history.
 If the runtime role was created from an older copy of `runtime_role.sql`, re-run
 the script so session cleanup is allowed. Until then, cleanup failures are logged
 and the throttle check itself still commits.

@@ -44,8 +44,10 @@ import com.example.sahakarbharati.features.admin.AdminUserScreen
 import com.example.sahakarbharati.features.attendance.AttendanceScreen
 import com.example.sahakarbharati.features.admin.AdminUsersScreen
 import com.example.sahakarbharati.features.home.CitizenHomeScreen
+import com.example.sahakarbharati.features.yatra.YatraAttendanceScreen
 import com.example.sahakarbharati.features.yatra.YatraDetailScreen
 import com.example.sahakarbharati.features.yatra.YatraListScreen
+import com.example.sahakarbharati.features.yatra.YatraTrackingScreen
 import com.example.sahakarbharati.features.profile.ProfileScreen
 import com.example.sahakarbharati.features.registration.RegistrationFormScreen
 import com.example.sahakarbharati.features.registration.RegistrationSuccessScreen
@@ -183,6 +185,20 @@ fun RathYatraScreen(
             modifier = modifier.fillMaxSize(),
         )
         RathYatraDestinations.YATRA_DETAIL -> YatraDetailScreen(
+            yatraId = yatraId,
+            onBack = { back() },
+            onScanCounter = { go(RathYatraDestinations.YATRA_ATTENDANCE) },
+            onSendPosition = { go(RathYatraDestinations.YATRA_TRACKING) },
+            onSelectTab = { go(it) },
+            modifier = modifier.fillMaxSize(),
+        )
+        RathYatraDestinations.YATRA_ATTENDANCE -> YatraAttendanceScreen(
+            yatraId = yatraId,
+            onBack = { back() },
+            onSelectTab = { go(it) },
+            modifier = modifier.fillMaxSize(),
+        )
+        RathYatraDestinations.YATRA_TRACKING -> YatraTrackingScreen(
             yatraId = yatraId,
             onBack = { back() },
             onSelectTab = { go(it) },

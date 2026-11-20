@@ -91,7 +91,8 @@ def clean_tables(request: pytest.FixtureRequest) -> Iterator[None]:
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE protocol_documents, protocol_items, yatra_routes, yatra_stops, "
+                "TRUNCATE yatra_latest_positions, yatra_positions, yatra_attendance, yatra_trackers, "
+                "yatra_counters, protocol_documents, protocol_items, yatra_routes, yatra_stops, "
                 "yatra_administrators, yatras, district_administrators, districts, "
                 "attendance, places, audit_events, sessions, registrations, users, "
                 "phone_verifications, rate_limit_buckets "

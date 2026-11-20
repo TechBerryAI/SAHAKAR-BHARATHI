@@ -15,8 +15,11 @@ import com.example.sahakarbharati.data.repository.RemoteAdminRepository
 import com.example.sahakarbharati.data.repository.RemoteAttendanceRepository
 import com.example.sahakarbharati.data.repository.RemoteAuthRepository
 import com.example.sahakarbharati.data.repository.RemoteProfileRepository
+import com.example.sahakarbharati.data.repository.RemoteYatraFieldRepository
 import com.example.sahakarbharati.data.repository.RemoteYatraRepository
+import com.example.sahakarbharati.data.repository.YatraFieldRepository
 import com.example.sahakarbharati.data.repository.YatraRepository
+import java.io.File
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -53,4 +56,6 @@ class AppContainer(context: Context) {
     val adminRepository: AdminRepository = RemoteAdminRepository(api, session)
     val attendanceRepository: AttendanceRepository = RemoteAttendanceRepository(api, session)
     val yatraRepository: YatraRepository = RemoteYatraRepository(yatraApi, session)
+    val yatraFieldRepository: YatraFieldRepository = RemoteYatraFieldRepository(yatraApi, session, session)
+    val positionQueue: FixQueue = FilePositionQueue(File(context.filesDir, "yatra_position_queue.txt"))
 }

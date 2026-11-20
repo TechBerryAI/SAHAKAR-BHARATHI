@@ -49,6 +49,11 @@ APP_TABLES = (
     "protocol_templates",
     "protocol_items",
     "protocol_documents",
+    "yatra_counters",
+    "yatra_attendance",
+    "yatra_trackers",
+    "yatra_positions",
+    "yatra_latest_positions",
 )
 
 
@@ -288,6 +293,10 @@ def test_runtime_role_can_run_the_api_but_not_change_schema(fresh_database: str,
                     "UPDATE registrations SET registration_id = 'tamper'",
                     "DELETE FROM attendance",
                     "UPDATE attendance SET id = id",
+                    "DELETE FROM yatra_attendance",
+                    "UPDATE yatra_attendance SET id = id",
+                    "DELETE FROM yatra_positions",
+                    "UPDATE yatra_positions SET id = id",
                 ):
                     with pytest.raises(ProgrammingError):
                         connection.execute(text(statement))

@@ -9,6 +9,13 @@ from app.models.registration import Registration
 from app.models.session import AuthSession
 from app.models.user import User
 from app.models.yatra import Yatra, YatraAdministrator, YatraRoute, YatraStop
+from app.models.yatra_field import (
+    YatraAttendance,
+    YatraCounter,
+    YatraLatestPosition,
+    YatraPosition,
+    YatraTracker,
+)
 
 __all__ = [
     "Attendance",
@@ -26,6 +33,11 @@ __all__ = [
     "User",
     "Yatra",
     "YatraAdministrator",
+    "YatraAttendance",
+    "YatraCounter",
+    "YatraLatestPosition",
+    "YatraPosition",
     "YatraRoute",
     "YatraStop",
+    "YatraTracker",
 ]

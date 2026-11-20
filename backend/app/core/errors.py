@@ -65,6 +65,21 @@ class InactivePlaceError(AppError):
         super().__init__(status.HTTP_400_BAD_REQUEST, "This booth is not accepting check-ins.")
 
 
+class UnknownCounterError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_404_NOT_FOUND, "That counter was not found.")
+
+
+class InactiveCounterError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_400_BAD_REQUEST, "This counter is not accepting attendance.")
+
+
+class InvalidPositionError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(status.HTTP_422_UNPROCESSABLE_ENTITY, detail)
+
+
 class UnauthorizedError(AppError):
     def __init__(self, detail: str = "Authentication required.") -> None:
         super().__init__(

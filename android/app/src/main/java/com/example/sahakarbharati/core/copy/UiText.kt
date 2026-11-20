@@ -58,6 +58,22 @@ private val knownEnglish = mapOf(
     "Booth name is required." to "boothNameRequired",
     "String should have at least 2 characters" to "tooShort",
     "please try again." to "tryAgain",
+    "That counter was not found." to "counterNotFound",
+    "This counter is not accepting attendance." to "counterInactive",
+    "This Yatra is not accepting attendance." to "yatraNotAcceptingAttendance",
+    "That QR code is not a counter." to "counterQrInvalid",
+    "Accuracy is too large." to "accuracyTooLarge",
+    "That position is in the future." to "positionInFuture",
+    "That position is too old." to "positionTooOld",
+    "This Yatra is not accepting positions." to "yatraNotAcceptingPositions",
+    "That stop is not on this Yatra." to "stopNotOnYatra",
+    "A counter with this code already exists." to "counterCodeTaken",
+    "Session is invalid or expired." to "sessionInvalid",
+    "You are marked present at this counter." to "counterMarked",
+    "Already marked present at this counter today." to "counterAlreadyMarked",
+    "A mock location is not sent." to "mockLocation",
+    "Paste the tracker code from the Yatra desk." to "trackerCodeRequired",
+    "Tracker code saved on this phone." to "trackerCodeSaved",
 )
 
 private val createdAccount = Regex(

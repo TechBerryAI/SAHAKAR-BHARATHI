@@ -17,6 +17,7 @@ import { RegisterScreen } from './screens/RegisterScreen.tsx'
 import { RegisterSuccessScreen } from './screens/RegisterSuccessScreen.tsx'
 import { SignInScreen } from './screens/SignInScreen.tsx'
 import { StartScreen } from './screens/StartScreen.tsx'
+import { YatraAttendanceScreen } from './screens/YatraAttendanceScreen.tsx'
 import { YatraScreen } from './screens/YatraScreen.tsx'
 import { YatrasScreen } from './screens/YatrasScreen.tsx'
 
@@ -164,6 +165,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <YatraScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/yatras/:yatraId/attendance"
+          element={
+            <ProtectedRoute>
+              <YatraAttendanceScreen />
             </ProtectedRoute>
           }
         />

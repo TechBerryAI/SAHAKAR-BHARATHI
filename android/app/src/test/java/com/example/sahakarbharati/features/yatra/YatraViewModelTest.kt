@@ -1,6 +1,10 @@
 package com.example.sahakarbharati.features.yatra
 
 import com.example.sahakarbharati.data.remote.YatraApi
+import com.example.sahakarbharati.data.remote.YatraAttendanceRecordDto
+import com.example.sahakarbharati.data.remote.YatraAttendanceScanDto
+import com.example.sahakarbharati.data.remote.YatraPositionCreateDto
+import retrofit2.Response
 import com.example.sahakarbharati.data.remote.YatraDetailDto
 import com.example.sahakarbharati.data.remote.YatraDistrictDto
 import com.example.sahakarbharati.data.remote.YatraPageDto
@@ -115,6 +119,18 @@ private class FakeYatraApi : YatraApi {
             ),
         )
     }
+
+    override suspend fun scanAttendance(
+        authorization: String,
+        yatraId: String,
+        body: YatraAttendanceScanDto,
+    ): YatraAttendanceRecordDto = error("unused")
+
+    override suspend fun postPosition(
+        authorization: String,
+        yatraId: String,
+        body: YatraPositionCreateDto,
+    ): Response<Unit> = error("unused")
 
     private fun summary(id: String, published: Boolean) = YatraSummaryDto(
         id = id,

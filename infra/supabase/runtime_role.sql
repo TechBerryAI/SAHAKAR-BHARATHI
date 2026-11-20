@@ -43,6 +43,11 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_routes TO sahakar_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.protocol_templates TO sahakar_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.protocol_items TO sahakar_api;
 GRANT SELECT, INSERT ON TABLE public.protocol_documents TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_counters TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.yatra_attendance TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_trackers TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.yatra_positions TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_latest_positions TO sahakar_api;
 
 REVOKE DELETE ON TABLE
     public.users,
@@ -52,7 +57,10 @@ REVOKE DELETE ON TABLE
     public.yatra_routes,
     public.protocol_templates,
     public.protocol_items,
-    public.protocol_documents
+    public.protocol_documents,
+    public.yatra_counters,
+    public.yatra_trackers,
+    public.yatra_latest_positions
 FROM sahakar_api;
 REVOKE UPDATE ON TABLE
     public.district_administrators,
@@ -62,7 +70,9 @@ FROM sahakar_api;
 REVOKE UPDATE, DELETE ON TABLE
     public.registrations,
     public.audit_events,
-    public.attendance
+    public.attendance,
+    public.yatra_attendance,
+    public.yatra_positions
 FROM sahakar_api;
 REVOKE ALL ON TABLE public.alembic_version FROM sahakar_api;
 
@@ -76,7 +86,8 @@ BEGIN
     FOREACH table_name IN ARRAY ARRAY[
         'users', 'sessions', 'phone_verifications', 'rate_limit_buckets', 'places',
         'districts', 'district_administrators', 'yatras', 'yatra_administrators',
-        'yatra_stops', 'yatra_routes', 'protocol_templates', 'protocol_items'
+        'yatra_stops', 'yatra_routes', 'protocol_templates', 'protocol_items',
+        'yatra_counters', 'yatra_trackers', 'yatra_latest_positions'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS sahakar_api_access ON public.%I', table_name);
@@ -89,7 +100,8 @@ BEGIN
     END LOOP;
 
     FOREACH table_name IN ARRAY ARRAY[
-        'registrations', 'audit_events', 'attendance', 'protocol_documents'
+        'registrations', 'audit_events', 'attendance', 'protocol_documents',
+        'yatra_attendance', 'yatra_positions'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS sahakar_api_access ON public.%I', table_name);

@@ -129,6 +129,9 @@ class YatraCapabilities(ORMModel):
     submit_protocol: bool
     review_protocol: bool
     manage_items: bool
+    manage_counters: bool
+    manage_trackers: bool
+    view_track: bool
 
 
 class DistrictBrief(ORMModel):

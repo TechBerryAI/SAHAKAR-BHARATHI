@@ -76,6 +76,9 @@ def capabilities_for(level: str, yatra: Yatra) -> YatraCapabilities:
         submit_protocol=operate,
         review_protocol=manage,
         manage_items=manage,
+        manage_counters=operate,
+        manage_trackers=manage,
+        view_track=True,
     )
 
 

@@ -39,6 +39,9 @@ export type YatraCapabilities = {
   submit_protocol: boolean
   review_protocol: boolean
   manage_items: boolean
+  manage_counters: boolean
+  manage_trackers: boolean
+  view_track: boolean
 }
 
 export type YatraStop = {
@@ -184,4 +187,119 @@ export function toApiInstant(localValue: string): string {
 
 export function documentOpen(status: ProtocolStatus): boolean {
   return status === 'pending' || status === 'rejected' || status === 'submitted' || status === 'resubmitted'
+}
+
+export const POSITION_POLL_MS = 15_000
+
+export type PositionFreshness = 'live' | 'stale' | 'offline'
+
+export function freshnessLabel(value: string): string {
+  if (value === 'live') return 'Live'
+  if (value === 'stale') return 'Stale'
+  if (value === 'offline') return 'Offline'
+  return value
+}
+
+export function osmPositionLink(latitude: number, longitude: number): string {
+  return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`
+}
+
+export type YatraCounter = {
+  id: string
+  yatra_id: string
+  stop_id: string | null
+  name: string
+  code: string
+  description: string | null
+  latitude: number | null
+  longitude: number | null
+  location_accuracy_m: number | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type YatraCounterDetail = YatraCounter & {
+  qr_text: string
+}
+
+export type YatraCounterPage = {
+  items: YatraCounter[]
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
+}
+
+export type YatraFieldAttendance = {
+  id: string
+  yatra_id: string
+  counter_id: string
+  counter_name: string
+  checked_in_at: string
+  attendance_date: string
+  source: 'qr'
+  already_recorded: boolean
+  login_id: string
+  full_name: string
+}
+
+export type YatraFieldAttendancePage = {
+  items: YatraFieldAttendance[]
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
+}
+
+export type YatraTracker = {
+  id: string
+  label: string
+  status: string
+  assigned_at: string
+  revoked_at: string | null
+}
+
+export type YatraTrackerCreated = YatraTracker & {
+  tracker_token: string
+}
+
+export type YatraTrackerPage = {
+  items: YatraTracker[]
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
+}
+
+export type LatestPosition = {
+  freshness: PositionFreshness
+  latitude: number | null
+  longitude: number | null
+  accuracy_m: number | null
+  captured_at: string | null
+  received_at: string | null
+  stop_id: string | null
+  tracker_id: string | null
+}
+
+export type YatraPosition = {
+  id: string
+  yatra_id: string
+  tracker_id: string
+  stop_id: string | null
+  latitude: number
+  longitude: number
+  accuracy_m: number
+  captured_at: string
+  received_at: string
+  client_position_id: string
+}
+
+export type YatraPositionPage = {
+  items: YatraPosition[]
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
 }

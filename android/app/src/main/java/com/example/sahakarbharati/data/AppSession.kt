@@ -14,13 +14,14 @@ import com.example.sahakarbharati.SahakarApp
 import com.example.sahakarbharati.data.model.ParticipantProfile
 import com.example.sahakarbharati.data.model.knownRole
 import com.example.sahakarbharati.data.repository.SessionStore
+import com.example.sahakarbharati.data.repository.TrackerCredentialStore
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
 
 class AppSession(
     private val securePrefs: SharedPreferences,
     private val localPrefs: SharedPreferences,
-) : SessionStore {
+) : SessionStore, TrackerCredentialStore {
     private val signedInState = mutableStateOf(!accessToken().isNullOrBlank())
     private val epochState = mutableStateOf(0)
     private val epochListeners = CopyOnWriteArrayList<(Int) -> Unit>()
@@ -81,6 +82,16 @@ class AppSession(
     override fun isLoggedIn(): Boolean = !accessToken().isNullOrBlank()
 
     override fun accessToken(): String? = securePrefs.getString(KEY_TOKEN, null)?.takeIf { it.isNotBlank() }
+
+    override fun trackerToken(): String? = securePrefs.getString(KEY_TRACKER, null)?.takeIf { it.isNotBlank() }
+
+    override fun saveTrackerToken(token: String) {
+        securePrefs.edit().putString(KEY_TRACKER, token).apply()
+    }
+
+    override fun clearTrackerToken() {
+        securePrefs.edit().remove(KEY_TRACKER).apply()
+    }
 
     override fun cachedProfile(): ParticipantProfile? {
         if (loginId.isBlank() && name.isBlank()) return null
@@ -181,6 +192,7 @@ class AppSession(
         const val SECURE_PREFS = "sahakar_secure_session"
         const val LOCAL_PREFS = "sahakar_session"
         private const val KEY_TOKEN = "access_token"
+        private const val KEY_TRACKER = "tracker_token"
         private const val KEY_LOGIN_ID = "login_id"
         private const val KEY_NAME = "name"
         private const val KEY_MOBILE = "mobile"

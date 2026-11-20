@@ -12,6 +12,10 @@ Retention:
   are kept.
 - rate_limit_buckets: 1 day after the last write. Active keys refresh
   window_start on each check.
+- yatra_positions: older than POSITION_RETENTION_DAYS, except the row still
+  referenced by yatra_latest_positions. Attendance and audit rows stay.
+  The runtime role cannot delete this table. That statement runs in a
+  savepoint so a permission error does not undo the other cleanup.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ import logging
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import SQLAlchemyError
 
 _PRUNE_PHONE_VERIFICATIONS = text(
     """
@@ -40,12 +45,36 @@ _PRUNE_BUCKETS = text(
     WHERE window_start < now() - interval '1 day'
     """
 )
+_PRUNE_POSITIONS = text(
+    """
+    DELETE FROM yatra_positions
+    WHERE received_at < now() - (:days * interval '1 day')
+      AND NOT EXISTS (
+          SELECT 1 FROM yatra_latest_positions
+          WHERE yatra_latest_positions.position_id = yatra_positions.id
+      )
+    """
+)
 
 
-def prune_expired(connection: Connection) -> None:
+def prune_expired(connection: Connection, *, position_retention_days: int | None = None) -> None:
+    if position_retention_days is None:
+        from app.core.config import get_settings
+
+        position_retention_days = get_settings().position_retention_days
     connection.execute(_PRUNE_PHONE_VERIFICATIONS)
     connection.execute(_PRUNE_SESSIONS)
     connection.execute(_PRUNE_BUCKETS)
+    # sahakar_api may insert positions and must not rewrite them. Owner
+    # connections still prune history. A denied delete stays in this savepoint.
+    nested = connection.begin_nested()
+    try:
+        connection.execute(_PRUNE_POSITIONS, {"days": position_retention_days})
+    except SQLAlchemyError:
+        nested.rollback()
+        logging.getLogger(__name__).warning("position retention skipped")
+    else:
+        nested.commit()
 
 
 def main() -> None:

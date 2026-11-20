@@ -286,6 +286,22 @@ private fun pack_en(): Map<String, String> = buildMap {
     put("addressRequired", "Enter your district, state, and a 6-digit PIN code.")
     put("sendingOtp", "Sending OTP…")
     put("navigateBack", "Go back")
+    put("counterNotFound", "That counter was not found.")
+    put("counterInactive", "This counter is not accepting attendance.")
+    put("yatraNotAcceptingAttendance", "This Yatra is not accepting attendance.")
+    put("counterQrInvalid", "That QR code is not a counter.")
+    put("accuracyTooLarge", "Accuracy is too large.")
+    put("positionInFuture", "That position is in the future.")
+    put("positionTooOld", "That position is too old.")
+    put("yatraNotAcceptingPositions", "This Yatra is not accepting positions.")
+    put("stopNotOnYatra", "That stop is not on this Yatra.")
+    put("counterCodeTaken", "A counter with this code already exists.")
+    put("sessionInvalid", "Session is invalid or expired.")
+    put("counterMarked", "You are marked present at this counter.")
+    put("counterAlreadyMarked", "Already marked present at this counter today.")
+    put("mockLocation", "A mock location is not sent.")
+    put("trackerCodeRequired", "Paste the tracker code from the Yatra desk.")
+    put("trackerCodeSaved", "Tracker code saved on this phone.")
 }
 
 private fun pack_hi(): Map<String, String> = buildMap {

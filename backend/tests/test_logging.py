@@ -35,6 +35,20 @@ def test_redacting_filter_drops_pin_otp_and_token_fields() -> None:
     }
 
 
+def test_redacting_filter_drops_qr_and_tracker_tokens() -> None:
+    record = _record(
+        "counter issued",
+        {"qr_token": "posted-secret", "tracker_token": "device-secret", "yatra_id": "1"},
+    )
+    assert RedactingFilter().filter(record) is True
+    assert record.msg == "counter issued"
+    assert record.args == {
+        "qr_token": "[redacted]",
+        "tracker_token": "[redacted]",
+        "yatra_id": "1",
+    }
+
+
 def test_redacting_filter_keeps_an_ordinary_message() -> None:
     record = _record("participant signed in", {"mobile": "9876543210"})
     assert RedactingFilter().filter(record) is True

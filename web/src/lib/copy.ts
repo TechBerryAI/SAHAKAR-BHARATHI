@@ -76,6 +76,18 @@ export type AppCopy = {
   boothNotFound: string
   boothInactive: string
   boothCodeInvalid: string
+  counterNotFound: string
+  counterInactive: string
+  yatraClosed: string
+  counterQrInvalid: string
+  accuracyTooLarge: string
+  positionInFuture: string
+  positionTooOld: string
+  yatraNotTracking: string
+  stopNotOnYatra: string
+  counterCodeTaken: string
+  yatraArchived: string
+  sessionInvalid: string
   networkError: string
   serverWaking: string
   chooseLanguage: string
@@ -233,6 +245,18 @@ const HI: AppCopy = {
   boothNotFound: 'वह बूथ नहीं मिला।',
   boothInactive: 'यह बूथ उपस्थिति नहीं ले रहा।',
   boothCodeInvalid: '6 अंकों का बूथ कोड लिखें।',
+  counterNotFound: 'वह काउंटर नहीं मिला।',
+  counterInactive: 'यह काउंटर उपस्थिति नहीं ले रहा है।',
+  yatraClosed: 'यह यात्रा उपस्थिति नहीं ले रही है।',
+  counterQrInvalid: 'यह क्यूआर काउंटर का नहीं है।',
+  accuracyTooLarge: 'स्थान की त्रुटि बहुत अधिक है।',
+  positionInFuture: 'वह स्थान भविष्य का है।',
+  positionTooOld: 'वह स्थान बहुत पुराना है।',
+  yatraNotTracking: 'यह यात्रा स्थान नहीं ले रही है।',
+  stopNotOnYatra: 'वह पड़ाव इस यात्रा पर नहीं है।',
+  counterCodeTaken: 'इस कोड का काउंटर पहले से है।',
+  yatraArchived: 'यह यात्रा संग्रहित है।',
+  sessionInvalid: 'सत्र अमान्य है या समाप्त हो गया है।',
   networkError: 'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें।',
   serverWaking: 'सर्वर शुरू हो रहा है। इसमें एक मिनट तक लग सकता है, कृपया प्रतीक्षा करें…',
   chooseLanguage: 'भाषा चुनें',
@@ -391,6 +415,18 @@ const EN: AppCopy = {
   boothNotFound: 'That booth was not found.',
   boothInactive: 'This booth is not accepting check-ins.',
   boothCodeInvalid: 'Enter the 6-digit booth code.',
+  counterNotFound: 'That counter was not found.',
+  counterInactive: 'This counter is not accepting attendance.',
+  yatraClosed: 'This Yatra is not accepting attendance.',
+  counterQrInvalid: 'That QR code is not a counter.',
+  accuracyTooLarge: 'Accuracy is too large.',
+  positionInFuture: 'That position is in the future.',
+  positionTooOld: 'That position is too old.',
+  yatraNotTracking: 'This Yatra is not accepting positions.',
+  stopNotOnYatra: 'That stop is not on this Yatra.',
+  counterCodeTaken: 'A counter with this code already exists.',
+  yatraArchived: 'This Yatra is archived.',
+  sessionInvalid: 'Session is invalid or expired.',
   networkError: 'The server could not be reached. Check your connection.',
   serverWaking: 'The server is starting up. This can take up to a minute, please wait…',
   chooseLanguage: 'Choose language',

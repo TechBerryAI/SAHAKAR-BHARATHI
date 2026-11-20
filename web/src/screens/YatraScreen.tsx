@@ -37,6 +37,7 @@ import {
   type YatraDetail,
   type YatraRoute,
 } from '../lib/yatra.ts'
+import { CounterPanel, TrackerPanel, TrackingPanel } from './YatraFieldPanels.tsx'
 
 export function YatraScreen({ admin = false }: { admin?: boolean }) {
   const { yatraId = '' } = useParams()
@@ -199,7 +200,14 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
               Publish
             </Button>
           ) : null}
+          <p>
+            <Link to={`/yatras/${yatra.id}/attendance`}>Scan a counter</Link>
+          </p>
         </section>
+
+        {yatra.capabilities.view_track ? <TrackingPanel yatraId={yatra.id} showHistory={yatra.capabilities.manage_counters} /> : null}
+        {yatra.capabilities.manage_counters ? <CounterPanel yatraId={yatra.id} /> : null}
+        {yatra.capabilities.manage_trackers ? <TrackerPanel yatraId={yatra.id} /> : null}
 
         {yatra.capabilities.edit ? (
           <form

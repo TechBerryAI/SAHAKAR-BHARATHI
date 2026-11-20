@@ -18,6 +18,27 @@ interface SessionStore {
     fun removeEpochListener(listener: (Int) -> Unit) = Unit
 }
 
+/** Assignment credential for one Yatra tracker. Separate from the signed-in user token. */
+interface TrackerCredentialStore {
+    fun trackerToken(): String?
+    fun saveTrackerToken(token: String)
+    fun clearTrackerToken()
+}
+
+class MemoryTrackerCredentialStore : TrackerCredentialStore {
+    private var stored: String? = null
+
+    override fun trackerToken(): String? = stored
+
+    override fun saveTrackerToken(token: String) {
+        stored = token
+    }
+
+    override fun clearTrackerToken() {
+        stored = null
+    }
+}
+
 /** Session that never changes. ViewModel tests use it when account switching is not under test. */
 object IdleSession : SessionStore {
     override fun isLoggedIn(): Boolean = false

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.core.copy.ui
 import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.ui.GhostNavyButton
+import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.WhiteCard
 import com.example.sahakarbharati.data.model.isStaffRole
@@ -109,6 +110,8 @@ private fun YatraRow(yatra: YatraSummaryDto, onClick: () -> Unit) {
 fun YatraDetailScreen(
     yatraId: String,
     onBack: () -> Unit,
+    onScanCounter: () -> Unit,
+    onSendPosition: () -> Unit,
     onSelectTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -152,6 +155,8 @@ fun YatraDetailScreen(
                         yatra.description?.takeIf { it.isNotBlank() }?.let { description ->
                             Text(description, color = RathYatraColors.OnSurface)
                         }
+                        SaffronButton(text = "Scan counter", onClick = onScanCounter)
+                        GhostNavyButton(text = "Send position", onClick = onSendPosition)
                     }
                 }
                 Text("Stops", color = RathYatraColors.Navy, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)

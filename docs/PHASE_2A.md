@@ -53,4 +53,4 @@ Web admin, in the same shell as People and Booths, lists districts (super admin)
 
 ## Deferred
 
-Phase 2B and later: QR and counter attendance, live GPS, a nullable stop-to-booth link, a positions table, subsidy, notifications, WhatsApp, and AI scheduling. The private object-storage adapter is in the repository; a bucket is still an operator action. The recommended next model is in `docs/PHASE_2B.md`. It can be added without rewriting `yatras`, `yatra_stops`, or `yatra_routes`.
+Phase 2B is implemented: Yatra counters, QR attendance, and live GPS. See `docs/PHASE_2B.md`. Subsidies, notifications, WhatsApp, reports, and AI scheduling are still absent. A stop is still not linked to a Phase 1 booth. The private object-storage adapter is in the repository; a bucket is still an operator action. Phase 2B did not rewrite `yatras`, `yatra_stops`, or `yatra_routes`.

@@ -234,7 +234,12 @@ private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
 }
 
 @Composable
-private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit, onDigits: (String) -> Unit) {
+internal fun BoothCamera(
+    enabled: Boolean,
+    onCode: (String) -> Unit,
+    onDigits: (String) -> Unit,
+    accept: (String) -> String? = { raw -> BoothCode.fromQr(raw) },
+) {
     val copy = LocalCopy.current
     val context = LocalContext.current
     val hasCamera = remember {
@@ -249,12 +254,17 @@ private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit, onDigits: (S
     when {
         !hasCamera -> Text(copy.cameraOff, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
         !granted -> GhostNavyButton(text = copy.allowCamera, onClick = { launcher.launch(Manifest.permission.CAMERA) })
-        else -> CameraPreview(enabled = enabled, onCode = onCode, onDigits = onDigits)
+        else -> CameraPreview(enabled = enabled, onCode = onCode, onDigits = onDigits, accept = accept)
     }
 }
 
 @Composable
-private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: (String) -> Unit) {
+private fun CameraPreview(
+    enabled: Boolean,
+    onCode: (String) -> Unit,
+    onDigits: (String) -> Unit,
+    accept: (String) -> String?,
+) {
     val copy = LocalCopy.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnDigits by rememberUpdatedState(onDigits)
@@ -368,9 +378,9 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                                         .addOnSuccessListener(mainExecutor) { codes ->
                                             frameReady = true
                                             val raws = codes.mapNotNull { it.rawValue }
-                                            val raw = raws.firstOrNull { BoothCode.fromQr(it) != null } ?: raws.firstOrNull()
+                                            val raw = raws.firstOrNull { accept(it) != null } ?: raws.firstOrNull()
                                             latestRaw = raw
-                                            val digits = raw?.let { BoothCode.fromQr(it) }
+                                            val digits = raw?.let { accept(it) }
                                             seenCode = digits
                                             foreignQr = !raw.isNullOrBlank() && digits == null
                                             if (!raw.isNullOrBlank() && digits != null) {
@@ -411,7 +421,7 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                     return@SaffronButton
                 }
                 val raw = latestRaw
-                if (raw.isNullOrBlank() || BoothCode.fromQr(raw) == null) {
+                if (raw.isNullOrBlank() || accept(raw) == null) {
                     hint = copy.scanMiss
                 } else {
                     hint = null

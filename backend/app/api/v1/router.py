@@ -11,6 +11,7 @@ from app.api.v1 import (
     protocol,
     registrations,
     sessions,
+    yatra_field,
     yatras,
 )
 
@@ -25,4 +26,5 @@ api_router.include_router(sessions.router)
 api_router.include_router(me.router)
 api_router.include_router(attendance.router)
 api_router.include_router(yatras.router)
+api_router.include_router(yatra_field.router)
 api_router.include_router(protocol.router)

@@ -65,6 +65,21 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = 15 * 60
     attendance_code_rate_limit: int = 10
     attendance_code_rate_window_seconds: int = 10 * 60
+    # Failed Yatra counter scans, per signed-in user. Success does not count.
+    counter_scan_rate_limit: int = 10
+    counter_scan_rate_window_seconds: int = 10 * 60
+    # New GPS fixes per tracker. An idempotent retry does not count.
+    position_rate_limit: int = 12
+    position_rate_window_seconds: int = 60
+    position_auth_ip_rate_limit: int = 30
+    # Reject a fix this far ahead of the server clock, or this far behind it.
+    position_max_future_seconds: int = 30
+    position_max_age_seconds: int = 10 * 60
+    # Display thresholds against server received_at. Not stored on the row.
+    position_stale_after_seconds: int = 90
+    position_offline_after_seconds: int = 10 * 60
+    position_max_accuracy_m: int = 100
+    position_retention_days: int = 30
     register_rate_limit: int = 10
     register_rate_window_seconds: int = 60 * 60
     login_lockout_failures: int = 5
@@ -205,6 +220,12 @@ class Settings(BaseSettings):
                 raise ValueError("DOCUMENT_STORAGE_ENDPOINT must use https in production")
         if self.document_max_bytes <= 0 or self.document_max_bytes > 5_242_880:
             raise ValueError("DOCUMENT_MAX_BYTES must be from 1 to 5242880")
+        if self.position_max_accuracy_m > 10_000:
+            raise ValueError("POSITION_MAX_ACCURACY_M must be from 1 to 10000")
+        if self.position_stale_after_seconds > self.position_offline_after_seconds:
+            raise ValueError("POSITION_STALE_AFTER_SECONDS must not exceed POSITION_OFFLINE_AFTER_SECONDS")
+        if self.position_retention_days > 3650:
+            raise ValueError("POSITION_RETENTION_DAYS must be from 1 to 3650")
         for name, value in (
             ("SESSION_TTL_SECONDS", self.session_ttl_seconds),
             ("MAX_REQUEST_BYTES", self.max_request_bytes),
@@ -213,6 +234,17 @@ class Settings(BaseSettings):
             ("LOGIN_RATE_WINDOW_SECONDS", self.login_rate_window_seconds),
             ("ATTENDANCE_CODE_RATE_LIMIT", self.attendance_code_rate_limit),
             ("ATTENDANCE_CODE_RATE_WINDOW_SECONDS", self.attendance_code_rate_window_seconds),
+            ("COUNTER_SCAN_RATE_LIMIT", self.counter_scan_rate_limit),
+            ("COUNTER_SCAN_RATE_WINDOW_SECONDS", self.counter_scan_rate_window_seconds),
+            ("POSITION_RATE_LIMIT", self.position_rate_limit),
+            ("POSITION_RATE_WINDOW_SECONDS", self.position_rate_window_seconds),
+            ("POSITION_AUTH_IP_RATE_LIMIT", self.position_auth_ip_rate_limit),
+            ("POSITION_MAX_FUTURE_SECONDS", self.position_max_future_seconds),
+            ("POSITION_MAX_AGE_SECONDS", self.position_max_age_seconds),
+            ("POSITION_STALE_AFTER_SECONDS", self.position_stale_after_seconds),
+            ("POSITION_OFFLINE_AFTER_SECONDS", self.position_offline_after_seconds),
+            ("POSITION_MAX_ACCURACY_M", self.position_max_accuracy_m),
+            ("POSITION_RETENTION_DAYS", self.position_retention_days),
             ("REGISTER_RATE_LIMIT", self.register_rate_limit),
             ("REGISTER_RATE_WINDOW_SECONDS", self.register_rate_window_seconds),
             ("LOGIN_LOCKOUT_FAILURES", self.login_lockout_failures),

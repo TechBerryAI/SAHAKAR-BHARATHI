@@ -24,6 +24,7 @@ from app.services.profile import ProfileService
 from app.services.protocol import ProtocolService
 from app.services.registration import RegistrationService
 from app.services.sms import SmsGateway, TextbeeGateway
+from app.services.yatra_field import YatraFieldService
 from app.services.yatras import YatraService
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,10 @@ def get_district_service(db: Session = Depends(get_db)) -> DistrictService:
 
 def get_yatra_service(db: Session = Depends(get_db)) -> YatraService:
     return YatraService(db)
+
+
+def get_yatra_field_service(db: Session = Depends(get_db)) -> YatraFieldService:
+    return YatraFieldService(db)
 
 
 def get_document_storage(request: Request) -> DocumentStorage:
