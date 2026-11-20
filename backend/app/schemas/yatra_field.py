@@ -49,6 +49,7 @@ class CounterCreate(ORMModel):
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     location_accuracy_m: float | None = Field(default=None, gt=0, le=1000)
+    geofence_radius_m: int | None = Field(default=None, ge=10, le=5000)
 
     @field_validator("name")
     @classmethod
@@ -86,9 +87,11 @@ class CounterUpdate(ORMModel):
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     location_accuracy_m: float | None = Field(default=None, gt=0, le=1000)
+    geofence_radius_m: int | None = Field(default=None, ge=10, le=5000)
     clear_description: bool = False
     clear_stop: bool = False
     clear_coordinates: bool = False
+    clear_geofence: bool = False
 
     @field_validator("name")
     @classmethod
@@ -124,9 +127,12 @@ class CounterUpdate(ORMModel):
                 self.latitude,
                 self.longitude,
                 self.location_accuracy_m,
+                self.geofence_radius_m,
             )
         )
-        if not changed and not (self.clear_description or self.clear_stop or self.clear_coordinates):
+        if not changed and not (
+            self.clear_description or self.clear_stop or self.clear_coordinates or self.clear_geofence
+        ):
             raise ValueError("Nothing to update.")
         sent = [self.latitude is not None, self.longitude is not None, self.location_accuracy_m is not None]
         if any(sent) and not all(sent) and not self.clear_coordinates:
@@ -144,6 +150,7 @@ class CounterSummary(ORMModel):
     latitude: float | None
     longitude: float | None
     location_accuracy_m: float | None
+    geofence_radius_m: int | None
     status: str
     created_at: datetime
     updated_at: datetime
@@ -165,6 +172,10 @@ class AttendanceScan(ORMModel):
     model_config = ConfigDict(extra="forbid")
 
     qr_token: str = Field(min_length=12, max_length=80)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    accuracy_m: float | None = Field(default=None, gt=0, le=10000)
+    captured_at: datetime | None = None
 
     @field_validator("qr_token")
     @classmethod
@@ -173,6 +184,29 @@ class AttendanceScan(ORMModel):
         if match is None:
             raise ValueError("That QR code is not a counter.")
         return match.group(1)
+
+    @field_validator("captured_at")
+    @classmethod
+    def timezone(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        return _aware(value)
+
+    @model_validator(mode="after")
+    def location_when_required(self) -> AttendanceScan:
+        from app.core.config import get_settings
+
+        present = (
+            self.latitude is not None,
+            self.longitude is not None,
+            self.accuracy_m is not None,
+            self.captured_at is not None,
+        )
+        if any(present) and not all(present):
+            raise ValueError("Latitude, longitude, accuracy, and captured time are set together.")
+        if get_settings().counter_geofence_mode == "required" and not all(present):
+            raise ValueError("Location is required.")
+        return self
 
 
 class AttendanceRecord(ORMModel):
@@ -186,6 +220,7 @@ class AttendanceRecord(ORMModel):
     already_recorded: bool
     login_id: str
     full_name: str
+    scan_distance_m: float | None = None
 
 
 class AttendanceList(ORMModel):
@@ -261,10 +296,37 @@ class PositionResponse(ORMModel):
 
 class PositionList(ORMModel):
     items: list[PositionResponse]
-    total: int
-    limit: int
-    offset: int
+    next_cursor: str | None
     has_more: bool
+    limit: int
+
+
+class PositionBatchCreate(ORMModel):
+    model_config = ConfigDict(extra="forbid")
+
+    positions: list[PositionCreate] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def within_batch_max(self) -> PositionBatchCreate:
+        from app.core.config import get_settings
+
+        limit = get_settings().position_batch_max
+        if len(self.positions) > limit:
+            raise ValueError(f"Send at most {limit} positions.")
+        return self
+
+
+class PositionBatchItemResult(ORMModel):
+    client_position_id: UUID
+    status: Literal["accepted", "duplicate", "rejected"]
+    error: str | None
+
+
+class PositionBatchResponse(ORMModel):
+    results: list[PositionBatchItemResult]
+    accepted: int
+    duplicates: int
+    rejected: int
 
 
 class LatestPositionResponse(ORMModel):

@@ -191,3 +191,22 @@ See `android/README.md` for commands. Summary:
 
 Never commit keystores or passwords. Back up the upload keystore offline; losing it
 blocks updates unless Play App Signing is enabled.
+
+## Phase 2B operator actions (still open)
+
+1. **Rotate credentials exposed in a shared ZIP:** rotate the Supabase `postgres`
+   password and the Textbee API key, then update Render and every local `.env`.
+   This repository does not perform that rotation.
+2. **Upgrade each environment** with `alembic upgrade head` to `20261121_0013`,
+   then re-run `infra/supabase/runtime_role.sql` so `sahakar_api` can execute
+   `prune_yatra_positions`.
+3. Confirm the retention cron uses the **runtime** `DATABASE_URL`, not the owner.
+4. Developers must use a **local** Postgres, or `sahakar_api` on a non-production
+   project. Do not run day-to-day development as the remote `postgres` owner.
+
+## Connection budget (per Render instance)
+
+Request pool defaults (`pool_size` + `max_overflow`, typically 5 + 5) plus the
+limiter pool (`RATE_LIMIT_POOL_SIZE` + `RATE_LIMIT_MAX_OVERFLOW`, default 2 + 2).
+Plan Supabase pooler capacity as roughly **14 connections per instance** at the
+defaults, plus a small margin for migrations and the retention cron.

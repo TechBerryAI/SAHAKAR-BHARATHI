@@ -14,6 +14,7 @@ _PRODUCTION_ENVIRONMENTS = {"production", "prod"}
 _KNOWN_ENVIRONMENTS = _PRODUCTION_ENVIRONMENTS | {"development", "dev", "test"}
 _INSECURE_SSLMODES = {"disable", "allow", "prefer"}
 _RATE_LIMIT_BACKENDS = {"memory", "postgres"}
+_GEOFENCE_MODES = {"required", "off"}
 _DEV_CORS_ORIGINS = (
     "http://127.0.0.1:5173",
     "http://localhost:5173",
@@ -72,14 +73,28 @@ class Settings(BaseSettings):
     position_rate_limit: int = 12
     position_rate_window_seconds: int = 60
     position_auth_ip_rate_limit: int = 30
+    # A rejected fix from an authenticated tracker. Separate from the accept bucket.
+    position_invalid_rate_limit: int = 30
+    position_invalid_rate_window_seconds: int = 60
+    # Offline uploads. One request, its own bucket, not one hit per fix.
+    position_batch_max: int = 50
+    position_batch_rate_limit: int = 6
+    position_batch_rate_window_seconds: int = 60
     # Reject a fix this far ahead of the server clock, or this far behind it.
+    # Six hours covers a phone that was out of range. Freshness is separate.
     position_max_future_seconds: int = 30
-    position_max_age_seconds: int = 10 * 60
-    # Display thresholds against server received_at. Not stored on the row.
+    position_max_age_seconds: int = 6 * 60 * 60
+    # Display thresholds against captured_at. Not stored on the row.
     position_stale_after_seconds: int = 90
     position_offline_after_seconds: int = 10 * 60
     position_max_accuracy_m: int = 100
     position_retention_days: int = 30
+    # Attendance must be inside the counter geofence unless an operator turns it off.
+    # Production refuses off.
+    counter_geofence_mode: str = "required"
+    counter_geofence_radius_m: int = 150
+    counter_scan_max_accuracy_m: int = 100
+    counter_scan_location_max_age_seconds: int = 120
     register_rate_limit: int = 10
     register_rate_window_seconds: int = 60 * 60
     login_lockout_failures: int = 5
@@ -90,6 +105,12 @@ class Settings(BaseSettings):
     # "postgres" shares counters through rate_limit_buckets (one extra round-trip
     # per throttled request) and is required before the process may serve production.
     rate_limit_backend: str = "memory"
+    # The limiter uses its own pool so a burst of throttled requests cannot
+    # exhaust the request pool, and a stuck limiter checkout cannot stall reads.
+    # Per instance: request pool_size + max_overflow (5 + 5) plus these (2 + 2).
+    rate_limit_pool_size: int = 2
+    rate_limit_max_overflow: int = 2
+    rate_limit_pool_timeout_seconds: int = 5
     # "peer" uses the TCP connection and ignores forwarding headers.
     # "cf-connecting-ip" is the Render production source: Cloudflare overwrites
     # that header with the visitor address. See app/core/client_ip.py.
@@ -120,6 +141,12 @@ class Settings(BaseSettings):
     document_storage_access_key: str = ""
     document_storage_secret_key: str = ""
     document_max_bytes: int = 5_242_880
+
+    # Used only by scripts/seed_super_admin.py. Empty here so the source
+    # does not name a person. The seed script refuses to run without them.
+    super_admin_mobile: str = ""
+    super_admin_name: str = ""
+    super_admin_login_id: str = ""
 
     @property
     def is_production(self) -> bool:
@@ -190,6 +217,13 @@ class Settings(BaseSettings):
             "connect_args": connect_args,
         }
 
+    def rate_limit_engine_kwargs(self, url: str | None = None) -> dict[str, Any]:
+        kwargs = self.engine_kwargs(url)
+        kwargs["pool_size"] = self.rate_limit_pool_size
+        kwargs["max_overflow"] = self.rate_limit_max_overflow
+        kwargs["pool_timeout"] = self.rate_limit_pool_timeout_seconds
+        return kwargs
+
     @model_validator(mode="after")
     def validate_production(self) -> "Settings":
         environment = self.environment.strip().lower()
@@ -199,6 +233,18 @@ class Settings(BaseSettings):
             )
         if self.rate_limit_backend.strip().lower() not in _RATE_LIMIT_BACKENDS:
             raise ValueError(f"RATE_LIMIT_BACKEND must be one of {sorted(_RATE_LIMIT_BACKENDS)}")
+        mode = self.counter_geofence_mode.strip().lower()
+        if mode not in _GEOFENCE_MODES:
+            raise ValueError("COUNTER_GEOFENCE_MODE must be required or off")
+        self.counter_geofence_mode = mode
+        if not 10 <= self.counter_geofence_radius_m <= 5000:
+            raise ValueError("COUNTER_GEOFENCE_RADIUS_M must be from 10 to 5000")
+        if not 1 <= self.counter_scan_max_accuracy_m <= 10000:
+            raise ValueError("COUNTER_SCAN_MAX_ACCURACY_M must be from 1 to 10000")
+        if not 1 <= self.position_batch_max <= 100:
+            raise ValueError("POSITION_BATCH_MAX must be from 1 to 100")
+        if self.position_max_age_seconds < self.position_offline_after_seconds:
+            raise ValueError("POSITION_MAX_AGE_SECONDS must be at least POSITION_OFFLINE_AFTER_SECONDS")
         source = self.client_ip_source.strip().lower()
         if source not in {"peer", "cf-connecting-ip"}:
             raise ValueError("CLIENT_IP_SOURCE must be peer or cf-connecting-ip")
@@ -239,6 +285,14 @@ class Settings(BaseSettings):
             ("POSITION_RATE_LIMIT", self.position_rate_limit),
             ("POSITION_RATE_WINDOW_SECONDS", self.position_rate_window_seconds),
             ("POSITION_AUTH_IP_RATE_LIMIT", self.position_auth_ip_rate_limit),
+            ("POSITION_INVALID_RATE_LIMIT", self.position_invalid_rate_limit),
+            ("POSITION_INVALID_RATE_WINDOW_SECONDS", self.position_invalid_rate_window_seconds),
+            ("POSITION_BATCH_RATE_LIMIT", self.position_batch_rate_limit),
+            ("POSITION_BATCH_RATE_WINDOW_SECONDS", self.position_batch_rate_window_seconds),
+            ("COUNTER_SCAN_LOCATION_MAX_AGE_SECONDS", self.counter_scan_location_max_age_seconds),
+            ("RATE_LIMIT_POOL_SIZE", self.rate_limit_pool_size),
+            ("RATE_LIMIT_MAX_OVERFLOW", self.rate_limit_max_overflow),
+            ("RATE_LIMIT_POOL_TIMEOUT_SECONDS", self.rate_limit_pool_timeout_seconds),
             ("POSITION_MAX_FUTURE_SECONDS", self.position_max_future_seconds),
             ("POSITION_MAX_AGE_SECONDS", self.position_max_age_seconds),
             ("POSITION_STALE_AFTER_SECONDS", self.position_stale_after_seconds),
@@ -287,6 +341,8 @@ class Settings(BaseSettings):
             raise ValueError("TEXTBEE_BASE_URL must use https when ENVIRONMENT=production")
         if self.rate_limit_backend.strip().lower() != "postgres":
             raise ValueError("RATE_LIMIT_BACKEND=postgres is required when ENVIRONMENT=production")
+        if self.counter_geofence_mode != "required":
+            raise ValueError("COUNTER_GEOFENCE_MODE=required is required when ENVIRONMENT=production")
         if self.client_ip_source != "cf-connecting-ip":
             raise ValueError(
                 "CLIENT_IP_SOURCE=cf-connecting-ip is required when ENVIRONMENT=production"

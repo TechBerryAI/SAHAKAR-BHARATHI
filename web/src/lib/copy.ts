@@ -87,6 +87,13 @@ export type AppCopy = {
   stopNotOnYatra: string
   counterCodeTaken: string
   yatraArchived: string
+  notAtCounter: string
+  locationInaccurate: string
+  locationStale: string
+  counterLocationRequired: string
+  activeTrackerExists: string
+  stopInUse: string
+  serviceUnavailable: string
   sessionInvalid: string
   networkError: string
   serverWaking: string
@@ -256,6 +263,13 @@ const HI: AppCopy = {
   stopNotOnYatra: 'वह पड़ाव इस यात्रा पर नहीं है।',
   counterCodeTaken: 'इस कोड का काउंटर पहले से है।',
   yatraArchived: 'यह यात्रा संग्रहित है।',
+  notAtCounter: 'आप इस काउंटर पर नहीं हैं।',
+  locationInaccurate: 'आपका स्थान पर्याप्त सटीक नहीं है।',
+  locationStale: 'आपका स्थान पुराना हो चुका है।',
+  counterLocationRequired: 'सक्रिय करने से पहले काउंटर का स्थान सेट करें।',
+  activeTrackerExists: 'इस यात्रा पर पहले से एक सक्रिय ट्रैकर है। नया असाइन करने से पहले उसे रद्द करें।',
+  stopInUse: 'यह पड़ाव काउंटर या जीपीएस इतिहास में उपयोग हो रहा है।',
+  serviceUnavailable: 'सेवा अस्थायी रूप से उपलब्ध नहीं है।',
   sessionInvalid: 'सत्र अमान्य है या समाप्त हो गया है।',
   networkError: 'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें।',
   serverWaking: 'सर्वर शुरू हो रहा है। इसमें एक मिनट तक लग सकता है, कृपया प्रतीक्षा करें…',
@@ -426,6 +440,13 @@ const EN: AppCopy = {
   stopNotOnYatra: 'That stop is not on this Yatra.',
   counterCodeTaken: 'A counter with this code already exists.',
   yatraArchived: 'This Yatra is archived.',
+  notAtCounter: 'You are not at this counter.',
+  locationInaccurate: 'Your location is not accurate enough.',
+  locationStale: 'Your location is out of date.',
+  counterLocationRequired: 'Set the counter location before activating it.',
+  activeTrackerExists: 'This Yatra already has an active tracker. Revoke it before assigning a new one.',
+  stopInUse: 'This stop is used by counters or GPS history.',
+  serviceUnavailable: 'Service temporarily unavailable.',
   sessionInvalid: 'Session is invalid or expired.',
   networkError: 'The server could not be reached. Check your connection.',
   serverWaking: 'The server is starting up. This can take up to a minute, please wait…',

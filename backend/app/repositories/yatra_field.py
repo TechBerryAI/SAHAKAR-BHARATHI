@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -64,13 +64,25 @@ class YatraAttendanceRepository:
             )
         )
 
-    def page_for_yatra(self, yatra_id: uuid.UUID, limit: int, offset: int) -> tuple[list[tuple], int]:
+    def page_for_yatra(
+        self,
+        yatra_id: uuid.UUID,
+        limit: int,
+        offset: int,
+        *,
+        attendance_date: date | None = None,
+        counter_id: uuid.UUID | None = None,
+    ) -> tuple[list[tuple], int]:
         filtered = (
             select(YatraAttendance, YatraCounter.name, User.login_id, User.full_name)
             .join(YatraCounter, YatraCounter.id == YatraAttendance.counter_id)
             .join(User, User.id == YatraAttendance.user_id)
             .where(YatraAttendance.yatra_id == yatra_id)
         )
+        if attendance_date is not None:
+            filtered = filtered.where(YatraAttendance.attendance_date == attendance_date)
+        if counter_id is not None:
+            filtered = filtered.where(YatraAttendance.counter_id == counter_id)
         total = int(self.db.scalar(select(func.count()).select_from(filtered.subquery())) or 0)
         rows = self.db.execute(
             filtered.order_by(YatraAttendance.checked_in_at.desc(), YatraAttendance.id.desc())
@@ -113,6 +125,11 @@ class YatraTrackerRepository:
             select(YatraTracker).where(YatraTracker.id == tracker_id, YatraTracker.yatra_id == yatra_id)
         )
 
+    def active_for_yatra(self, yatra_id: uuid.UUID) -> YatraTracker | None:
+        return self.db.scalar(
+            select(YatraTracker).where(YatraTracker.yatra_id == yatra_id, YatraTracker.status == "active")
+        )
+
     def get_by_token_hash(self, token_hash: str) -> YatraTracker | None:
         return self.db.scalar(select(YatraTracker).where(YatraTracker.token_hash == token_hash))
 
@@ -147,13 +164,35 @@ class YatraPositionRepository:
             return None
         return row[0], row[1]
 
-    def page(self, yatra_id: uuid.UUID, limit: int, offset: int) -> tuple[list[YatraPosition], int]:
+    def page(
+        self,
+        yatra_id: uuid.UUID,
+        limit: int,
+        *,
+        before: tuple[datetime, uuid.UUID] | None = None,
+        captured_from: datetime | None = None,
+        captured_to: datetime | None = None,
+        tracker_id: uuid.UUID | None = None,
+    ) -> tuple[list[YatraPosition], bool]:
         filtered = select(YatraPosition).where(YatraPosition.yatra_id == yatra_id)
-        total = int(self.db.scalar(select(func.count()).select_from(filtered.subquery())) or 0)
-        rows = self.db.scalars(
-            filtered.order_by(YatraPosition.captured_at.desc(), YatraPosition.id.desc()).limit(limit).offset(offset)
+        if captured_from is not None:
+            filtered = filtered.where(YatraPosition.captured_at >= captured_from)
+        if captured_to is not None:
+            filtered = filtered.where(YatraPosition.captured_at <= captured_to)
+        if tracker_id is not None:
+            filtered = filtered.where(YatraPosition.tracker_id == tracker_id)
+        if before is not None:
+            captured_at, position_id = before
+            filtered = filtered.where(
+                tuple_(YatraPosition.captured_at, YatraPosition.id) < tuple_(captured_at, position_id)
+            )
+        rows = list(
+            self.db.scalars(
+                filtered.order_by(YatraPosition.captured_at.desc(), YatraPosition.id.desc()).limit(limit + 1)
+            )
         )
-        return list(rows), total
+        has_more = len(rows) > limit
+        return rows[:limit], has_more
 
     def stop_on_yatra(self, yatra_id: uuid.UUID, stop_id: uuid.UUID) -> YatraStop | None:
         return self.db.scalar(select(YatraStop).where(YatraStop.id == stop_id, YatraStop.yatra_id == yatra_id))

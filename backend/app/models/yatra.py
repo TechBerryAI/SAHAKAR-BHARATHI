@@ -106,6 +106,7 @@ class YatraStop(Base):
     __tablename__ = "yatra_stops"
     __table_args__ = (
         UniqueConstraint("yatra_id", "sequence", name="uq_yatra_stops_yatra_sequence"),
+        UniqueConstraint("id", "yatra_id", name="uq_yatra_stops_id_yatra"),
         CheckConstraint("sequence >= 1 AND sequence <= 999", name="ck_yatra_stops_sequence"),
         CheckConstraint(
             "(latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL)",

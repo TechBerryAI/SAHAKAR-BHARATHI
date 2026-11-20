@@ -30,6 +30,36 @@ services:
         sync: false
       - key: TEXTBEE_DEVICE_ID
         sync: false
+      - key: COUNTER_GEOFENCE_MODE
+        value: required
+      - key: COUNTER_GEOFENCE_RADIUS_M
+        value: "150"
+      - key: COUNTER_SCAN_MAX_ACCURACY_M
+        value: "100"
+      - key: COUNTER_SCAN_LOCATION_MAX_AGE_SECONDS
+        value: "120"
+      - key: POSITION_MAX_AGE_SECONDS
+        value: "21600"
+      - key: POSITION_BATCH_MAX
+        value: "50"
+      - key: POSITION_BATCH_RATE_LIMIT
+        value: "6"
+      - key: POSITION_INVALID_RATE_LIMIT
+        value: "30"
+      - key: RATE_LIMIT_POOL_SIZE
+        value: "2"
+      - key: RATE_LIMIT_MAX_OVERFLOW
+        value: "2"
+      - key: RATE_LIMIT_POOL_TIMEOUT_SECONDS
+        value: "5"
+      - key: DOCUMENT_STORAGE_BACKEND
+        sync: false
+      - key: DOCUMENT_STORAGE_BUCKET
+        sync: false
+      - key: DOCUMENT_STORAGE_ACCESS_KEY
+        sync: false
+      - key: DOCUMENT_STORAGE_SECRET_KEY
+        sync: false
 
   # Daily retention. DATABASE_URL must be the runtime role, the same value as
   # the web service, not the migration owner. The command is idempotent and
@@ -44,3 +74,5 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+      - key: POSITION_RETENTION_DAYS
+        value: "30"

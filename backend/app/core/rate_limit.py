@@ -12,7 +12,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.errors import RateLimitedError, ServiceUnavailableError
-from app.core.retention import prune_expired
+from app.core.retention import prune_operational
 
 logger = logging.getLogger(__name__)
 
@@ -139,8 +139,13 @@ class PostgresRateLimiter:
     Allowing the request would drop the throttle during an outage.
     """
 
-    def __init__(self, engine: Engine) -> None:
+    def __init__(self, engine: Engine, *, owns_engine: bool = False) -> None:
         self._engine = engine
+        self._owns_engine = owns_engine
+
+    def dispose(self) -> None:
+        if self._owns_engine:
+            self._engine.dispose()
 
     def allow(self, key: str, limit: int, window_seconds: int) -> bool:
         key_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()
@@ -159,9 +164,11 @@ class PostgresRateLimiter:
         return bool(allowed)
 
     def _prune(self) -> None:
+        # GPS history is pruned only by the retention cron. This path must not
+        # call prune_yatra_positions or delete from yatra_positions.
         try:
             with self._engine.begin() as connection:
-                prune_expired(connection)
+                prune_operational(connection)
         except SQLAlchemyError as exc:
             logger.warning("Retention cleanup skipped (%s)", type(exc).__name__)
 

@@ -214,6 +214,7 @@ export type YatraCounter = {
   latitude: number | null
   longitude: number | null
   location_accuracy_m: number | null
+  geofence_radius_m: number | null
   status: string
   created_at: string
   updated_at: string
@@ -242,6 +243,7 @@ export type YatraFieldAttendance = {
   already_recorded: boolean
   login_id: string
   full_name: string
+  scan_distance_m?: number | null
 }
 
 export type YatraFieldAttendancePage = {
@@ -298,8 +300,7 @@ export type YatraPosition = {
 
 export type YatraPositionPage = {
   items: YatraPosition[]
-  total: number
-  limit: number
-  offset: number
+  next_cursor: string | null
   has_more: boolean
+  limit: number
 }

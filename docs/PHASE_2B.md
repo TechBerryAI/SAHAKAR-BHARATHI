@@ -4,7 +4,15 @@ Phase 2B adds Yatra counters, QR attendance, and live GPS on top of Phase 2A. It
 
 Account roles stay `participant`, `admin`, and `super_admin`. Authorization stays the Phase 2A Yatra access check: an unseen Yatra is 404, and a visible Yatra the caller cannot operate is 403. `manage_counters` is the operate capability (not archived). `manage_trackers` is the manage capability (not archived). `view_track` is true for anyone who can see the Yatra.
 
-Alembic head is `20261120_0012`. After upgrading, re-run `infra/supabase/runtime_role.sql` so `sahakar_api` receives the new grants. Historical migrations `0001` through `0011` are unchanged.
+Alembic head is `20261121_0013`. After upgrading, re-run `infra/supabase/runtime_role.sql` so `sahakar_api` receives the new grants, including `EXECUTE` on `prune_yatra_positions`. Historical migrations `0001` through `0012` are unchanged.
+
+## Decisions (audit remediation)
+
+**D1 — Attendance must prove presence.** A static placard alone is not enough. When `COUNTER_GEOFENCE_MODE=required` (production default), the scan body must include a fresh device fix (`latitude`, `longitude`, `accuracy_m`, `captured_at`). The server rejects inaccurate, stale, or out-of-fence fixes with stable sentences and consumes the counter-scan failure bucket. Counters cannot activate without coordinates. Staff can rotate a counter QR (`POST .../rotate-qr`); the old token stops immediately. Residual risk: GPS spoofing on rooted devices remains possible. Geofencing raises the bar; it is not proof.
+
+**D2 — One active tracker per Yatra.** Partial unique index `uq_yatra_trackers_one_active`. A second active assignment returns 409 until the current tracker is revoked.
+
+Freshness is computed from `captured_at`, not `received_at`. History uses keyset cursors (`before`), not offset/total. Offline phones upload via `POST .../positions/batch` (up to `POSITION_BATCH_MAX`). Idempotent replay of the same `client_position_id` returns the original row. Ingest requires only `in_progress` (not published). A referenced stop delete returns 409. GPS pruning runs only from the retention cron (`python -m app.core.retention`), never from the in-request limiter.
 
 ## Tables
 
@@ -20,13 +28,13 @@ Alembic head is `20261120_0012`. After upgrading, re-run `infra/supabase/runtime
 
 ## Counters and QR
 
-`code` matches `^[A-Z0-9][A-Z0-9-]{1,15}$`. It is a label, not a scan credential. The placard text is `SB-COUNTER:` plus `secrets.token_urlsafe(32)`. Detail and create return `qr_text` only to a caller who can operate the Yatra. List payloads and audit extras omit the token. Logs redact `qr_token` and `tracker_token`. There is no rotate endpoint and no short-code path.
+`code` matches `^[A-Z0-9][A-Z0-9-]{1,15}$`. It is a label, not a scan credential. The placard text is `SB-COUNTER:` plus `secrets.token_urlsafe(32)`. Detail and create return `qr_text` only to a caller who can operate the Yatra. List payloads and audit extras omit the token. Logs redact `qr_token`, `qr_text`, and `tracker_token`. `POST .../counters/{id}/rotate-qr` issues a new token and audits `counter_qr_rotated` with ids only.
 
-`POST /api/v1/yatras/{id}/counters/{counter_id}/activate` and `.../deactivate` change status. A duplicate code is 409. A stop from another Yatra is 400. An archived Yatra rejects mutations with "This Yatra is archived."
+`POST /api/v1/yatras/{id}/counters/{counter_id}/activate` and `.../deactivate` change status. Activation while geofence mode is required needs coordinates. A duplicate code is 409. A stop from another Yatra is 400. An archived Yatra rejects mutations with "This Yatra is archived."
 
 ## Attendance
 
-`POST /api/v1/yatras/{id}/attendance` with `{ "qr_token": "SB-COUNTER:..." }` records attendance. The Yatra must be published and `in_progress`, and the counter must be active.
+`POST /api/v1/yatras/{id}/attendance` with `qr_token` plus the scan fix records attendance. The Yatra must be published and `in_progress`, and the counter must be active. Roster filters: `GET .../attendance?attendance_date=&counter_id=`. Participants use `GET .../attendance/mine`.
 
 | Case | Result |
 |---|---|

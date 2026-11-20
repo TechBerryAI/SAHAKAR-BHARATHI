@@ -122,3 +122,8 @@ class ConflictError(AppError):
 class InvalidStateError(AppError):
     def __init__(self, detail: str) -> None:
         super().__init__(status.HTTP_400_BAD_REQUEST, detail)
+
+
+class InvalidCursorError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_422_UNPROCESSABLE_ENTITY, "That page cursor is not valid.")

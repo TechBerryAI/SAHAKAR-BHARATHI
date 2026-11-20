@@ -145,7 +145,11 @@ class AppSession(
         .putString(KEY_ROLE, knownRole(profile.role))
 
     override fun clearSession() {
+        val tracker = securePrefs.getString(KEY_TRACKER, null)
         securePrefs.edit().clear().apply()
+        if (!tracker.isNullOrBlank()) {
+            securePrefs.edit().putString(KEY_TRACKER, tracker).apply()
+        }
         localPrefs.edit()
             .remove(KEY_PHOTO)
             .putBoolean(KEY_NOTIFICATIONS, false)

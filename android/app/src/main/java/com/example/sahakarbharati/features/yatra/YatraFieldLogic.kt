@@ -15,6 +15,10 @@ private val invalidDetails = setOf(
     "This counter is not accepting attendance.",
     "This Yatra is not accepting attendance.",
     "That QR code is not a counter.",
+    "You are not at this counter.",
+    "Your location is not accurate enough.",
+    "Your location is out of date.",
+    "Set the counter location before activating it.",
 )
 
 fun attendanceOutcome(result: Result<YatraAttendanceRecordDto>): AttendanceOutcome {

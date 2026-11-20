@@ -36,6 +36,7 @@ import type {
   YatraCounterPage,
   YatraDetail,
   YatraFieldAttendance,
+  YatraFieldAttendancePage,
   YatraPage,
   YatraPositionPage,
   YatraRoute,
@@ -94,6 +95,13 @@ const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
   'Verify this mobile number before registering.': 'verificationExpired',
   'Could not send the SMS. Please try again.': 'otpSendFailed',
   'Please try again in a moment.': 'pleaseWait',
+  'You are not at this counter.': 'notAtCounter',
+  'Your location is not accurate enough.': 'locationInaccurate',
+  'Your location is out of date.': 'locationStale',
+  'Set the counter location before activating it.': 'counterLocationRequired',
+  'This Yatra already has an active tracker. Revoke it before assigning a new one.': 'activeTrackerExists',
+  'This stop is used by counters or GPS history.': 'stopInUse',
+  'Service temporarily unavailable.': 'serviceUnavailable',
 }
 
 /** Which known error this is, so a screen can react to it (not just show its text). */
@@ -470,20 +478,41 @@ export function getYatra(id: string): Promise<YatraDetail> {
   })
 }
 
-export function listCounters(yatraId: string): Promise<YatraCounterPage> {
-  return request<YatraCounterPage>(`/api/v1/yatras/${yatraId}/counters?limit=50&offset=0`, {
+export function listCounters(yatraId: string, offset = 0): Promise<YatraCounterPage> {
+  return request<YatraCounterPage>(`/api/v1/yatras/${yatraId}/counters?limit=50&offset=${offset}`, {
     fallback: 'Could not load counters.',
   })
 }
 
 export function createCounter(
   yatraId: string,
-  body: { name: string; code: string; description?: string },
+  body: {
+    name: string
+    code: string
+    description?: string
+    stop_id?: string
+    latitude?: number
+    longitude?: number
+    location_accuracy_m?: number
+    geofence_radius_m?: number
+  },
 ): Promise<YatraCounterDetail> {
   return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters`, {
     method: 'POST',
     body,
     fallback: 'Could not create this counter.',
+  })
+}
+
+export function updateCounter(
+  yatraId: string,
+  counterId: string,
+  body: Record<string, unknown>,
+): Promise<YatraCounterDetail> {
+  return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters/${counterId}`, {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update this counter.',
   })
 }
 
@@ -501,16 +530,52 @@ export function setCounterActive(yatraId: string, counterId: string, active: boo
   })
 }
 
-export function scanYatraAttendance(yatraId: string, qrToken: string): Promise<YatraFieldAttendance> {
+export function rotateCounterQr(yatraId: string, counterId: string): Promise<YatraCounterDetail> {
+  return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters/${counterId}/rotate-qr`, {
+    method: 'POST',
+    fallback: 'Could not rotate this QR code.',
+  })
+}
+
+export function scanYatraAttendance(
+  yatraId: string,
+  body: {
+    qr_token: string
+    latitude: number
+    longitude: number
+    accuracy_m: number
+    captured_at: string
+  },
+): Promise<YatraFieldAttendance> {
   return request<YatraFieldAttendance>(`/api/v1/yatras/${yatraId}/attendance`, {
     method: 'POST',
-    body: { qr_token: qrToken },
+    body,
     fallback: 'Attendance could not be recorded.',
   })
 }
 
-export function listTrackers(yatraId: string): Promise<YatraTrackerPage> {
-  return request<YatraTrackerPage>(`/api/v1/yatras/${yatraId}/trackers?limit=50&offset=0`, {
+export function listYatraAttendance(
+  yatraId: string,
+  offset = 0,
+  filters: { attendance_date?: string; counter_id?: string } = {},
+): Promise<YatraFieldAttendancePage> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  if (filters.attendance_date) params.set('attendance_date', filters.attendance_date)
+  if (filters.counter_id) params.set('counter_id', filters.counter_id)
+  return request<YatraFieldAttendancePage>(`/api/v1/yatras/${yatraId}/attendance?${params}`, {
+    fallback: 'Could not load attendance.',
+  })
+}
+
+export function listMyYatraAttendance(yatraId: string, offset = 0): Promise<YatraFieldAttendancePage> {
+  return request<YatraFieldAttendancePage>(
+    `/api/v1/yatras/${yatraId}/attendance/mine?limit=50&offset=${offset}`,
+    { fallback: 'Could not load your attendance.' },
+  )
+}
+
+export function listTrackers(yatraId: string, offset = 0): Promise<YatraTrackerPage> {
+  return request<YatraTrackerPage>(`/api/v1/yatras/${yatraId}/trackers?limit=50&offset=${offset}`, {
     fallback: 'Could not load trackers.',
   })
 }
@@ -536,8 +601,16 @@ export function getLatestPosition(yatraId: string): Promise<LatestPosition> {
   })
 }
 
-export function listPositions(yatraId: string, offset = 0): Promise<YatraPositionPage> {
-  return request<YatraPositionPage>(`/api/v1/yatras/${yatraId}/positions?limit=50&offset=${offset}`, {
+export function listPositions(
+  yatraId: string,
+  opts: { limit?: number; before?: string | null; from?: string; to?: string; tracker_id?: string } = {},
+): Promise<YatraPositionPage> {
+  const params = new URLSearchParams({ limit: String(opts.limit ?? 50) })
+  if (opts.before) params.set('before', opts.before)
+  if (opts.from) params.set('from', opts.from)
+  if (opts.to) params.set('to', opts.to)
+  if (opts.tracker_id) params.set('tracker_id', opts.tracker_id)
+  return request<YatraPositionPage>(`/api/v1/yatras/${yatraId}/positions?${params}`, {
     fallback: 'Could not load position history.',
   })
 }

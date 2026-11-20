@@ -37,7 +37,7 @@ import {
   type YatraDetail,
   type YatraRoute,
 } from '../lib/yatra.ts'
-import { CounterPanel, TrackerPanel, TrackingPanel } from './YatraFieldPanels.tsx'
+import { AttendanceRosterPanel, CounterPanel, TrackerPanel, TrackingPanel } from './YatraFieldPanels.tsx'
 
 export function YatraScreen({ admin = false }: { admin?: boolean }) {
   const { yatraId = '' } = useParams()
@@ -206,7 +206,8 @@ export function YatraScreen({ admin = false }: { admin?: boolean }) {
         </section>
 
         {yatra.capabilities.view_track ? <TrackingPanel yatraId={yatra.id} showHistory={yatra.capabilities.manage_counters} /> : null}
-        {yatra.capabilities.manage_counters ? <CounterPanel yatraId={yatra.id} /> : null}
+        {yatra.capabilities.manage_counters ? <CounterPanel yatraId={yatra.id} stops={yatra.stops} /> : null}
+        {yatra.capabilities.manage_counters ? <AttendanceRosterPanel yatraId={yatra.id} /> : null}
         {yatra.capabilities.manage_trackers ? <TrackerPanel yatraId={yatra.id} /> : null}
 
         {yatra.capabilities.edit ? (

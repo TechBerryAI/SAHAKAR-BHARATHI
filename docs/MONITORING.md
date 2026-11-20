@@ -32,7 +32,8 @@ There is no on-call rotation in this repository.
 | Session anomalies | `login_success` followed by a surge of 401 on `/api/v1/me`, or many `logout` rows | more than 30 unexpected 401s in 15 minutes | Not configured |
 | Registration failures | HTTP 500 on `POST /api/v1/registrations` | any 500 | Not configured |
 | SMS provider failures and timeouts | Log `phone verification delivery failed` (exception type or operator string only) | more than 5 in 15 minutes | Not configured |
-| Retention job | Render cron `sahakar-bharati-retention` logs `retention cleanup failed` | any failure | Not configured |
+| Retention job | Render cron `sahakar-bharati-retention` logs `retention cleanup failed` or `prune_yatra_positions failed` | any failure | Not configured |
+| GPS retention lag | Oldest `yatra_positions.received_at` older than `POSITION_RETENTION_DAYS + 1` day | any sustained lag | Not configured |
 | Backup or restore | Supabase dashboard backup status. This API does not emit a backup event | a failed backup, or a missed daily backup | Not configured. Supabase must show it |
 | Deployment failures | Render deploy events for `sahakar-bharati-api` | any failed deploy | Not configured. Render emails the account owner if notifications are on |
 

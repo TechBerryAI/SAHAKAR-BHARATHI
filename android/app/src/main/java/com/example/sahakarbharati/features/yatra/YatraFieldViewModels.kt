@@ -10,10 +10,13 @@ import com.example.sahakarbharati.data.FixQueue
 import com.example.sahakarbharati.data.FlushAction
 import com.example.sahakarbharati.data.QueuedFix
 import com.example.sahakarbharati.data.flushAction
+import com.example.sahakarbharati.data.repository.AttendanceFix
 import com.example.sahakarbharati.data.repository.PositionSubmit
 import com.example.sahakarbharati.data.repository.TrackerCredentialStore
 import com.example.sahakarbharati.data.repository.YatraFieldRepository
+import com.example.sahakarbharati.data.remote.YatraAttendanceRecordDto
 import com.example.sahakarbharati.data.shouldCaptureFix
+import com.example.sahakarbharati.data.trackerFingerprint
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -22,8 +25,13 @@ class YatraAttendanceViewModel(
 ) : ViewModel() {
     var outcome by mutableStateOf<AttendanceOutcome?>(null)
         private set
+    var mine by mutableStateOf<List<YatraAttendanceRecordDto>>(emptyList())
+        private set
+    var mineHasMore by mutableStateOf(false)
+        private set
+    private var mineOffset = 0
 
-    fun scan(yatraId: String, raw: String) {
+    fun scan(yatraId: String, raw: String, fix: AttendanceFix) {
         val token = CounterQr.fromQr(raw)
         if (token == null) {
             outcome = AttendanceOutcome.Invalid("That QR code is not a counter.")
@@ -31,7 +39,37 @@ class YatraAttendanceViewModel(
         }
         outcome = AttendanceOutcome.Submitting
         viewModelScope.launch {
-            outcome = attendanceOutcome(repository.scan(yatraId, raw.trim()))
+            outcome = attendanceOutcome(repository.scan(yatraId, raw.trim(), fix))
+            if (outcome is AttendanceOutcome.Success || outcome is AttendanceOutcome.Duplicate) {
+                loadMine(yatraId)
+            }
+        }
+    }
+
+    fun loadMine(yatraId: String) {
+        viewModelScope.launch {
+            repository.listMyAttendance(yatraId, 0).fold(
+                onSuccess = { page ->
+                    mine = page.items
+                    mineOffset = page.items.size
+                    mineHasMore = page.hasMore
+                },
+                onFailure = { },
+            )
+        }
+    }
+
+    fun loadMoreMine(yatraId: String) {
+        viewModelScope.launch {
+            repository.listMyAttendance(yatraId, mineOffset).fold(
+                onSuccess = { page ->
+                    val seen = mine.map { it.id }.toSet()
+                    mine = mine + page.items.filter { it.id !in seen }
+                    mineOffset += page.items.size
+                    mineHasMore = page.hasMore
+                },
+                onFailure = { },
+            )
         }
     }
 }
@@ -47,8 +85,14 @@ class YatraTrackingViewModel(
         private set
     var sending by mutableStateOf(false)
         private set
+    var drops by mutableStateOf(0)
+        private set
 
     fun hasCredential(): Boolean = !credentials.trackerToken().isNullOrBlank()
+
+    fun refreshQueue() {
+        pending = queue.snapshot().size
+    }
 
     fun saveToken(token: String) {
         val cleaned = token.trim()
@@ -60,12 +104,23 @@ class YatraTrackingViewModel(
         message = "Tracker code saved on this phone."
     }
 
+    fun removeTrackerFromPhone() {
+        val token = credentials.trackerToken()
+        if (!token.isNullOrBlank()) {
+            queue.discardFingerprint(trackerFingerprint(token))
+        }
+        credentials.clearTrackerToken()
+        pending = queue.snapshot().size
+        message = "Tracker removed from this phone."
+    }
+
     fun capture(yatraId: String, latitude: Double, longitude: Double, accuracyM: Double, mocked: Boolean, capturedAt: String) {
-        if (!shouldCaptureFix(mocked)) {
+        if (!shouldCaptureFix(mocked, ageMs = 0, intervalMs = 15_000, accuracyM = accuracyM.toFloat(), maxAccuracyM = 100f)) {
             message = "A mock location is not sent."
             return
         }
-        if (credentials.trackerToken().isNullOrBlank()) {
+        val token = credentials.trackerToken()
+        if (token.isNullOrBlank()) {
             message = "Paste the tracker code from the Yatra desk."
             return
         }
@@ -76,6 +131,7 @@ class YatraTrackingViewModel(
             longitude = longitude,
             accuracyM = accuracyM,
             capturedAt = capturedAt,
+            credentialFingerprint = trackerFingerprint(token),
         )
         queue.enqueue(fix)
         pending = queue.snapshot().size
@@ -102,9 +158,18 @@ class YatraTrackingViewModel(
 
     private fun applyHttp(fix: QueuedFix, status: Int, detail: String) {
         when (flushAction(status)) {
-            FlushAction.Remove, FlushAction.Drop -> queue.remove(fix.clientPositionId)
+            FlushAction.Remove -> queue.remove(fix.clientPositionId)
+            FlushAction.Drop -> {
+                queue.remove(fix.clientPositionId)
+                drops += 1
+            }
             FlushAction.ClearCredential -> {
+                queue.discardFingerprint(fix.credentialFingerprint)
                 credentials.clearTrackerToken()
+                message = detail
+            }
+            FlushAction.StopPermanent -> {
+                queue.remove(fix.clientPositionId)
                 message = detail
             }
             FlushAction.Keep -> message = detail

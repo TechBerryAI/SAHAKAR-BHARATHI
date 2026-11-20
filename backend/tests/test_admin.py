@@ -7,13 +7,8 @@ from sqlalchemy.engine import Engine
 
 from app.core.security import verify_pin
 from app.db.session import SessionLocal
-from app.services.super_admin import (
-    SUPER_ADMIN_LOGIN_ID,
-    SUPER_ADMIN_MOBILE,
-    LoginIdTakenError,
-    seed_super_admin,
-)
-from tests.conftest import register_and_login
+from app.services.super_admin import LoginIdTakenError, seed_super_admin
+from tests.conftest import SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_MOBILE, register_and_login
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -103,7 +98,7 @@ def test_super_admin_grants_and_removes_admin_but_cannot_demote_self(client: Tes
         assert seeded.login_id == SUPER_ADMIN_LOGIN_ID
         assert seeded.mobile == SUPER_ADMIN_MOBILE
         assert seeded.role == "super_admin"
-        assert seeded.full_name == "Jaydeep Patil"
+        assert seeded.full_name == "Test Super Admin"
         assert verify_pin("1234", seeded.pin_hash)
     finally:
         db.close()

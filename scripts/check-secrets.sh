@@ -3,14 +3,26 @@
 # credential-shaped content. Prints file names and rule names only, never the
 # matched value. Dependency-free so it runs in CI and as a git hook.
 #
-#   scripts/check-secrets.sh            # every tracked file
-#   scripts/check-secrets.sh --staged   # files staged for commit (pre-commit hook)
+#   scripts/check-secrets.sh                 # every tracked file
+#   scripts/check-secrets.sh --staged        # files staged for commit (pre-commit hook)
+#   scripts/check-secrets.sh --working-tree  # tracked + untracked (excludes build dirs)
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-if [[ "${1:-}" == "--staged" ]]; then
+mode="${1:-}"
+if [[ "$mode" == "--staged" ]]; then
   mapfile -t files < <(git diff --cached --name-only --diff-filter=ACMR)
+elif [[ "$mode" == "--working-tree" ]]; then
+  mapfile -t files < <(
+    {
+      git ls-files
+      git ls-files --others --exclude-standard
+    } | awk '
+      /(?:^|\/)(node_modules|\.venv|build|dist|\.gradle|\.kotlin|\.android-launch|\.git)(\/|$)/ { next }
+      { print }
+    ' | sort -u
+  )
 else
   mapfile -t files < <(git ls-files)
 fi

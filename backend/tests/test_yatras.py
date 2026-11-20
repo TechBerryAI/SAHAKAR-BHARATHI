@@ -8,8 +8,8 @@ from sqlalchemy.engine import Engine
 
 from app.core.storage import UnavailableDocumentStorage
 from app.db.session import SessionLocal
-from app.services.super_admin import SUPER_ADMIN_MOBILE, seed_super_admin
-from tests.conftest import register_and_login
+from app.services.super_admin import seed_super_admin
+from tests.conftest import SUPER_ADMIN_MOBILE, register_and_login
 
 START = "2026-12-01T04:00:00Z"
 END = "2026-12-03T12:00:00Z"

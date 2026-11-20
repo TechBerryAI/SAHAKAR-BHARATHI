@@ -19,6 +19,11 @@ from app.core.config import normalize_database_url
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
+# Fictitious identity for seed_super_admin in tests. Not a real person.
+SUPER_ADMIN_MOBILE = "9000000999"
+SUPER_ADMIN_NAME = "Test Super Admin"
+SUPER_ADMIN_LOGIN_ID = "SB-TEST-ADMIN"
+
 
 def _database_name(url: str) -> str:
     parsed = urlparse(normalize_database_url(url))
@@ -63,6 +68,9 @@ def engine(database_url: str) -> Iterator[Engine]:
     # migrations/env.py prefers MIGRATION_DATABASE_URL; never let a developer's
     # exported owner credential point test migrations at a real database.
     os.environ["MIGRATION_DATABASE_URL"] = database_url
+    os.environ["SUPER_ADMIN_MOBILE"] = SUPER_ADMIN_MOBILE
+    os.environ["SUPER_ADMIN_NAME"] = SUPER_ADMIN_NAME
+    os.environ["SUPER_ADMIN_LOGIN_ID"] = SUPER_ADMIN_LOGIN_ID
     from app.core.config import get_settings
 
     get_settings.cache_clear()

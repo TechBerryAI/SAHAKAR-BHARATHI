@@ -4,6 +4,7 @@ import secrets
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -16,10 +17,11 @@ from app.core.yatra_rules import (
     YATRA_STATUSES,
     YATRA_TRANSITIONS,
 )
-from app.db.session import is_unique_violation
+from app.db.session import is_foreign_key_violation, is_unique_violation
 from app.models.protocol import ProtocolItem
 from app.models.user import User
 from app.models.yatra import Yatra, YatraAdministrator, YatraRoute, YatraStop
+from app.models.yatra_field import YatraCounter, YatraLatestPosition, YatraPosition
 from app.repositories.audit import AuditRepository
 from app.repositories.protocol import ProtocolRepository
 from app.repositories.users import UserRepository
@@ -300,13 +302,21 @@ class YatraService:
         stop = self.yatras.get_stop(yatra.id, stop_id)
         if stop is None:
             raise NotFoundError("That stop was not found.")
+        if self._stop_is_referenced(stop.id):
+            raise ConflictError("This stop is used by counters or GPS history.")
         self.audit.add(
             "stop_removed",
             user_id=actor.id,
             extra={"yatra_id": str(yatra.id), "stop_id": str(stop.id), "sequence": stop.sequence},
         )
-        self.db.delete(stop)
-        self.db.commit()
+        try:
+            self.db.delete(stop)
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            if is_foreign_key_violation(exc):
+                raise ConflictError("This stop is used by counters or GPS history.") from None
+            raise
 
     def get_route(self, actor: User, yatra_id: UUID) -> RouteResponse:
         yatra, level = self._visible(actor, yatra_id)
@@ -395,6 +405,16 @@ class YatraService:
             stops=[self._stop(stop) for stop in self.yatras.stops(yatra.id)],
             created_at=yatra.created_at,
             updated_at=yatra.updated_at,
+        )
+
+    def _stop_is_referenced(self, stop_id: UUID) -> bool:
+        if self.db.scalar(select(YatraCounter.id).where(YatraCounter.stop_id == stop_id).limit(1)) is not None:
+            return True
+        if self.db.scalar(select(YatraPosition.id).where(YatraPosition.stop_id == stop_id).limit(1)) is not None:
+            return True
+        return (
+            self.db.scalar(select(YatraLatestPosition.yatra_id).where(YatraLatestPosition.stop_id == stop_id).limit(1))
+            is not None
         )
 
     def _commit_sequence(self) -> None:

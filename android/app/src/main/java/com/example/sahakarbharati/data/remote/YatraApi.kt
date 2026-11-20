@@ -36,4 +36,19 @@ interface YatraApi {
         @Path("yatraId") yatraId: String,
         @Body body: YatraPositionCreateDto,
     ): Response<Unit>
+
+    @POST("api/v1/yatras/{yatraId}/positions/batch")
+    suspend fun postPositionBatch(
+        @Header("Authorization") authorization: String,
+        @Path("yatraId") yatraId: String,
+        @Body body: YatraPositionBatchDto,
+    ): Response<YatraPositionBatchResponseDto>
+
+    @GET("api/v1/yatras/{yatraId}/attendance/mine")
+    suspend fun listMyAttendance(
+        @Header("Authorization") authorization: String,
+        @Path("yatraId") yatraId: String,
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0,
+    ): YatraAttendancePageDto
 }

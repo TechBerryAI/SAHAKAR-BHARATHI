@@ -50,6 +50,27 @@ data class YatraPageDto(
 
 data class YatraAttendanceScanDto(
     @SerializedName("qr_token") val qrToken: String,
+    val latitude: Double,
+    val longitude: Double,
+    @SerializedName("accuracy_m") val accuracyM: Double,
+    @SerializedName("captured_at") val capturedAt: String,
+)
+
+data class YatraPositionBatchDto(
+    val positions: List<YatraPositionCreateDto>,
+)
+
+data class YatraPositionBatchItemDto(
+    @SerializedName("client_position_id") val clientPositionId: String,
+    val status: String,
+    val error: String? = null,
+)
+
+data class YatraPositionBatchResponseDto(
+    val results: List<YatraPositionBatchItemDto>,
+    val accepted: Int,
+    val duplicates: Int,
+    val rejected: Int,
 )
 
 data class YatraAttendanceRecordDto(
@@ -60,6 +81,14 @@ data class YatraAttendanceRecordDto(
     @SerializedName("attendance_date") val attendanceDate: String,
     @SerializedName("checked_in_at") val checkedInAt: String,
     @SerializedName("already_recorded") val alreadyRecorded: Boolean,
+)
+
+data class YatraAttendancePageDto(
+    val items: List<YatraAttendanceRecordDto>,
+    val total: Int,
+    val limit: Int,
+    val offset: Int,
+    @SerializedName("has_more") val hasMore: Boolean = false,
 )
 
 data class YatraPositionCreateDto(

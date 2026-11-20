@@ -1,4 +1,5 @@
 import uuid
+from datetime import date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -17,6 +18,8 @@ from app.schemas.yatra_field import (
     CounterList,
     CounterUpdate,
     LatestPositionResponse,
+    PositionBatchCreate,
+    PositionBatchResponse,
     PositionCreate,
     PositionList,
     PositionResponse,
@@ -95,6 +98,16 @@ def deactivate_counter(
     return service.set_counter_status(actor, yatra_id, counter_id, "inactive")
 
 
+@router.post("/counters/{counter_id}/rotate-qr", response_model=CounterDetail)
+def rotate_counter_qr(
+    yatra_id: uuid.UUID,
+    counter_id: uuid.UUID,
+    actor: User = Depends(get_current_user),
+    service: YatraFieldService = Depends(get_yatra_field_service),
+) -> CounterDetail:
+    return service.rotate_counter_qr(actor, yatra_id, counter_id)
+
+
 @router.post("/attendance", response_model=AttendanceRecord)
 def scan_attendance(
     yatra_id: uuid.UUID,
@@ -123,10 +136,19 @@ def list_yatra_attendance(
     yatra_id: uuid.UUID,
     limit: int = Query(default=50, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
+    attendance_date: date | None = None,
+    counter_id: uuid.UUID | None = None,
     actor: User = Depends(get_current_user),
     service: YatraFieldService = Depends(get_yatra_field_service),
 ) -> AttendanceList:
-    return service.list_attendance(actor, yatra_id, limit, offset)
+    return service.list_attendance(
+        actor,
+        yatra_id,
+        limit,
+        offset,
+        attendance_date=attendance_date,
+        counter_id=counter_id,
+    )
 
 
 @router.post("/trackers", response_model=TrackerCreated, status_code=201)
@@ -178,6 +200,21 @@ def submit_position(
     return body
 
 
+@router.post("/positions/batch", response_model=PositionBatchResponse)
+def submit_position_batch(
+    yatra_id: uuid.UUID,
+    payload: PositionBatchCreate,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    service: YatraFieldService = Depends(get_yatra_field_service),
+    limiter: RateLimiter = Depends(get_limiter),
+    settings: Settings = Depends(get_settings),
+) -> PositionBatchResponse:
+    raw = credentials.credentials if credentials is not None and credentials.scheme.lower() == "bearer" else None
+    tracker = service.authenticate_tracker(raw, request.state.client_ip, limiter, settings)
+    return service.ingest_batch(tracker, yatra_id, payload, limiter, settings)
+
+
 @router.get("/position", response_model=LatestPositionResponse)
 def get_latest_position(
     yatra_id: uuid.UUID,
@@ -191,9 +228,20 @@ def get_latest_position(
 @router.get("/positions", response_model=PositionList)
 def list_positions(
     yatra_id: uuid.UUID,
-    limit: int = Query(default=50, ge=1, le=50),
-    offset: int = Query(default=0, ge=0, le=2000),
+    limit: int = Query(default=50, ge=1, le=100),
+    before: str | None = None,
+    captured_from: datetime | None = Query(default=None, alias="from"),
+    captured_to: datetime | None = Query(default=None, alias="to"),
+    tracker_id: uuid.UUID | None = None,
     actor: User = Depends(get_current_user),
     service: YatraFieldService = Depends(get_yatra_field_service),
 ) -> PositionList:
-    return service.list_positions(actor, yatra_id, limit, offset)
+    return service.list_positions(
+        actor,
+        yatra_id,
+        limit,
+        before=before,
+        captured_from=captured_from,
+        captured_to=captured_to,
+        tracker_id=tracker_id,
+    )

@@ -132,6 +132,19 @@ private class FakeYatraApi : YatraApi {
         body: YatraPositionCreateDto,
     ): Response<Unit> = error("unused")
 
+    override suspend fun postPositionBatch(
+        authorization: String,
+        yatraId: String,
+        body: com.example.sahakarbharati.data.remote.YatraPositionBatchDto,
+    ): Response<com.example.sahakarbharati.data.remote.YatraPositionBatchResponseDto> = error("unused")
+
+    override suspend fun listMyAttendance(
+        authorization: String,
+        yatraId: String,
+        limit: Int,
+        offset: Int,
+    ): com.example.sahakarbharati.data.remote.YatraAttendancePageDto = error("unused")
+
     private fun summary(id: String, published: Boolean) = YatraSummaryDto(
         id = id,
         publicCode = "YT00000001",

@@ -21,14 +21,31 @@ def _live(engine: Engine, yatra_id: str, *, published: bool = True) -> None:
         )
 
 
+_HERE = {"latitude": 19.997, "longitude": 73.789, "location_accuracy_m": 12}
+
+
 def _counter(client: TestClient, headers: dict[str, str], yatra_id: str, code: str = "GATE-1") -> dict:
     created = client.post(
         f"/api/v1/yatras/{yatra_id}/counters",
         headers=headers,
-        json={"name": "Gate counter", "code": code, "description": "North gate"},
+        json={"name": "Gate counter", "code": code, "description": "North gate", **_HERE},
     )
     assert created.status_code == 201, created.text
     return created.json()
+
+
+def _scan(qr_text: str, **overrides: object) -> dict:
+    from datetime import UTC, datetime
+
+    body: dict[str, object] = {
+        "qr_token": qr_text,
+        "latitude": 19.997,
+        "longitude": 73.789,
+        "accuracy_m": 8.0,
+        "captured_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+    }
+    body.update(overrides)
+    return body
 
 
 def _token(length: int = 43) -> str:
@@ -233,7 +250,7 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
     not_open = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": counter["qr_text"]},
+        json=_scan(counter["qr_text"]),
     )
     assert not_open.status_code == 404
     _live(engine, yatra["id"])
@@ -246,7 +263,7 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
     refused = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": counter["qr_text"]},
+        json=_scan(counter["qr_text"]),
     )
     assert refused.status_code == 400
     assert refused.json()["detail"] == "This counter is not accepting attendance."
@@ -264,13 +281,13 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
     unknown = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": f"SB-COUNTER:{_token()}"},
+        json=_scan(f"SB-COUNTER:{_token()}"),
     )
     assert unknown.status_code == 404
     crossed = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": other_counter["qr_text"]},
+        json=_scan(other_counter["qr_text"]),
     )
     assert crossed.status_code == 404
 
@@ -279,7 +296,7 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
     waiting = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": counter["qr_text"]},
+        json=_scan(counter["qr_text"]),
     )
     assert waiting.status_code == 400
     assert waiting.json()["detail"] == "This Yatra is not accepting attendance."
@@ -288,7 +305,7 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
     first = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": counter["qr_text"]},
+        json=_scan(counter["qr_text"]),
     )
     assert first.status_code == 200, first.text
     assert first.json()["already_recorded"] is False
@@ -296,7 +313,7 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
     again = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": counter["qr_text"]},
+        json=_scan(counter["qr_text"]),
     )
     assert again.status_code == 200, again.text
     assert again.json()["already_recorded"] is True
@@ -310,7 +327,7 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
     later = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": counter["qr_text"]},
+        json=_scan(counter["qr_text"]),
     )
     assert later.status_code == 200, later.text
     assert later.json()["already_recorded"] is False
@@ -321,13 +338,13 @@ def test_counter_attendance_rules(client: TestClient, engine: Engine) -> None:
         failed = client.post(
             f"/api/v1/yatras/{yatra['id']}/attendance",
             headers=limited_user,
-            json={"qr_token": f"SB-COUNTER:{_token()}"},
+            json=_scan(f"SB-COUNTER:{_token()}"),
         )
         assert failed.status_code == 404
     blocked = client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=limited_user,
-        json={"qr_token": f"SB-COUNTER:{_token()}"},
+        json=_scan(f"SB-COUNTER:{_token()}"),
     )
     assert blocked.status_code == 429
 
@@ -358,7 +375,7 @@ def test_concurrent_counter_scans_record_one_row(client: TestClient, engine: Eng
         response = client.post(
             f"/api/v1/yatras/{yatra['id']}/attendance",
             headers=participant,
-            json={"qr_token": counter["qr_text"]},
+            json=_scan(counter["qr_text"]),
         )
         body = response.json()
         return response.status_code, bool(body.get("already_recorded"))
@@ -470,7 +487,7 @@ def test_tracker_assignment_and_gps_ingestion(client: TestClient, engine: Engine
     assert client.post(
         f"/api/v1/yatras/{yatra['id']}/positions",
         headers=tracker,
-        json=_position(str(uuid.uuid4()), now - timedelta(minutes=11)),
+        json=_position(str(uuid.uuid4()), now - timedelta(hours=7)),
     ).status_code == 400
     crossed = client.post(
         f"/api/v1/yatras/{other['id']}/positions",
@@ -512,10 +529,14 @@ def test_tracker_assignment_and_gps_ingestion(client: TestClient, engine: Engine
     assert history.status_code == 403
     history = client.get(f"/api/v1/yatras/{yatra['id']}/positions?limit=1", headers=operator)
     assert history.status_code == 200, history.text
-    assert history.json()["total"] == 2
     assert len(history.json()["items"]) == 1
     assert history.json()["has_more"] is True
-    assert client.get(f"/api/v1/yatras/{yatra['id']}/positions?offset=2001", headers=operator).status_code == 422
+    assert history.json()["next_cursor"]
+    tampered = client.get(
+        f"/api/v1/yatras/{yatra['id']}/positions?before=not-a-cursor",
+        headers=operator,
+    )
+    assert tampered.status_code == 422
 
     for index in range(10):
         accepted = client.post(
@@ -567,7 +588,7 @@ def test_tracker_assignment_and_gps_ingestion(client: TestClient, engine: Engine
     assert client.post(
         f"/api/v1/yatras/{yatra['id']}/attendance",
         headers=participant,
-        json={"qr_token": kept["qr_text"]},
+        json=_scan(kept["qr_text"]),
     ).status_code == 200
     with engine.begin() as connection:
         connection.execute(

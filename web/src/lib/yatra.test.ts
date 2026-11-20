@@ -91,11 +91,18 @@ describe('yatra API calls', () => {
         return new Response(JSON.stringify({ id: 'attendance-1', already_recorded: false }), { status: 200 })
       }),
     )
-    await scanYatraAttendance('yatra-1', 'SB-COUNTER:abcdefghijklmnopqrstuvwxyz012345')
+    const body = {
+      qr_token: 'SB-COUNTER:abcdefghijklmnopqrstuvwxyz012345',
+      latitude: 19.997,
+      longitude: 73.789,
+      accuracy_m: 8,
+      captured_at: '2026-11-20T05:00:00Z',
+    }
+    await scanYatraAttendance('yatra-1', body)
     expect(calls[0].url).toBe(`${API}/api/v1/yatras/yatra-1/attendance`)
     expect(calls[0].url).not.toContain('/api/v1/attendance')
     expect(calls[0].init.method).toBe('POST')
-    expect(calls[0].init.body).toBe(JSON.stringify({ qr_token: 'SB-COUNTER:abcdefghijklmnopqrstuvwxyz012345' }))
+    expect(calls[0].init.body).toBe(JSON.stringify(body))
   })
 
   it('shows a tracker code once and does not store it in the browser', async () => {

@@ -9,7 +9,7 @@ and the app does not use Supabase Auth, PostgREST, or the Supabase JS client.
 |---|---|
 | `backend/app/models/` | SQLAlchemy models, the source of truth for code. |
 | `backend/migrations/versions/` | Alembic migrations, the **preferred** way to create and evolve a database. |
-| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261120_0012`) for the Supabase SQL Editor. **Empty databases only.** |
+| `infra/supabase/schema.sql` | Equivalent snapshot of Alembic head (`20261121_0013`) for the Supabase SQL Editor. **Empty databases only.** |
 | `infra/supabase/runtime_role.sql` | Optional least-privilege role for the running API. |
 
 The two init paths produce the same schema. `backend/tests/test_database_schema.py`
@@ -38,7 +38,8 @@ production schema.
 | `20261114_0009` | `rate_limit_buckets.hit_times` for the sliding window |
 | `20261117_0010` | `districts`, district administrators, `yatras`, Yatra administrators, stops, and routes |
 | `20261117_0011` | Protocol templates, checklist items, and document metadata |
-| `20261120_0012` | Yatra counters, attendance, trackers, positions, and latest position (current head) |
+| `20261120_0012` | Yatra counters, attendance, trackers, positions, and latest position |
+| `20261121_0013` | Field integrity FKs, geofence columns, one-active-tracker index, `prune_yatra_positions` (current head) |
 
 **Why 0005 matters:** Supabase grants the public `anon` and `authenticated` roles
 full privileges on new tables in `public`, and exposes them over PostgREST with the
@@ -206,7 +207,7 @@ DELETE FROM rate_limit_buckets WHERE window_start < now() - interval '1 day';
 | `audit_events` | Not deleted by the application | Accountability record. Recommended operator archive after 365 days. **Not configured.** Do not `DELETE FROM audit_events` as part of a routine job. |
 | `yatra_positions` | 30 days (`POSITION_RETENTION_DAYS`), except the row still referenced by `yatra_latest_positions` | Older GPS history. Attendance, the latest position, and audit rows are kept. |
 
-`sahakar_api` can delete the three session tables above. It cannot update or delete `audit_events`, and it cannot update or delete `attendance`, `yatra_attendance`, `yatra_positions`, or `registrations`. Position pruning runs in its own savepoint: the runtime role skips it, and an owner connection deletes expired GPS history.
+`sahakar_api` can delete the three session tables above. It cannot update or delete `audit_events`, and it cannot update or delete `attendance`, `yatra_attendance`, `yatra_positions`, or `registrations`. GPS history is pruned only by the retention cron through `public.prune_yatra_positions(integer, integer)` (SECURITY DEFINER; `EXECUTE` granted to `sahakar_api`; revoked from `PUBLIC`/`anon`/`authenticated`). The in-request limiter never deletes `yatra_positions`.
 If the runtime role was created from an older copy of `runtime_role.sql`, re-run
-the script so session cleanup is allowed. Until then, cleanup failures are logged
-and the throttle check itself still commits.
+the script after 0013 so session cleanup and `prune_yatra_positions` are allowed.
+Until then, cleanup failures are logged and the throttle check itself still commits.

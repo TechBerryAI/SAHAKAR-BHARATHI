@@ -1,4 +1,6 @@
+import json
 import logging
+import math
 import re
 import uuid
 from collections.abc import AsyncIterator
@@ -9,8 +11,9 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import TimeoutError as SATimeoutError
 from starlette.datastructures import MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -34,8 +37,33 @@ _DOCUMENT_UPLOAD = re.compile(
 )
 _READY_TIMEOUT_MS = 2000
 _SENSITIVE_FIELDS = frozenset(
-    {"pin", "password", "token", "access_token", "authorization", "code", "verification_token"}
+    {
+        "pin",
+        "password",
+        "token",
+        "access_token",
+        "authorization",
+        "code",
+        "verification_token",
+        "qr_token",
+        "qr_text",
+        "tracker_token",
+    }
 )
+
+
+def _non_finite(value: object) -> bool:
+    return isinstance(value, float) and not math.isfinite(value)
+
+
+def _scrub_non_finite(value: object) -> object:
+    if _non_finite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _scrub_non_finite(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_scrub_non_finite(item) for item in value]
+    return value
 
 
 def sanitize_validation_errors(errors: list[object]) -> list[object]:
@@ -44,9 +72,14 @@ def sanitize_validation_errors(errors: list[object]) -> list[object]:
         item = dict(error)
         loc = item.get("loc", ())
         names = {str(part).lower() for part in loc} if isinstance(loc, (list, tuple)) else set()
+        raw_input = item.get("input")
         # Missing-field and model-level errors carry the whole parent object, including any PIN.
-        if names & _SENSITIVE_FIELDS or isinstance(item.get("input"), (dict, list)):
+        if names & _SENSITIVE_FIELDS or isinstance(raw_input, (dict, list)) or _non_finite(raw_input):
             item.pop("input", None)
+        elif "input" in item:
+            item["input"] = _scrub_non_finite(raw_input)
+        if "ctx" in item:
+            item["ctx"] = _scrub_non_finite(item["ctx"])
         sanitized.append(item)
     return jsonable_encoder(sanitized)
 
@@ -114,6 +147,69 @@ class RequestSizeLimitMiddleware:
         except RequestTooLargeError:
             if not response_started:
                 await JSONResponse({"detail": "Request too large."}, status_code=413)(scope, receive, send)
+
+
+class NonFiniteJsonMiddleware:
+    """Reject JSON bodies that decode to NaN or Infinity before auth runs."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope.get("method") not in {"POST", "PUT", "PATCH"}:
+            await self.app(scope, receive, send)
+            return
+        headers = {key.decode("latin-1").lower(): value.decode("latin-1") for key, value in scope.get("headers", [])}
+        content_type = headers.get("content-type", "")
+        if "application/json" not in content_type:
+            await self.app(scope, receive, send)
+            return
+        chunks: list[bytes] = []
+        while True:
+            message = await receive()
+            if message["type"] != "http.request":
+                await self.app(scope, receive, send)
+                return
+            chunks.append(message.get("body", b""))
+            if not message.get("more_body", False):
+                break
+        body = b"".join(chunks)
+
+        def replay() -> Receive:
+            sent = False
+
+            async def _receive() -> Message:
+                nonlocal sent
+                if sent:
+                    return {"type": "http.request", "body": b"", "more_body": False}
+                sent = True
+                return {"type": "http.request", "body": body, "more_body": False}
+
+            return _receive
+
+        if body:
+            try:
+                parsed = json.loads(body.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                await self.app(scope, replay(), send)
+                return
+            if _contains_non_finite(parsed):
+                await JSONResponse(
+                    {"detail": [{"type": "value_error", "msg": "Numbers must be finite."}]},
+                    status_code=422,
+                )(scope, replay(), send)
+                return
+        await self.app(scope, replay(), send)
+
+
+def _contains_non_finite(value: object) -> bool:
+    if _non_finite(value):
+        return True
+    if isinstance(value, dict):
+        return any(_contains_non_finite(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_non_finite(item) for item in value)
+    return False
 
 
 class PrivateNetworkAccessMiddleware:
@@ -216,6 +312,10 @@ class SafeErrorMiddleware:
             await response(scope, receive, send)
         except RequestValidationError as exc:
             await validation_error_response(exc)(scope, receive, send)
+        except SATimeoutError:
+            await JSONResponse({"detail": "Service temporarily unavailable."}, status_code=503)(
+                scope, receive, send
+            )
         except Exception:
             logger.exception("Unhandled application error")
             await JSONResponse({"detail": "An unexpected error occurred."}, status_code=500)(scope, receive, send)
@@ -223,7 +323,10 @@ class SafeErrorMiddleware:
 
 def build_limiter(settings: Settings) -> RateLimiter:
     if settings.uses_shared_rate_limits:
-        return PostgresRateLimiter(db_session.engine)
+        # A separate engine so limiter checkouts cannot take the request pool,
+        # and a request-pool timeout cannot turn into an unhandled 500.
+        engine = create_engine(settings.sqlalchemy_url(), **settings.rate_limit_engine_kwargs())
+        return PostgresRateLimiter(engine, owns_engine=True)
     return SlidingWindowLimiter()
 
 
@@ -235,6 +338,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if getattr(_app.state, "limiter", None) is None:
         _app.state.limiter = build_limiter(settings)
     yield
+    limiter = getattr(_app.state, "limiter", None)
+    dispose = getattr(limiter, "dispose", None)
+    if callable(dispose):
+        dispose()
     db_session.engine.dispose()
 
 
@@ -274,6 +381,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if docs_enabled else None,
     )
     application.add_middleware(RequestSizeLimitMiddleware)
+    application.add_middleware(NonFiniteJsonMiddleware)
     application.add_middleware(SafeErrorMiddleware)
     application.add_middleware(ApiResponseHeadersMiddleware)
     if settings.cors_origin_list:
@@ -293,6 +401,11 @@ def create_app() -> FastAPI:
     application.add_middleware(ClientIpMiddleware)
     application.add_middleware(RequestIdMiddleware)
     application.add_exception_handler(RequestValidationError, _validation_error_handler)
+
+    async def _pool_timeout(_request: Request, _exc: SATimeoutError) -> JSONResponse:
+        return JSONResponse({"detail": "Service temporarily unavailable."}, status_code=503)
+
+    application.add_exception_handler(SATimeoutError, _pool_timeout)
     application.include_router(api_router, prefix="/api/v1")
 
     @application.api_route("/", methods=["GET", "HEAD"])

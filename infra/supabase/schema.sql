@@ -1,5 +1,5 @@
 -- Sahakar Bharati participant schema for Supabase (PostgreSQL).
--- Matches Alembic head 20261120_0012 (verification_challenges is not created).
+-- Matches Alembic head 20261121_0013 (verification_challenges is not created).
 -- backend/tests/test_database_schema.py fails if this file drifts from the models.
 --
 -- USE ONLY ON AN EMPTY DATABASE. The preferred path is `alembic upgrade head`
@@ -7,7 +7,7 @@
 -- Editor when Alembic cannot reach the database. Apply it with:
 --   psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/supabase/schema.sql
 --
--- It records Alembic revision 20261120_0012, so `alembic upgrade head` works
+-- It records Alembic revision 20261121_0013, so `alembic upgrade head` works
 -- afterwards. If alembic_version already has a row the script stops with an
 -- error instead of creating a second version row.
 --
@@ -271,6 +271,7 @@ CREATE TABLE IF NOT EXISTS public.yatra_stops (
     active boolean NOT NULL DEFAULT true,
     CONSTRAINT yatra_stops_yatra_id_fkey
         FOREIGN KEY (yatra_id) REFERENCES public.yatras (id) ON DELETE CASCADE,
+    CONSTRAINT uq_yatra_stops_id_yatra UNIQUE (id, yatra_id),
     CONSTRAINT uq_yatra_stops_yatra_sequence UNIQUE (yatra_id, sequence),
     CONSTRAINT ck_yatra_stops_sequence CHECK (sequence >= 1 AND sequence <= 999),
     CONSTRAINT ck_yatra_stops_coords CHECK (
@@ -399,6 +400,7 @@ CREATE TABLE IF NOT EXISTS public.yatra_counters (
     latitude numeric(9, 6),
     longitude numeric(9, 6),
     location_accuracy_m numeric(7, 1),
+    geofence_radius_m integer,
     qr_token varchar(64) NOT NULL,
     status varchar(16) NOT NULL DEFAULT 'inactive',
     created_by uuid,
@@ -418,14 +420,18 @@ CREATE TABLE IF NOT EXISTS public.yatra_counters (
         (latitude IS NOT NULL AND longitude IS NOT NULL AND location_accuracy_m IS NOT NULL
             AND location_accuracy_m > 0 AND location_accuracy_m <= 1000)
     ),
+    CONSTRAINT ck_yatra_counters_geofence CHECK (
+        geofence_radius_m IS NULL OR (geofence_radius_m >= 10 AND geofence_radius_m <= 5000)
+    ),
     CONSTRAINT yatra_counters_created_by_fkey
         FOREIGN KEY (created_by) REFERENCES public.users (id) ON DELETE SET NULL,
-    CONSTRAINT yatra_counters_stop_id_fkey
-        FOREIGN KEY (stop_id) REFERENCES public.yatra_stops (id) ON DELETE SET NULL,
     CONSTRAINT yatra_counters_yatra_id_fkey
         FOREIGN KEY (yatra_id) REFERENCES public.yatras (id) ON DELETE CASCADE,
+    CONSTRAINT uq_yatra_counters_id_yatra UNIQUE (id, yatra_id),
     CONSTRAINT uq_yatra_counters_qr_token UNIQUE (qr_token),
-    CONSTRAINT uq_yatra_counters_yatra_code UNIQUE (yatra_id, code)
+    CONSTRAINT uq_yatra_counters_yatra_code UNIQUE (yatra_id, code),
+    CONSTRAINT yatra_counters_stop_yatra_fkey
+        FOREIGN KEY (stop_id, yatra_id) REFERENCES public.yatra_stops (id, yatra_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS ix_yatra_counters_yatra_status
@@ -439,20 +445,44 @@ CREATE TABLE IF NOT EXISTS public.yatra_attendance (
     checked_in_at timestamptz NOT NULL,
     attendance_date date NOT NULL,
     source varchar(8) NOT NULL DEFAULT 'qr',
+    scan_latitude numeric(9, 6),
+    scan_longitude numeric(9, 6),
+    scan_accuracy_m numeric(8, 2),
+    scan_distance_m numeric(10, 2),
     CONSTRAINT ck_yatra_attendance_source CHECK (source = 'qr'),
-    CONSTRAINT yatra_attendance_counter_id_fkey
-        FOREIGN KEY (counter_id) REFERENCES public.yatra_counters (id) ON DELETE RESTRICT,
+    CONSTRAINT ck_yatra_attendance_scan_present CHECK (
+        (scan_latitude IS NULL AND scan_longitude IS NULL AND scan_accuracy_m IS NULL
+            AND scan_distance_m IS NULL) OR
+        (scan_latitude IS NOT NULL AND scan_longitude IS NOT NULL AND scan_accuracy_m IS NOT NULL
+            AND scan_distance_m IS NOT NULL)
+    ),
+    CONSTRAINT ck_yatra_attendance_scan_latitude CHECK (
+        scan_latitude IS NULL OR (scan_latitude >= -90 AND scan_latitude <= 90)
+    ),
+    CONSTRAINT ck_yatra_attendance_scan_longitude CHECK (
+        scan_longitude IS NULL OR (scan_longitude >= -180 AND scan_longitude <= 180)
+    ),
+    CONSTRAINT ck_yatra_attendance_scan_accuracy CHECK (
+        scan_accuracy_m IS NULL OR scan_accuracy_m > 0
+    ),
+    CONSTRAINT ck_yatra_attendance_scan_distance CHECK (
+        scan_distance_m IS NULL OR scan_distance_m >= 0
+    ),
     CONSTRAINT yatra_attendance_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE RESTRICT,
     CONSTRAINT yatra_attendance_yatra_id_fkey
         FOREIGN KEY (yatra_id) REFERENCES public.yatras (id) ON DELETE RESTRICT,
-    CONSTRAINT uq_yatra_attendance_user_counter_day UNIQUE (user_id, counter_id, attendance_date)
+    CONSTRAINT uq_yatra_attendance_user_counter_day UNIQUE (user_id, counter_id, attendance_date),
+    CONSTRAINT yatra_attendance_counter_yatra_fkey
+        FOREIGN KEY (counter_id, yatra_id) REFERENCES public.yatra_counters (id, yatra_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS ix_yatra_attendance_yatra_checked_in
     ON public.yatra_attendance (yatra_id, checked_in_at, id);
 CREATE INDEX IF NOT EXISTS ix_yatra_attendance_user_checked_in
     ON public.yatra_attendance (user_id, checked_in_at, id);
+CREATE INDEX IF NOT EXISTS ix_yatra_attendance_counter_date
+    ON public.yatra_attendance (counter_id, attendance_date);
 
 CREATE TABLE IF NOT EXISTS public.yatra_trackers (
     id uuid PRIMARY KEY,
@@ -471,11 +501,15 @@ CREATE TABLE IF NOT EXISTS public.yatra_trackers (
         FOREIGN KEY (revoked_by) REFERENCES public.users (id) ON DELETE SET NULL,
     CONSTRAINT yatra_trackers_yatra_id_fkey
         FOREIGN KEY (yatra_id) REFERENCES public.yatras (id) ON DELETE CASCADE,
-    CONSTRAINT uq_yatra_trackers_token_hash UNIQUE (token_hash)
+    CONSTRAINT uq_yatra_trackers_token_hash UNIQUE (token_hash),
+    CONSTRAINT uq_yatra_trackers_id_yatra UNIQUE (id, yatra_id)
 );
 
 CREATE INDEX IF NOT EXISTS ix_yatra_trackers_yatra_status
     ON public.yatra_trackers (yatra_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_yatra_trackers_one_active
+    ON public.yatra_trackers (yatra_id)
+    WHERE status = 'active';
 
 CREATE TABLE IF NOT EXISTS public.yatra_positions (
     id uuid PRIMARY KEY,
@@ -493,19 +527,24 @@ CREATE TABLE IF NOT EXISTS public.yatra_positions (
     CONSTRAINT ck_yatra_positions_longitude CHECK (longitude >= -180 AND longitude <= 180),
     CONSTRAINT ck_yatra_positions_accuracy CHECK (accuracy_m > 0),
     CONSTRAINT ck_yatra_positions_source CHECK (source = 'gps'),
-    CONSTRAINT yatra_positions_stop_id_fkey
-        FOREIGN KEY (stop_id) REFERENCES public.yatra_stops (id) ON DELETE SET NULL,
-    CONSTRAINT yatra_positions_tracker_id_fkey
-        FOREIGN KEY (tracker_id) REFERENCES public.yatra_trackers (id) ON DELETE RESTRICT,
     CONSTRAINT yatra_positions_yatra_id_fkey
         FOREIGN KEY (yatra_id) REFERENCES public.yatras (id) ON DELETE RESTRICT,
-    CONSTRAINT uq_yatra_positions_tracker_client UNIQUE (tracker_id, client_position_id)
+    CONSTRAINT uq_yatra_positions_tracker_client UNIQUE (tracker_id, client_position_id),
+    CONSTRAINT yatra_positions_stop_yatra_fkey
+        FOREIGN KEY (stop_id, yatra_id) REFERENCES public.yatra_stops (id, yatra_id) ON DELETE RESTRICT,
+    CONSTRAINT yatra_positions_tracker_yatra_fkey
+        FOREIGN KEY (tracker_id, yatra_id) REFERENCES public.yatra_trackers (id, yatra_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS ix_yatra_positions_yatra_captured
     ON public.yatra_positions (yatra_id, captured_at, id);
 CREATE INDEX IF NOT EXISTS ix_yatra_positions_tracker_captured
     ON public.yatra_positions (tracker_id, captured_at, id);
+CREATE INDEX IF NOT EXISTS ix_yatra_positions_received_at
+    ON public.yatra_positions (received_at);
+CREATE INDEX IF NOT EXISTS ix_yatra_positions_stop
+    ON public.yatra_positions (stop_id)
+    WHERE stop_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS public.yatra_latest_positions (
     yatra_id uuid PRIMARY KEY,
@@ -523,13 +562,13 @@ CREATE TABLE IF NOT EXISTS public.yatra_latest_positions (
     CONSTRAINT ck_yatra_latest_positions_accuracy CHECK (accuracy_m > 0),
     CONSTRAINT yatra_latest_positions_position_id_fkey
         FOREIGN KEY (position_id) REFERENCES public.yatra_positions (id) ON DELETE RESTRICT,
-    CONSTRAINT yatra_latest_positions_stop_id_fkey
-        FOREIGN KEY (stop_id) REFERENCES public.yatra_stops (id) ON DELETE SET NULL,
-    CONSTRAINT yatra_latest_positions_tracker_id_fkey
-        FOREIGN KEY (tracker_id) REFERENCES public.yatra_trackers (id) ON DELETE RESTRICT,
     CONSTRAINT yatra_latest_positions_yatra_id_fkey
         FOREIGN KEY (yatra_id) REFERENCES public.yatras (id) ON DELETE CASCADE,
-    CONSTRAINT uq_yatra_latest_positions_position UNIQUE (position_id)
+    CONSTRAINT uq_yatra_latest_positions_position UNIQUE (position_id),
+    CONSTRAINT yatra_latest_positions_stop_yatra_fkey
+        FOREIGN KEY (stop_id, yatra_id) REFERENCES public.yatra_stops (id, yatra_id) ON DELETE RESTRICT,
+    CONSTRAINT yatra_latest_positions_tracker_yatra_fkey
+        FOREIGN KEY (tracker_id, yatra_id) REFERENCES public.yatra_trackers (id, yatra_id) ON DELETE RESTRICT
 );
 
 COMMENT ON TABLE public.yatra_counters IS 'Yatra counters. qr_token is the posted QR capability, not a 6-digit booth code.';
@@ -537,6 +576,54 @@ COMMENT ON TABLE public.yatra_attendance IS 'One Yatra counter check-in per part
 COMMENT ON TABLE public.yatra_trackers IS 'Tracker assignment. token_hash is SHA-256. The raw bearer is not stored.';
 COMMENT ON TABLE public.yatra_positions IS 'Append-only GPS history. received_at is the server clock.';
 COMMENT ON TABLE public.yatra_latest_positions IS 'One current pin per Yatra. Not route geometry.';
+
+CREATE OR REPLACE FUNCTION public.prune_yatra_positions(
+    retention_days integer,
+    batch_size integer DEFAULT 10000
+) RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    deleted integer;
+BEGIN
+    IF retention_days < 1 OR retention_days > 3650 THEN
+        RAISE EXCEPTION 'retention_days must be between 1 and 3650';
+    END IF;
+    IF batch_size < 1 OR batch_size > 50000 THEN
+        RAISE EXCEPTION 'batch_size must be between 1 and 50000';
+    END IF;
+    WITH doomed AS (
+        SELECT id
+        FROM public.yatra_positions
+        WHERE received_at < now() - make_interval(days => retention_days)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM public.yatra_latest_positions
+              WHERE yatra_latest_positions.position_id = yatra_positions.id
+          )
+        ORDER BY received_at
+        LIMIT batch_size
+    )
+    DELETE FROM public.yatra_positions
+    WHERE id IN (SELECT id FROM doomed);
+    GET DIAGNOSTICS deleted = ROW_COUNT;
+    RETURN deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.prune_yatra_positions(integer, integer) FROM PUBLIC;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        EXECUTE 'REVOKE ALL ON FUNCTION public.prune_yatra_positions(integer, integer) FROM anon';
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        EXECUTE 'REVOKE ALL ON FUNCTION public.prune_yatra_positions(integer, integer) FROM authenticated';
+    END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS public.alembic_version (
     version_num varchar(32) NOT NULL,
@@ -596,6 +683,6 @@ BEGIN
     IF EXISTS (SELECT 1 FROM public.alembic_version) THEN
         RAISE EXCEPTION 'alembic_version is not empty: run alembic upgrade head instead of schema.sql';
     END IF;
-    INSERT INTO public.alembic_version (version_num) VALUES ('20261120_0012');
+    INSERT INTO public.alembic_version (version_num) VALUES ('20261121_0013');
 END
 $$;

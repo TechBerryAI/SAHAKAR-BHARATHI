@@ -4,12 +4,14 @@ Participant platform for the Sahakar Bharati Rath Yatra: a native Android app, a
 React web app / PWA, and a FastAPI backend on PostgreSQL (Supabase).
 
 Status and evidence: [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
-Phase 1 (registration, sign-in, profile, sessions, and event check-in) and
-Phase 2A (districts, Rath Yatra management, stops, and protocol approvals) are
-implemented in this repository. Phase 2 overall is not: live chariot tracking,
-QR counters, subsidies, benefits, and notifications are not built. See
-[`docs/PHASE_2A.md`](docs/PHASE_2A.md). Backups, alerts, and a live deploy are
-operator work, not something this repository has performed.
+Phase 1 (registration, sign-in, profile, sessions, and event check-in),
+Phase 2A (districts, Rath Yatra management, stops, and protocol approvals), and
+Phase 2B (QR counters with geofenced attendance, tracker assignment, GPS ingest
+with batch/cursor history, and retention) are implemented in this repository.
+Subsidies, benefits, WhatsApp, notifications, reports, and AI scheduling are
+not built. See [`docs/PHASE_2B.md`](docs/PHASE_2B.md). Backups, alerts, credential
+rotation, and a live deploy are operator work, not something this repository has
+performed.
 
 ## Architecture
 

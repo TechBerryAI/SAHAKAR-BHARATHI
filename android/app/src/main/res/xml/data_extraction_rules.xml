@@ -6,6 +6,7 @@
         <exclude domain="sharedpref" path="sahakar_session" />
         <exclude domain="sharedpref" path="sahakar_session.xml" />
         <exclude domain="file" path="profile_photo.jpg" />
+        <exclude domain="file" path="yatra_position_queue.txt" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="sahakar_secure_session" />
@@ -13,5 +14,6 @@
         <exclude domain="sharedpref" path="sahakar_session" />
         <exclude domain="sharedpref" path="sahakar_session.xml" />
         <exclude domain="file" path="profile_photo.jpg" />
+        <exclude domain="file" path="yatra_position_queue.txt" />
     </device-transfer>
 </data-extraction-rules>

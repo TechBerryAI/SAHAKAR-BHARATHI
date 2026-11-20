@@ -48,6 +48,7 @@ GRANT SELECT, INSERT ON TABLE public.yatra_attendance TO sahakar_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_trackers TO sahakar_api;
 GRANT SELECT, INSERT ON TABLE public.yatra_positions TO sahakar_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_latest_positions TO sahakar_api;
+GRANT EXECUTE ON FUNCTION public.prune_yatra_positions(integer, integer) TO sahakar_api;
 
 REVOKE DELETE ON TABLE
     public.users,

@@ -2,6 +2,7 @@ package com.example.sahakarbharati.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.util.UUID
@@ -30,6 +31,7 @@ class PositionQueueTest {
         FilePositionQueue(file).enqueue(fix("yatra-1", id))
         val reloaded = FilePositionQueue(file).snapshot()
         assertEquals(listOf(id), reloaded.map { it.clientPositionId })
+        assertEquals("abcd1234abcd1234", reloaded.single().credentialFingerprint)
         file.delete()
     }
 
@@ -38,11 +40,21 @@ class PositionQueueTest {
         assertEquals(FlushAction.Remove, flushAction(201))
         assertEquals(FlushAction.Remove, flushAction(200))
         assertEquals(FlushAction.Keep, flushAction(429))
+        assertEquals(FlushAction.Keep, flushAction(503))
         assertEquals(FlushAction.Keep, flushAction(0))
         assertEquals(FlushAction.Drop, flushAction(400))
         assertEquals(FlushAction.Drop, flushAction(422))
         assertEquals(FlushAction.ClearCredential, flushAction(401))
-        assertFalse(shouldCaptureFix(mocked = true))
+        assertEquals(FlushAction.StopPermanent, flushAction(404))
+        assertFalse(shouldCaptureFix(mocked = true, ageMs = 0, intervalMs = 15_000, accuracyM = 10f, maxAccuracyM = 100f))
+        assertTrue(shouldCaptureFix(mocked = false, ageMs = 1_000, intervalMs = 15_000, accuracyM = 10f, maxAccuracyM = 100f))
+        assertFalse(shouldCaptureFix(mocked = false, ageMs = 40_000, intervalMs = 15_000, accuracyM = 10f, maxAccuracyM = 100f))
+    }
+
+    @Test
+    fun clearSessionFingerprintHelperIsStable() {
+        assertEquals(16, trackerFingerprint("token-one").length)
+        assertEquals(trackerFingerprint("same"), trackerFingerprint("same"))
     }
 
     private fun fix(yatraId: String, id: String) = QueuedFix(
@@ -52,5 +64,6 @@ class PositionQueueTest {
         longitude = 73.7,
         accuracyM = 12.0,
         capturedAt = "2026-11-20T05:00:00Z",
+        credentialFingerprint = "abcd1234abcd1234",
     )
 }
