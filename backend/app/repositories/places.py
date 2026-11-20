@@ -25,7 +25,7 @@ class PlaceRepository:
     def list_recent(self, limit: int = 100, offset: int = 0) -> tuple[list[Place], int]:
         total = int(self.db.scalar(select(func.count()).select_from(Place)) or 0)
         rows = self.db.scalars(
-            select(Place).order_by(Place.created_at.desc()).limit(limit).offset(offset)
+            select(Place).order_by(Place.created_at.desc(), Place.id.desc()).limit(limit).offset(offset)
         )
         return list(rows), total
 

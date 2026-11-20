@@ -21,6 +21,8 @@ export function DistrictsScreen() {
   const { profile } = useSession()
   const superAdmin = profile?.role === 'super_admin'
   const [districts, setDistricts] = useState<District[]>([])
+  const [total, setTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [stateName, setStateName] = useState('')
@@ -35,6 +37,7 @@ export function DistrictsScreen() {
     listDistricts()
       .then((page) => {
         setDistricts(page.items)
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
@@ -50,6 +53,7 @@ export function DistrictsScreen() {
       .then((page) => {
         if (cancelled) return
         setDistricts(page.items)
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
@@ -202,6 +206,32 @@ export function DistrictsScreen() {
             ))}
           </ul>
         )}
+        {!loading && districts.length < total ? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={loadingMore}
+            onClick={() => {
+              setLoadingMore(true)
+              listDistricts(districts.length)
+                .then((page) => {
+                  setDistricts((current) => {
+                    const seen = new Set(current.map((district) => district.id))
+                    return [...current, ...page.items.filter((district) => !seen.has(district.id))]
+                  })
+                  setTotal(page.total)
+                })
+                .catch((err: unknown) => {
+                  if (!(err instanceof ApiError && err.status === 401)) {
+                    setError(apiErrorText(err, copy, 'Could not load districts.'))
+                  }
+                })
+                .finally(() => setLoadingMore(false))
+            }}
+          >
+            {loadingMore ? copy.pleaseWait : 'Load more'}
+          </Button>
+        ) : null}
       </Screen>
     </>
   )

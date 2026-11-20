@@ -89,6 +89,26 @@ def _yatra(client: TestClient, headers: dict[str, str], district_id: str, name: 
     return created.json()
 
 
+def test_district_pages_continue_past_one_hundred(client: TestClient, engine: Engine) -> None:
+    admin = _super(client)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO districts (id, name, code, state_name, active, created_at, updated_at) "
+                "SELECT gen_random_uuid(), 'Bulk district ' || lpad(n::text, 3, '0'), "
+                "'B' || lpad(n::text, 3, '0'), 'Maharashtra', true, now(), now() "
+                "FROM generate_series(0, 100) AS n"
+            )
+        )
+    page = client.get("/api/v1/admin/districts?limit=1&offset=100", headers=admin)
+    assert page.status_code == 200, page.text
+    body = page.json()
+    assert body["total"] >= 101
+    assert body["offset"] == 100
+    assert len(body["items"]) == 1
+    assert body["has_more"] is (body["offset"] + len(body["items"]) < body["total"])
+
+
 def test_participant_and_unassigned_admin_cannot_create_a_yatra(client: TestClient, engine: Engine) -> None:
     super_headers = _super(client)
     district = _district(client, super_headers)

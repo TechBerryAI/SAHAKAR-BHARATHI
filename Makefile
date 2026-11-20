@@ -67,10 +67,10 @@ install-web: ## Install web dependencies from the lockfile
 	npm ci --prefix web
 
 migrate: ## Apply Alembic migrations to the database in backend/.env
-	cd backend && $(VENV_PY) -m alembic upgrade head
+	cd backend && ../$(VENV_PY) -m alembic upgrade head
 
 api: ## Run only the API on http://127.0.0.1:8000
-	cd backend && $(VENV_PY) -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && ../$(VENV_PY) -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 web: ## Run only the web app on http://localhost:5174
 ifeq ($(OS),Windows_NT)

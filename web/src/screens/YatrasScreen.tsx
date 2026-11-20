@@ -13,7 +13,10 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
   const { profile } = useSession()
   const staff = isStaffRole(profile?.role)
   const [items, setItems] = useState<YatraSummary[]>([])
+  const [total, setTotal] = useState(0)
   const [districts, setDistricts] = useState<District[]>([])
+  const [districtTotal, setDistrictTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [name, setName] = useState('')
@@ -29,6 +32,7 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
     listYatras(nextQuery, nextStatus)
       .then((page) => {
         setItems(page.items)
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
@@ -44,6 +48,7 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
       .then((page) => {
         if (cancelled) return
         setItems(page.items)
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
@@ -56,7 +61,10 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
     if (staff) {
       listDistricts()
         .then((page) => {
-          if (!cancelled) setDistricts(page.items.filter((district) => district.active))
+          if (!cancelled) {
+            setDistricts(page.items)
+            setDistrictTotal(page.total)
+          }
         })
         .catch(() => {
           if (!cancelled) setDistricts([])
@@ -127,7 +135,7 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
               onChange={(event) => setDistrictId(event.target.value)}
             >
               <option value="">Select a district</option>
-              {districts.map((district) => (
+              {districts.filter((district) => district.active).map((district) => (
                 <option key={district.id} value={district.id}>
                   {district.name}
                 </option>
@@ -168,6 +176,54 @@ export function YatrasScreen({ admin = false }: { admin?: boolean }) {
             ))}
           </ul>
         )}
+        {!loading && items.length < total ? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={loadingMore}
+            onClick={() => {
+              setLoadingMore(true)
+              listYatras(query, status, items.length)
+                .then((page) => {
+                  setItems((current) => {
+                    const seen = new Set(current.map((yatra) => yatra.id))
+                    return [...current, ...page.items.filter((yatra) => !seen.has(yatra.id))]
+                  })
+                  setTotal(page.total)
+                })
+                .catch((err: unknown) => {
+                  if (!(err instanceof ApiError && err.status === 401)) {
+                    setError(apiErrorText(err, copy, 'Could not load Yatras.'))
+                  }
+                })
+                .finally(() => setLoadingMore(false))
+            }}
+          >
+            {loadingMore ? copy.pleaseWait : 'Load more'}
+          </Button>
+        ) : null}
+        {staff && districts.length < districtTotal ? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={loadingMore}
+            onClick={() => {
+              setLoadingMore(true)
+              listDistricts(districts.length)
+                .then((page) => {
+                  setDistricts((current) => {
+                    const seen = new Set(current.map((district) => district.id))
+                    return [...current, ...page.items.filter((district) => !seen.has(district.id))]
+                  })
+                  setDistrictTotal(page.total)
+                })
+                .catch(() => setDistrictTotal(districts.length))
+                .finally(() => setLoadingMore(false))
+            }}
+          >
+            {loadingMore ? copy.pleaseWait : 'Load more districts'}
+          </Button>
+        ) : null}
       </Screen>
     </>
   )

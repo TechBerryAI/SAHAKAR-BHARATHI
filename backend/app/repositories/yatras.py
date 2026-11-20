@@ -97,6 +97,7 @@ class YatraRepository:
         district_id: uuid.UUID | None,
         status: str | None,
         query: str | None,
+        published: bool | None = None,
     ) -> tuple[list[Yatra], int]:
         filters = []
         if visible is not None:
@@ -105,6 +106,8 @@ class YatraRepository:
             filters.append(Yatra.district_id == district_id)
         if status is not None:
             filters.append(Yatra.status == status)
+        if published is not None:
+            filters.append(Yatra.published.is_(published))
         cleaned = (query or "").strip()
         if cleaned:
             escaped = cleaned.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -122,7 +125,9 @@ class YatraRepository:
             listing = listing.where(*filters)
         total = int(self.db.scalar(count) or 0)
         rows = self.db.scalars(
-            listing.order_by(Yatra.starts_at.desc(), Yatra.created_at.desc()).limit(limit).offset(offset)
+            listing.order_by(Yatra.starts_at.desc(), Yatra.created_at.desc(), Yatra.id.desc())
+            .limit(limit)
+            .offset(offset)
         ).unique()
         return list(rows), total
 

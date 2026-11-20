@@ -8,7 +8,7 @@ Earlier audits (2026-10-23 and 2026-10-27) closed with "not ready" because of pr
 
 ## Repository / implementation status
 
-Phase 1 is complete in this repository. Phase 2A (districts, Rath Yatras, stops, and protocol approvals) is also implemented here; see `docs/PHASE_2A.md`. Phase 2 overall is not. Production operation is not. Launch still depends on the operator checklist below. Local protocol-document files under `backend/var/documents` are ephemeral and are not a production object store. Production without `DOCUMENT_STORAGE_BACKEND` rejects uploads.
+Phase 1 is complete in this repository. Phase 2A (districts, Rath Yatras, stops, and protocol approvals) is also implemented here; see `docs/PHASE_2A.md`. Phase 2 overall is not. Production operation is not. Launch still depends on the operator checklist below. Local protocol-document files under `backend/var/documents` are ephemeral and are not a production object store. Production without `DOCUMENT_STORAGE_BACKEND` rejects uploads. `DOCUMENT_STORAGE_BACKEND=s3` is implemented, but no bucket, key, or endpoint is configured by this repository.
 
 | Area | Repository status | Production action |
 |---|---|---|
@@ -29,7 +29,9 @@ Phase 1 is complete in this repository. Phase 2A (districts, Rath Yatras, stops,
 | Android | Implemented. Session in `EncryptedSharedPreferences`, excluded from backup and device transfer. Logout and HTTP 401 clear it. Release builds refuse a missing or non-HTTPS API URL. Application id is still `com.example.sahakarbharati`. | Run Android CI (`testDebugUnitTest`, release assemble). Play will reject `com.example.*` on a new listing; choose a real id before the first upload. |
 | Event check-in | Implemented (`places`, `attendance`) on the API, web, and Android. | Confirm a booth check-in on the deployed API. |
 | Phase 2A | Implemented in the repository: districts, Yatra lifecycle, stops, route label, protocol checklist, and document metadata. See `docs/PHASE_2A.md`. | Migrate to `20261117_0011` and re-run `runtime_role.sql` before sending Yatra traffic. Do not treat local document files as durable. |
-| Not in this release | Live chariot tracking, QR counters, subsidies, a QR pass, benefits, notifications, WhatsApp, and AI scheduling have no API. Phase 2 overall is not complete. | Deferred to Phase 2B and later. |
+| Not in this release | Live chariot tracking, QR counters, subsidies, a QR pass, benefits, notifications, WhatsApp, and AI scheduling have no API. Phase 2 overall is not complete. | Deferred to Phase 2B and later. See `docs/PHASE_2B.md`. |
+| Document storage | `DocumentStorage` with local disk for development and an S3-compatible private adapter. Uploads fail closed when production storage is unset. | Create a private bucket, set `DOCUMENT_STORAGE_BACKEND=s3` plus bucket, region, access key, secret key, and an HTTPS endpoint if the provider is not AWS. Do not make objects public. |
+| List pagination | Attendance, booths, districts, and Yatras page on the server. Web and Android load further pages. Page maxima stay 50 or 100. | None. |
 | CI | Workflows exist for backend, web, Android, secret scan, and Firebase deploy. | They have not been executed from this documentation pass. Confirm a green run on the release commit, and configure GitHub environments and reviewers. |
 
 ## Production configuration in the repository

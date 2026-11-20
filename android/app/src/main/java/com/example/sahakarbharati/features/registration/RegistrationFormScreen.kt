@@ -153,7 +153,7 @@ fun RegistrationFormScreen(
     var locationNote by rememberSaveable(accountEpoch) { mutableStateOf("") }
     var stepError by rememberSaveable(accountEpoch) { mutableStateOf("") }
     var photoPath by rememberSaveable(accountEpoch) { mutableStateOf("") }
-    var otp by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var otp by remember(accountEpoch) { mutableStateOf("") }
 
     LaunchedEffect(viewModel.state) {
         val current = viewModel.state

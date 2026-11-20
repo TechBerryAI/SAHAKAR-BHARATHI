@@ -21,6 +21,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
+import com.example.sahakarbharati.core.ui.GhostNavyButton
 import com.example.sahakarbharati.core.ui.SignedInScaffold
 import com.example.sahakarbharati.core.ui.WhiteCard
 import com.example.sahakarbharati.data.model.isStaffRole
@@ -59,7 +62,7 @@ fun YatraListScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (ui.loading) {
                 CircularProgressIndicator(color = RathYatraColors.Saffron)
@@ -68,6 +71,12 @@ fun YatraListScreen(
             }
             ui.items.forEach { yatra ->
                 YatraRow(yatra, onClick = { onOpenYatra(yatra.id) })
+            }
+            if (ui.hasMore) {
+                GhostNavyButton(
+                    text = if (ui.loadingMore) ui("pleaseWait") else ui("loadMore"),
+                    onClick = { if (!ui.loadingMore) viewModel.loadMore() },
+                )
             }
         }
     }
@@ -126,7 +135,7 @@ fun YatraDetailScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (ui.loading && yatra?.id != yatraId) {
                 CircularProgressIndicator(color = RathYatraColors.Saffron)

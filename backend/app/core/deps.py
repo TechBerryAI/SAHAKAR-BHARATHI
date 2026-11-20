@@ -10,7 +10,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import ForbiddenError, SmsDeliveryError
 from app.core.rate_limit import SlidingWindowLimiter
 from app.core.roles import ROLE_SUPER_ADMIN, STAFF_ROLES
-from app.core.storage import DocumentStorage, LocalDocumentStorage, UnavailableDocumentStorage
+from app.core.storage import DocumentStorage, LocalDocumentStorage, UnavailableDocumentStorage, s3_client_from_settings
 from app.db.session import get_db
 from app.models.session import AuthSession
 from app.models.user import User
@@ -116,9 +116,12 @@ def get_document_storage(request: Request) -> DocumentStorage:
     if override is not None:
         return override
     settings = get_settings()
-    if settings.document_backend() != "local":
-        return UnavailableDocumentStorage()
-    return LocalDocumentStorage(settings.document_directory())
+    backend = settings.document_backend()
+    if backend == "local":
+        return LocalDocumentStorage(settings.document_directory())
+    if backend == "s3":
+        return s3_client_from_settings(settings)
+    return UnavailableDocumentStorage()
 
 
 def get_protocol_service(

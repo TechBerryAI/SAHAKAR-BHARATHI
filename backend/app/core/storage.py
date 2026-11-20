@@ -44,6 +44,68 @@ class DocumentStorage(Protocol):
     def delete(self, key: str) -> None: ...
 
 
+class S3DocumentStorage:
+    """Private S3-compatible objects. Keys stay server-generated; no public URL is returned."""
+
+    def __init__(self, client: object, bucket: str) -> None:
+        self.client = client
+        self.bucket = bucket
+
+    def _key(self, key: str) -> str:
+        if not _KEY_RE.fullmatch(key):
+            raise NotFoundError("That document was not found.")
+        return key
+
+    def put(self, key: str, data: bytes) -> None:
+        safe = self._key(key)
+        try:
+            self.client.put_object(Bucket=self.bucket, Key=safe, Body=data)  # type: ignore[attr-defined]
+        except Exception as exc:
+            if _missing_object(exc):
+                raise NotFoundError("That document was not found.") from None
+            raise ServiceUnavailableError("Document storage is not available.") from None
+
+    def read(self, key: str) -> bytes:
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=self._key(key))  # type: ignore[attr-defined]
+        except Exception as exc:
+            if _missing_object(exc):
+                raise NotFoundError("That document was not found.") from None
+            raise ServiceUnavailableError("Document storage is not available.") from None
+        body = response["Body"].read()
+        return body if isinstance(body, bytes) else bytes(body)
+
+    def delete(self, key: str) -> None:
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=self._key(key))  # type: ignore[attr-defined]
+        except Exception as exc:
+            if _missing_object(exc):
+                return
+            raise ServiceUnavailableError("Document storage is not available.") from None
+
+
+def _missing_object(exc: Exception) -> bool:
+    response = getattr(exc, "response", None)
+    code = ""
+    if isinstance(response, dict):
+        code = str(response.get("Error", {}).get("Code", ""))
+    return code in {"NoSuchKey", "404", "NotFound"} or isinstance(exc, KeyError)
+
+
+def s3_client_from_settings(settings: object) -> S3DocumentStorage:
+    import boto3
+
+    endpoint = str(getattr(settings, "document_storage_endpoint", "") or "").strip() or None
+    client = boto3.client(
+        "s3",
+        region_name=str(getattr(settings, "document_storage_region", "") or "ap-south-1"),
+        endpoint_url=endpoint,
+        aws_access_key_id=str(getattr(settings, "document_storage_access_key")),
+        aws_secret_access_key=str(getattr(settings, "document_storage_secret_key")),
+    )
+    return S3DocumentStorage(client, str(getattr(settings, "document_storage_bucket")))
+
+
 class UnavailableDocumentStorage:
     def put(self, key: str, data: bytes) -> None:
         raise ServiceUnavailableError("Document storage is not configured.")

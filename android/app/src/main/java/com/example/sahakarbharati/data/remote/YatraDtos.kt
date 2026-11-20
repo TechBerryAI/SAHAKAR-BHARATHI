@@ -45,4 +45,5 @@ data class YatraPageDto(
     val total: Int,
     val limit: Int,
     val offset: Int,
+    @SerializedName("has_more") val hasMore: Boolean = false,
 )

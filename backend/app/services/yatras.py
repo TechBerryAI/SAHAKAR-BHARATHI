@@ -98,6 +98,7 @@ class YatraService:
         district_id: UUID | None,
         status: str | None,
         query: str | None,
+        published: bool | None = None,
     ) -> YatraList:
         if status is not None and status not in YATRA_STATUSES:
             raise InvalidStateError("That status is not valid.")
@@ -108,12 +109,15 @@ class YatraService:
             district_id=district_id,
             status=status,
             query=query,
+            published=published,
         )
+        items = [self._summary(row) for row in rows]
         return YatraList(
-            items=[self._summary(row) for row in rows],
+            items=items,
             total=total,
             limit=limit,
             offset=offset,
+            has_more=offset + len(items) < total,
         )
 
     def get(self, actor: User, yatra_id: UUID) -> YatraDetail:

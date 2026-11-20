@@ -56,7 +56,9 @@ class YatraViewModelTest {
     @Test
     fun unpublishedDetailIsNotShown() = runTest {
         val repository = object : YatraRepository {
-            override suspend fun published() = Result.success(emptyList<YatraSummaryDto>())
+            override suspend fun published(offset: Int) = Result.success(
+                YatraPageDto(items = emptyList(), total = 0, limit = 50, offset = offset, hasMore = false),
+            )
             override suspend fun detail(yatraId: String) =
                 Result.failure<YatraDetailDto>(Exception("This Yatra is not published."))
         }
@@ -79,7 +81,13 @@ private class TokenSession : SessionStore {
 }
 
 private class FakeYatraApi : YatraApi {
-    override suspend fun listYatras(authorization: String, limit: Int, offset: Int): YatraPageDto {
+    override suspend fun listYatras(
+        authorization: String,
+        limit: Int,
+        offset: Int,
+        published: Boolean,
+    ): YatraPageDto {
+        assertTrue(published)
         assertEquals("Bearer token", authorization)
         return YatraPageDto(
             items = listOf(summary("published-1", true), summary("draft-1", false)),

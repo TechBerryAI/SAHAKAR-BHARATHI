@@ -334,8 +334,9 @@ export function getAdminUser(id: string): Promise<AdminUserDetail> {
   })
 }
 
-export function listPlaces(): Promise<PlaceList> {
-  return request<PlaceList>('/api/v1/admin/places', {
+export function listPlaces(offset = 0): Promise<PlaceList> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<PlaceList>(`/api/v1/admin/places?${params.toString()}`, {
     fallback: 'Could not load booths.',
   })
 }
@@ -370,8 +371,9 @@ export function checkIn(code: string, source: 'qr' | 'code'): Promise<Attendance
   })
 }
 
-export function myAttendance(): Promise<AttendanceList> {
-  return request<AttendanceList>('/api/v1/attendance', {
+export function myAttendance(offset = 0): Promise<AttendanceList> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<AttendanceList>(`/api/v1/attendance?${params.toString()}`, {
     fallback: 'Check-in history could not be loaded.',
   })
 }
@@ -391,8 +393,9 @@ export function setAdminUserRole(id: string, role: 'admin' | 'participant'): Pro
   })
 }
 
-export function listDistricts(): Promise<DistrictPage> {
-  return request<DistrictPage>('/api/v1/admin/districts?limit=100', {
+export function listDistricts(offset = 0): Promise<DistrictPage> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<DistrictPage>(`/api/v1/admin/districts?${params.toString()}`, {
     fallback: 'Could not load districts.',
   })
 }

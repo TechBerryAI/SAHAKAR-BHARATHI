@@ -13,8 +13,10 @@ class Phase1SourceAuditTest {
         val signIn = source("features/registration/SignInScreen.kt")
         assertTrue(registration.contains("var pin by remember(accountEpoch) { mutableStateOf(\"\") }"))
         assertTrue(registration.contains("var confirmPin by remember(accountEpoch) { mutableStateOf(\"\") }"))
+        assertTrue(registration.contains("var otp by remember(accountEpoch) { mutableStateOf(\"\") }"))
         assertFalse(registration.contains("var pin by rememberSaveable"))
         assertFalse(registration.contains("var confirmPin by rememberSaveable"))
+        assertFalse(registration.contains("var otp by rememberSaveable"))
         assertTrue(signIn.contains("var pin by remember(accountEpoch) { mutableStateOf(\"\") }"))
         assertFalse(signIn.contains("var pin by rememberSaveable"))
     }

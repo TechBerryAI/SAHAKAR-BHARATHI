@@ -11,7 +11,9 @@ export function AdminPlacesScreen() {
   const { copy } = useLanguage()
   const [name, setName] = useState('')
   const [places, setPlaces] = useState<Place[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -21,6 +23,7 @@ export function AdminPlacesScreen() {
       .then((page) => {
         if (cancelled) return
         setPlaces(page.items)
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
@@ -44,7 +47,10 @@ export function AdminPlacesScreen() {
     setError('')
     try {
       const created = await createPlace(trimmed)
-      setPlaces((current) => [created, ...current.filter((place) => place.id !== created.id)])
+      setPlaces((current) => {
+        if (!current.some((place) => place.id === created.id)) setTotal((count) => count + 1)
+        return [created, ...current.filter((place) => place.id !== created.id)]
+      })
       setName('')
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'Could not create this booth.'))
@@ -113,6 +119,32 @@ export function AdminPlacesScreen() {
             ))}
           </ul>
         )}
+        {!loading && places.length < total ? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={loadingMore}
+            onClick={() => {
+              setLoadingMore(true)
+              listPlaces(places.length)
+                .then((page) => {
+                  setPlaces((current) => {
+                    const seen = new Set(current.map((place) => place.id))
+                    return [...current, ...page.items.filter((place) => !seen.has(place.id))]
+                  })
+                  setTotal(page.total)
+                })
+                .catch((err: unknown) => {
+                  if (!(err instanceof ApiError && err.status === 401)) {
+                    setError(apiErrorText(err, copy, 'Could not load booths.'))
+                  }
+                })
+                .finally(() => setLoadingMore(false))
+            }}
+          >
+            {loadingMore ? copy.pleaseWait : 'Load more'}
+          </Button>
+        ) : null}
       </Screen>
     </>
   )

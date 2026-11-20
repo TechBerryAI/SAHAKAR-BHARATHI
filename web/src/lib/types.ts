@@ -112,6 +112,10 @@ export type Place = {
 
 export type PlaceList = {
   items: Place[]
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
 }
 
 export type AttendanceRecord = {
@@ -145,4 +149,7 @@ export type AdminAttendanceList = {
 export type AttendanceList = {
   items: AttendanceRecord[]
   total: number
+  limit: number
+  offset: number
+  has_more: boolean
 }

@@ -147,7 +147,7 @@ fun SignInScreen(
                 )
             }
             if (error.isNotEmpty()) {
-                Text(error, color = RathYatraColors.Emergency, fontSize = 14.sp)
+                Text(uiKnown(error), color = RathYatraColors.Emergency, fontSize = 14.sp)
             }
             SignInField(
                 label = ui("loginIdLabel"),

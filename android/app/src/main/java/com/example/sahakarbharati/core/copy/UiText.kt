@@ -37,6 +37,8 @@ private val knownEnglish = mapOf(
     "Verify this mobile number before registering." to "verificationExpired",
     "The server could not be reached. Check your connection." to "networkError",
     "Could not send the OTP." to "otpSendFailed",
+    "Could not send the SMS. Please try again." to "otpSendFailed",
+    "Please try again in a moment." to "tryAgain",
     "Could not verify the OTP." to "otpVerifyFailed",
     "Registration failed." to "registrationFailed",
     "Sign in failed." to "signInFailed",

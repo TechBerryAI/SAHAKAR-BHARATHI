@@ -587,3 +587,22 @@ def test_booth_list_pages_past_the_first_hundred_cap(client: TestClient, engine:
 
     rejected = client.get("/api/v1/admin/places?limit=101", headers=headers)
     assert rejected.status_code == 422
+
+    from sqlalchemy import text
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO places (id, name, code, active, created_at) "
+                "SELECT gen_random_uuid(), 'Bulk booth ' || lpad(n::text, 3, '0'), "
+                "lpad((200 + n)::text, 6, '0'), true, now() - (n || ' seconds')::interval "
+                "FROM generate_series(0, 100) AS n"
+            )
+        )
+    beyond = client.get("/api/v1/admin/places?limit=1&offset=100", headers=headers)
+    assert beyond.status_code == 200
+    body = beyond.json()
+    assert body["total"] >= 101
+    assert len(body["items"]) == 1
+    assert body["has_more"] is (body["offset"] + len(body["items"]) < body["total"])
+    assert body["items"][0]["code"].isdigit()

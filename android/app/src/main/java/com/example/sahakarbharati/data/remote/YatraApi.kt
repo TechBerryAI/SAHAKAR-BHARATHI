@@ -11,6 +11,7 @@ interface YatraApi {
         @Header("Authorization") authorization: String,
         @Query("limit") limit: Int,
         @Query("offset") offset: Int,
+        @Query("published") published: Boolean,
     ): YatraPageDto
 
     @GET("api/v1/yatras/{yatraId}")

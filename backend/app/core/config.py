@@ -96,10 +96,14 @@ class Settings(BaseSettings):
     otp_confirm_rate_limit: int = 30
     otp_confirm_rate_window_seconds: int = 15 * 60
 
-    # Empty in production rejects uploads. "local" stores bytes on DOCUMENT_STORAGE_DIR.
-    # That directory is not an object store and is ephemeral on a host such as Render.
+    # Empty in production rejects uploads. "local" is ephemeral disk. "s3" is a private bucket.
     document_storage_backend: str = ""
     document_storage_dir: str = ""
+    document_storage_bucket: str = ""
+    document_storage_region: str = "ap-south-1"
+    document_storage_endpoint: str = ""
+    document_storage_access_key: str = ""
+    document_storage_secret_key: str = ""
     document_max_bytes: int = 5_242_880
 
     @property
@@ -185,9 +189,20 @@ class Settings(BaseSettings):
             raise ValueError("CLIENT_IP_SOURCE must be peer or cf-connecting-ip")
         self.client_ip_source = source
         backend = self.document_storage_backend.strip().lower()
-        if backend not in {"", "local"}:
-            raise ValueError("DOCUMENT_STORAGE_BACKEND must be empty or local")
+        if backend not in {"", "local", "s3"}:
+            raise ValueError("DOCUMENT_STORAGE_BACKEND must be empty, local, or s3")
         self.document_storage_backend = backend
+        if backend == "s3":
+            if not self.document_storage_bucket.strip():
+                raise ValueError("DOCUMENT_STORAGE_BUCKET is required when DOCUMENT_STORAGE_BACKEND=s3")
+            if not self.document_storage_access_key.strip() or not self.document_storage_secret_key.strip():
+                raise ValueError(
+                    "DOCUMENT_STORAGE_ACCESS_KEY and DOCUMENT_STORAGE_SECRET_KEY are required "
+                    "when DOCUMENT_STORAGE_BACKEND=s3"
+                )
+            endpoint = self.document_storage_endpoint.strip()
+            if endpoint and urlparse(endpoint).scheme != "https" and environment in _PRODUCTION_ENVIRONMENTS:
+                raise ValueError("DOCUMENT_STORAGE_ENDPOINT must use https in production")
         if self.document_max_bytes <= 0 or self.document_max_bytes > 5_242_880:
             raise ValueError("DOCUMENT_MAX_BYTES must be from 1 to 5242880")
         for name, value in (

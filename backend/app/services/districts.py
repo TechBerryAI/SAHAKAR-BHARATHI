@@ -57,11 +57,13 @@ class DistrictService:
         else:
             raise ForbiddenError()
         grouped = self.districts.administrators([row.id for row in rows])
+        items = [self._to_response(row, grouped.get(row.id, [])) for row in rows]
         return DistrictList(
-            items=[self._to_response(row, grouped.get(row.id, [])) for row in rows],
+            items=items,
             total=total,
             limit=limit,
             offset=offset,
+            has_more=offset + len(items) < total,
         )
 
     def update(self, actor: User, district_id: UUID, payload: DistrictUpdate) -> DistrictResponse:

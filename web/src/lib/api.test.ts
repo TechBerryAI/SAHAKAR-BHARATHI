@@ -287,7 +287,7 @@ describe('registration and profile', () => {
     expect(calls[0].init.method).toBe('POST')
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ code: '004218', source: 'code' })
     expect(JSON.parse(String(calls[0].init.body))).not.toHaveProperty('full_name')
-    expect(calls[1].url).toBe(`${API}/api/v1/attendance`)
+    expect(calls[1].url).toBe(`${API}/api/v1/attendance?limit=50&offset=0`)
     expect(calls[1].init.method).toBe('GET')
   })
 
@@ -432,7 +432,7 @@ describe('registration and profile', () => {
     expect(calls[1].url).toBe(`${API}/api/v1/admin/users/user-1`)
     expect(calls[2].init.method).toBe('POST')
     expect(JSON.parse(String(calls[2].init.body))).toEqual({ role: 'admin' })
-    expect(calls[3].url).toBe(`${API}/api/v1/admin/places`)
+    expect(calls[3].url).toBe(`${API}/api/v1/admin/places?limit=50&offset=0`)
     expect(JSON.parse(String(calls[4].init.body))).toEqual({ name: 'Gate booth' })
     expect(calls[5].url).toBe(`${API}/api/v1/admin/places/place-1`)
     expect(calls[6].init.method).toBe('PATCH')

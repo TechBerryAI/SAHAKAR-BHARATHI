@@ -79,6 +79,7 @@ export type YatraPage = {
   total: number
   limit: number
   offset: number
+  has_more: boolean
 }
 
 export type District = {
@@ -97,6 +98,7 @@ export type DistrictPage = {
   total: number
   limit: number
   offset: number
+  has_more: boolean
 }
 
 export type ProtocolDocument = {

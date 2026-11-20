@@ -6,13 +6,15 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sahakarbharati.data.remote.YatraDetailDto
-import com.example.sahakarbharati.data.remote.YatraSummaryDto
 import com.example.sahakarbharati.data.repository.YatraRepository
 import kotlinx.coroutines.launch
 
 data class YatraListUi(
-    val items: List<YatraSummaryDto> = emptyList(),
+    val items: List<com.example.sahakarbharati.data.remote.YatraSummaryDto> = emptyList(),
+    val total: Int = 0,
+    val hasMore: Boolean = false,
     val loading: Boolean = true,
+    val loadingMore: Boolean = false,
     val error: String? = null,
 )
 
@@ -25,9 +27,32 @@ class YatraListViewModel(
     fun load() {
         viewModelScope.launch {
             state = state.copy(loading = state.items.isEmpty(), error = null)
-            repository.published().fold(
-                onSuccess = { items -> state = state.copy(items = items, loading = false, error = null) },
+            repository.published(0).fold(
+                onSuccess = { page ->
+                    state = state.copy(
+                        items = page.items,
+                        total = page.total,
+                        hasMore = page.hasMore,
+                        loading = false,
+                        error = null,
+                    )
+                },
                 onFailure = { error -> state = state.copy(loading = false, error = error.message) },
+            )
+        }
+    }
+
+    fun loadMore() {
+        if (state.loadingMore || state.loading || !state.hasMore) return
+        val offset = state.items.size
+        viewModelScope.launch {
+            state = state.copy(loadingMore = true, error = null)
+            repository.published(offset).fold(
+                onSuccess = { page ->
+                    val merged = (state.items + page.items).distinctBy { it.id }
+                    state = state.copy(items = merged, total = page.total, hasMore = page.hasMore, loadingMore = false)
+                },
+                onFailure = { error -> state = state.copy(loadingMore = false, error = error.message) },
             )
         }
     }
