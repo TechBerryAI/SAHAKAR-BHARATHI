@@ -49,6 +49,40 @@ python scripts/latency_bench.py --rtt-ms 0
 python scripts/latency_bench.py --rtt-ms 270
 ```
 
+### Load testing
+
+From the repository root. Terminal 1 starts an API with **mocked SMS** (no Textbee) and raised login/register rate limits so 15–50 simultaneous users are not blocked by the normal per-IP caps. Keep the Supabase session-pooler client budget in mind (`DB_POOL_SIZE` defaults to 10 for these runs).
+
+```bash
+# Terminal 1 — leave running
+make load-test-api
+
+# Terminal 2 — simultaneous registration (OTP → confirm → register → login → /me)
+make load-test
+make load-test USERS=10,15,20,30,40,50
+
+# Concurrent browse (seeded users hitting /me, /yatras, /attendance, health)
+make load-test-browse USERS=20,30,40,50 DURATION=30
+
+# Registration burst, then browse with those accounts
+make load-test-both USERS=15,20,30
+
+# Remove disposable mobiles 70000000xx if a run was interrupted
+make load-test-cleanup
+```
+
+`USERS` must be comma-separated integers (`30,40` not `30.40`). Prefer a non-production database. Scripts: `scripts/load_test_server.py`, `scripts/load_test.py`.
+
+**Measured ceiling (this stack, Supabase session pooler ~15 clients, single uvicorn process):**
+
+| Concurrent users | Simultaneous registration | Notes |
+|---|---|---|
+| ≤ 600 | 100% success | Safe operating band observed in load tests |
+| ~ 800 | ~78% success | Hard failures: HTTP 500 from `EMAXCONNSESSION` (DB pooler max clients) |
+| 3–4 million (10% of 30–40M) | Not viable on one instance | Needs horizontal API scale-out, transaction pooler / larger DB pool, queues, and CDN — not a single Render service |
+
+Browse traffic previously held through 99 concurrent with 0% errors; registration is the heavier path and hits the DB connection ceiling first.
+
 Create or update the super-admin account. The PIN is stored only as a hash. Do not use a guessable PIN against production:
 
 ```bash

@@ -86,6 +86,7 @@ make hooks
 | Install fails because of an old debug signature | `make android ANDROID_ARGS="--reinstall"` | Uninstalls first. This clears the app's data on that device. |
 | The web app is already running and you are working on the API | `make api` | API only, with reload, on port 8000. |
 | The API is already running and you are working on the web app | `make web` | Web app only, on http://localhost:5174. |
+| You want concurrent load testing (registration / browse) | `make load-test-api` in one terminal, then `make load-test` (or `make load-test-browse`) in another | Mocked-SMS API on port 8000; simultaneous sign-ups or home-screen traffic. Use commas in `USERS`, e.g. `USERS=10,15,20,30`. See [backend README](backend/README.md#load-testing). |
 | You pulled new database migrations | `make migrate` | Applies Alembic migrations to the database in `backend/.env`. |
 | You want to know the whole project still works | `make test` | Backend, web, Android unit tests, and script tests. Stops at the first failure. Needs a PostgreSQL database whose name contains `test`. |
 | You changed the backend | `make test-backend` | Backend pytest. One group: `make test-backend ARGS="-k attendance"`. |

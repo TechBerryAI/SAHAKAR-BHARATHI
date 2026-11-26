@@ -59,7 +59,8 @@ def test_transaction_pooler_disables_prepared_statements() -> None:
     )
     kwargs = settings.engine_kwargs()
     assert kwargs["connect_args"]["prepare_threshold"] == 0
-    assert kwargs["pool_size"] == 5
+    assert kwargs["pool_size"] == settings.db_pool_size
+    assert kwargs["max_overflow"] == settings.db_max_overflow
 
 
 def test_alembic_head_is_applied(engine) -> None:
