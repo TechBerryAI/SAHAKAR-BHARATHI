@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -23,9 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.IntrinsicSize
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.participantCopy
 import com.example.sahakarbharati.core.copy.personInitials
@@ -56,16 +61,18 @@ fun CitizenHomeScreen(
     onOpenAdmin: () -> Unit,
     onOpenBooths: () -> Unit,
     onOpenAttendance: () -> Unit,
+    onOpenYatras: () -> Unit,
     onSelectTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val copy = LocalCopy.current
     val text = participantCopy(LocalLanguage.current)
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val homeViewModel: HomeViewModel = sahakarViewModel()
     val profile = (homeViewModel.state as? UiState.Success)?.data ?: session.cachedProfile()
     val staff = isStaffRole(profile?.role)
-    LaunchedEffect(Unit) { homeViewModel.load() }
+    LaunchedEffect(accountEpoch) { homeViewModel.load() }
 
     val name = profile?.fullName?.ifBlank { session.name }.orEmpty().ifBlank { session.name }
     val first = name.trim().split(Regex("\\s+")).firstOrNull().orEmpty()
@@ -93,7 +100,7 @@ fun CitizenHomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (!error.isNullOrBlank() && profile == null) {
-                Text(error, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(error), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (loading) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -135,7 +142,7 @@ fun CitizenHomeScreen(
                 }
                 Surface(
                     onClick = onOpenAttendance,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
                     shape = RoundedCornerShape(22.dp),
                     color = Color.Transparent,
                     shadowElevation = 6.dp,
@@ -175,6 +182,28 @@ fun CitizenHomeScreen(
                         )
                     }
                 }
+                WhiteCard(onClick = onOpenYatras) {
+                    Row(
+                        Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(Icons.Outlined.Map, contentDescription = null, tint = RathYatraColors.DeepGreen)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Rath Yatras", color = Color(0xFF17263F), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "See published Yatras, their districts, dates, and stops.",
+                                fontSize = 14.sp,
+                                color = RathYatraColors.OnSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFFB7A48A),
+                        )
+                    }
+                }
                 if (staff) {
                     Row(
                         Modifier
@@ -183,20 +212,23 @@ fun CitizenHomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         HomeShortcut(
-                            title = "Registered users",
-                            body = "Open the directory to read registration details.",
+                            title = ui("registeredUsers"),
+                            body = ui("registeredUsersBody"),
                             onClick = onOpenAdmin,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         HomeShortcut(
-                            title = "Booths",
-                            body = "Create a booth, print its QR, and see who checked in.",
+                            title = ui("booths"),
+                            body = ui("boothsBody"),
                             onClick = onOpenBooths,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
                 }
-                WhiteCard(onClick = { onSelectTab(RathYatraDestinations.PROFILE) }) {
+                WhiteCard(
+                    onClick = { onSelectTab(RathYatraDestinations.PROFILE) },
+                    modifier = Modifier.semantics(mergeDescendants = true) {},
+                ) {
                     Row(
                         Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -257,7 +289,7 @@ private fun HomeShortcut(
     WhiteCard(modifier = modifier, onClick = onClick) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "ADMIN",
+                ui("adminKicker"),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.6.sp,

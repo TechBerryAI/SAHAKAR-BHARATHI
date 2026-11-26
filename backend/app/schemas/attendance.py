@@ -49,6 +49,9 @@ class AttendanceRecord(ProfileSnapshot):
 class AttendanceList(ORMModel):
     items: list[AttendanceRecord]
     total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class AdminAttendanceList(ORMModel):

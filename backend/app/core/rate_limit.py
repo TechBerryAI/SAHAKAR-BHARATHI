@@ -11,19 +11,43 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.errors import RateLimitedError, ServiceUnavailableError
+from app.core.retention import prune_operational
+
 logger = logging.getLogger(__name__)
 
 _PRUNE_AFTER_KEYS = 256
 _STALE_AFTER_SECONDS = 3600
-# Roughly one call in this many also deletes buckets idle for a day.
+# Roughly one call in this many also deletes expired challenges, sessions, and buckets.
 _DB_PRUNE_ONE_IN = 200
-_DB_STALE_AFTER_SECONDS = 24 * 60 * 60
+
+
+class RateLimitUnavailable(Exception):
+    """The shared counter could not be updated. Callers turn this into HTTP 503."""
 
 
 class RateLimiter(Protocol):
     def allow(self, key: str, limit: int, window_seconds: int) -> bool: ...
 
     def reset(self) -> None: ...
+
+
+def enforce_rate_limit(
+    limiter: RateLimiter,
+    key: str,
+    limit: int,
+    window_seconds: int,
+    *,
+    retry_after: int | None = None,
+) -> None:
+    """Count one hit. A full window is 429. A broken shared counter is 503, not a free pass."""
+    try:
+        allowed = limiter.allow(key, limit, window_seconds)
+    except RateLimitUnavailable:
+        logger.warning("Shared rate limiter unavailable; denying request")
+        raise ServiceUnavailableError() from None
+    if not allowed:
+        raise RateLimitedError(retry_after=retry_after)
 
 
 class SlidingWindowLimiter:
@@ -59,52 +83,94 @@ class SlidingWindowLimiter:
             del self._hits[key]
 
 
-# One atomic statement per check, so concurrent requests on any number of API
-# instances see a single counter. Fixed window: the bucket restarts once the
-# window has elapsed since its first hit.
-_HIT_SQL = text(
+# The advisory lock serializes one key. The following statement keeps only
+# accepted timestamps inside the window, so a full quota at the end of a
+# window does not reset and allow another full quota immediately. Denied
+# attempts are not stored: an attacker must not be able to grow the array.
+_LOCK_SQL = text("SELECT pg_advisory_xact_lock(hashtextextended(:key_hash, 0::bigint))")
+_SLIDE_SQL = text(
     """
-    INSERT INTO rate_limit_buckets (key_hash, window_start, hits)
-    VALUES (:key_hash, now(), 1)
-    ON CONFLICT (key_hash) DO UPDATE SET
-        hits = CASE
-            WHEN rate_limit_buckets.window_start <= now() - make_interval(secs => :window)
-            THEN 1 ELSE rate_limit_buckets.hits + 1 END,
-        window_start = CASE
-            WHEN rate_limit_buckets.window_start <= now() - make_interval(secs => :window)
-            THEN now() ELSE rate_limit_buckets.window_start END
-    RETURNING hits
+    WITH prior AS (
+        SELECT COALESCE(
+            (
+                SELECT array_agg(t ORDER BY t)
+                FROM unnest(
+                    COALESCE(
+                        (SELECT hit_times FROM rate_limit_buckets WHERE key_hash = :key_hash),
+                        ARRAY[]::timestamptz[]
+                    )
+                ) AS t
+                WHERE t > now() - make_interval(secs => CAST(:window AS int))
+            ),
+            ARRAY[]::timestamptz[]
+        ) AS times
+    ),
+    decision AS (
+        SELECT
+            cardinality(times) < CAST(:limit AS int) AS accept,
+            CASE
+                WHEN cardinality(times) < CAST(:limit AS int) THEN times || ARRAY[now()]
+                ELSE times
+            END AS next_times
+        FROM prior
+    ),
+    written AS (
+        INSERT INTO rate_limit_buckets (key_hash, window_start, hits, hit_times)
+        SELECT :key_hash, now(), cardinality(next_times), next_times
+        FROM decision
+        ON CONFLICT (key_hash) DO UPDATE SET
+            window_start = EXCLUDED.window_start,
+            hits = EXCLUDED.hits,
+            hit_times = EXCLUDED.hit_times
+        RETURNING key_hash
+    )
+    SELECT decision.accept
+    FROM decision
+    JOIN written ON true
     """
-)
-_PRUNE_SQL = text(
-    "DELETE FROM rate_limit_buckets WHERE window_start < now() - make_interval(secs => :stale)"
 )
 
 
 class PostgresRateLimiter:
-    """Shared fixed-window limiter stored in PostgreSQL.
+    """Shared sliding-window limiter stored in PostgreSQL.
 
     Keys are SHA-256 hashed so client IPs and login identifiers are not stored.
-    If the database is unreachable the request is allowed: the request itself
-    would fail on the same database, and the login lockout still applies.
+    If the database is unreachable the check fails closed (the caller returns 503).
+    Allowing the request would drop the throttle during an outage.
     """
 
-    def __init__(self, engine: Engine) -> None:
+    def __init__(self, engine: Engine, *, owns_engine: bool = False) -> None:
         self._engine = engine
+        self._owns_engine = owns_engine
+
+    def dispose(self) -> None:
+        if self._owns_engine:
+            self._engine.dispose()
 
     def allow(self, key: str, limit: int, window_seconds: int) -> bool:
         key_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()
         try:
             with self._engine.begin() as connection:
-                hits = connection.execute(
-                    _HIT_SQL, {"key_hash": key_hash, "window": window_seconds}
+                connection.execute(_LOCK_SQL, {"key_hash": key_hash})
+                allowed = connection.execute(
+                    _SLIDE_SQL,
+                    {"key_hash": key_hash, "window": window_seconds, "limit": limit},
                 ).scalar_one()
-                if secrets.randbelow(_DB_PRUNE_ONE_IN) == 0:
-                    connection.execute(_PRUNE_SQL, {"stale": _DB_STALE_AFTER_SECONDS})
-        except SQLAlchemyError:
-            logger.warning("Shared rate limiter unavailable; allowing request", exc_info=True)
-            return True
-        return int(hits) <= limit
+        except SQLAlchemyError as exc:
+            logger.warning("Shared rate limiter unavailable (%s)", type(exc).__name__)
+            raise RateLimitUnavailable from None
+        if secrets.randbelow(_DB_PRUNE_ONE_IN) == 0:
+            self._prune()
+        return bool(allowed)
+
+    def _prune(self) -> None:
+        # GPS history is pruned only by the retention cron. This path must not
+        # call prune_yatra_positions or delete from yatra_positions.
+        try:
+            with self._engine.begin() as connection:
+                prune_operational(connection)
+        except SQLAlchemyError as exc:
+            logger.warning("Retention cleanup skipped (%s)", type(exc).__name__)
 
     def reset(self) -> None:
         with self._engine.begin() as connection:

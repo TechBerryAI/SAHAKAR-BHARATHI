@@ -4,8 +4,14 @@ Participant platform for the Sahakar Bharati Rath Yatra: a native Android app, a
 React web app / PWA, and a FastAPI backend on PostgreSQL (Supabase).
 
 Status and evidence: [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
-Registration, sign-in, profile and sessions work end to end. Tracking, QR
-attendance, benefits and notifications have no backend and are shown as unavailable.
+Phase 1 (registration, sign-in, profile, sessions, and event check-in),
+Phase 2A (districts, Rath Yatra management, stops, and protocol approvals), and
+Phase 2B (QR counters with geofenced attendance, tracker assignment, GPS ingest
+with batch/cursor history, and retention) are implemented in this repository.
+Subsidies, benefits, WhatsApp, notifications, reports, and AI scheduling are
+not built. See [`docs/PHASE_2B.md`](docs/PHASE_2B.md). Backups, alerts, credential
+rotation, and a live deploy are operator work, not something this repository has
+performed.
 
 ## Architecture
 
@@ -29,7 +35,7 @@ Web / PWA (React, Vite) ─────┘                                      
 | [`backend/`](backend/) | FastAPI app, Alembic migrations, pytest suite (Render root dir) |
 | [`web/`](web/) | Vite + React + TypeScript app, PWA, Firebase Hosting config |
 | [`infra/supabase/`](infra/supabase/) | `schema.sql` snapshot, optional `runtime_role.sql` |
-| [`docs/`](docs/) | Database, deployment, readiness report |
+| [`docs/`](docs/) | Database, deployment, monitoring, readiness, Phase 2A |
 | [`scripts/`](scripts/) | Launchers used by `make start` and `make android`, plus [`check-secrets.sh`](scripts/check-secrets.sh) |
 | [`render.yaml`](render.yaml) | Render Blueprint (service `sahakar-bharati-api`) |
 | [`.github/workflows/`](.github/workflows/) | Backend, web, Android CI; Firebase Hosting deploy |
@@ -80,6 +86,7 @@ make hooks
 | Install fails because of an old debug signature | `make android ANDROID_ARGS="--reinstall"` | Uninstalls first. This clears the app's data on that device. |
 | The web app is already running and you are working on the API | `make api` | API only, with reload, on port 8000. |
 | The API is already running and you are working on the web app | `make web` | Web app only, on http://localhost:5174. |
+| You want concurrent load testing (registration / browse) | `make load-test-api` in one terminal, then `make load-test` (or `make load-test-browse`) in another | Mocked-SMS API on port 8000; simultaneous sign-ups or home-screen traffic. Use commas in `USERS`, e.g. `USERS=10,15,20,30`. See [backend README](backend/README.md#load-testing). |
 | You pulled new database migrations | `make migrate` | Applies Alembic migrations to the database in `backend/.env`. |
 | You want to know the whole project still works | `make test` | Backend, web, Android unit tests, and script tests. Stops at the first failure. Needs a PostgreSQL database whose name contains `test`. |
 | You changed the backend | `make test-backend` | Backend pytest. One group: `make test-backend ARGS="-k attendance"`. |
@@ -107,7 +114,8 @@ Secrets live only in gitignored files (`backend/.env`, `web/.env.local`,
 
 - [`docs/DATABASE.md`](docs/DATABASE.md): init, migrations, roles, Supabase settings, backups
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): CI/CD, branch flow, Render, Firebase, Android release, rollback
-- [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md): findings, changes, test evidence, launch checklist
+- [`docs/MONITORING.md`](docs/MONITORING.md): signals to watch; alerts are not configured
+- [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md): what is implemented in the repository, and what an operator still has to do
 
 ## Identity
 

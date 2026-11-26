@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.place import Place
@@ -22,9 +22,12 @@ class PlaceRepository:
     def get_by_code(self, code: str) -> Place | None:
         return self.db.scalar(select(Place).where(Place.code == code))
 
-    def list_recent(self, limit: int = 100) -> list[Place]:
-        rows = self.db.scalars(select(Place).order_by(Place.created_at.desc()).limit(limit))
-        return list(rows)
+    def list_recent(self, limit: int = 100, offset: int = 0) -> tuple[list[Place], int]:
+        total = int(self.db.scalar(select(func.count()).select_from(Place)) or 0)
+        rows = self.db.scalars(
+            select(Place).order_by(Place.created_at.desc(), Place.id.desc()).limit(limit).offset(offset)
+        )
+        return list(rows), total
 
     def list_active(self) -> list[Place]:
         rows = self.db.scalars(

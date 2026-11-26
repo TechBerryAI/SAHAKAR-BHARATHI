@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from collections.abc import MutableMapping
 
+from app.core.request_context import current_cf_ray, current_client_ip, current_request_id
+
 _SENSITIVE = {
     "pin",
     "password",
@@ -13,6 +15,8 @@ _SENSITIVE = {
     "code",
     "verification_token",
     "api_key",
+    "qr_token",
+    "tracker_token",
 }
 
 
@@ -34,12 +38,21 @@ def _redact_mapping(values: MutableMapping[str, object]) -> dict[str, object]:
     return redacted
 
 
+class RequestContextFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = current_request_id()
+        record.client_ip = current_client_ip()
+        record.cf_ray = current_cf_ray()
+        return True
+
+
 def configure_logging() -> None:
     handler = logging.StreamHandler()
+    handler.addFilter(RequestContextFilter())
     handler.addFilter(RedactingFilter())
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        format="%(asctime)s %(levelname)s %(name)s %(request_id)s client=%(client_ip)s cf_ray=%(cf_ray)s %(message)s",
         handlers=[handler],
         force=True,
     )

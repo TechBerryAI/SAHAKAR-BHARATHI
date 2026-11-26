@@ -12,20 +12,40 @@ import type { AppCopy } from './copy.ts'
 import { fetchWithColdStart } from './network.ts'
 import type {
   AdminAttendanceList,
-  AttendanceList,
-  AttendanceRecord,
   AdminUserDetail,
   AdminUserList,
-  Place,
-  PlaceList,
+  AttendanceList,
+  AttendanceRecord,
   PhoneVerificationConfirmed,
   PhoneVerificationCreated,
+  Place,
+  PlaceList,
   Profile,
   ProfileUpdate,
   RegistrationCreate,
   SessionResponse,
   UserRole,
 } from './types.ts'
+import type {
+  AdministratorBrief,
+  District,
+  DistrictPage,
+  ProtocolDocument,
+  ProtocolItem,
+  YatraCounterDetail,
+  YatraCounterPage,
+  YatraDetail,
+  YatraFieldAttendance,
+  YatraFieldAttendancePage,
+  YatraPage,
+  YatraPositionPage,
+  YatraRoute,
+  YatraStop,
+  YatraTracker,
+  YatraTrackerCreated,
+  YatraTrackerPage,
+  LatestPosition,
+} from './yatra.ts'
 
 export class ApiError extends Error {
   status: number
@@ -59,8 +79,29 @@ const SERVER_MESSAGES: Record<string, keyof AppCopy> = {
   'That booth was not found.': 'boothNotFound',
   'This booth is not accepting check-ins.': 'boothInactive',
   'Enter the 6-digit booth code.': 'boothCodeInvalid',
+  'That counter was not found.': 'counterNotFound',
+  'This counter is not accepting attendance.': 'counterInactive',
+  'This Yatra is not accepting attendance.': 'yatraClosed',
+  'That QR code is not a counter.': 'counterQrInvalid',
+  'Accuracy is too large.': 'accuracyTooLarge',
+  'That position is in the future.': 'positionInFuture',
+  'That position is too old.': 'positionTooOld',
+  'This Yatra is not accepting positions.': 'yatraNotTracking',
+  'That stop is not on this Yatra.': 'stopNotOnYatra',
+  'A counter with this code already exists.': 'counterCodeTaken',
+  'This Yatra is archived.': 'yatraArchived',
+  'Session is invalid or expired.': 'sessionInvalid',
   'The code is incorrect or has expired.': 'otpInvalid',
   'Verify this mobile number before registering.': 'verificationExpired',
+  'Could not send the SMS. Please try again.': 'otpSendFailed',
+  'Please try again in a moment.': 'pleaseWait',
+  'You are not at this counter.': 'notAtCounter',
+  'Your location is not accurate enough.': 'locationInaccurate',
+  'Your location is out of date.': 'locationStale',
+  'Set the counter location before activating it.': 'counterLocationRequired',
+  'This Yatra already has an active tracker. Revoke it before assigning a new one.': 'activeTrackerExists',
+  'This stop is used by counters or GPS history.': 'stopInUse',
+  'Service temporarily unavailable.': 'serviceUnavailable',
 }
 
 /** Which known error this is, so a screen can react to it (not just show its text). */
@@ -170,7 +211,7 @@ async function parseJson(response: Response): Promise<unknown> {
 }
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   auth?: boolean
   fallback: string
@@ -321,8 +362,9 @@ export function getAdminUser(id: string): Promise<AdminUserDetail> {
   })
 }
 
-export function listPlaces(): Promise<PlaceList> {
-  return request<PlaceList>('/api/v1/admin/places', {
+export function listPlaces(offset = 0): Promise<PlaceList> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<PlaceList>(`/api/v1/admin/places?${params.toString()}`, {
     fallback: 'Could not load booths.',
   })
 }
@@ -357,8 +399,9 @@ export function checkIn(code: string, source: 'qr' | 'code'): Promise<Attendance
   })
 }
 
-export function myAttendance(): Promise<AttendanceList> {
-  return request<AttendanceList>('/api/v1/attendance', {
+export function myAttendance(offset = 0): Promise<AttendanceList> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<AttendanceList>(`/api/v1/attendance?${params.toString()}`, {
     fallback: 'Check-in history could not be loaded.',
   })
 }
@@ -376,6 +419,390 @@ export function setAdminUserRole(id: string, role: 'admin' | 'participant'): Pro
     body: { role },
     fallback: 'Could not update access.',
   })
+}
+
+export function listDistricts(offset = 0): Promise<DistrictPage> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  return request<DistrictPage>(`/api/v1/admin/districts?${params.toString()}`, {
+    fallback: 'Could not load districts.',
+  })
+}
+
+export function createDistrict(body: { name: string; code: string; state_name?: string }): Promise<District> {
+  return request<District>('/api/v1/admin/districts', {
+    method: 'POST',
+    body,
+    fallback: 'Could not create this district.',
+  })
+}
+
+export function updateDistrict(
+  id: string,
+  body: { name?: string; state_name?: string; active?: boolean },
+): Promise<District> {
+  return request<District>(`/api/v1/admin/districts/${id}`, {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update this district.',
+  })
+}
+
+export function assignDistrictAdmin(districtId: string, userId: string): Promise<District> {
+  return request<District>(`/api/v1/admin/districts/${districtId}/administrators`, {
+    method: 'POST',
+    body: { user_id: userId },
+    fallback: 'Could not assign this district administrator.',
+  })
+}
+
+export function removeDistrictAdmin(districtId: string, userId: string): Promise<void> {
+  return request<void>(`/api/v1/admin/districts/${districtId}/administrators/${userId}`, {
+    method: 'DELETE',
+    fallback: 'Could not remove this district administrator.',
+  })
+}
+
+export function listYatras(query: string, status: string, offset = 0): Promise<YatraPage> {
+  const params = new URLSearchParams({ limit: '20', offset: String(offset) })
+  const trimmed = query.trim()
+  if (trimmed) params.set('q', trimmed)
+  if (status) params.set('status', status)
+  return request<YatraPage>(`/api/v1/yatras?${params.toString()}`, {
+    fallback: 'Could not load Yatras.',
+  })
+}
+
+export function getYatra(id: string): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}`, {
+    fallback: 'Could not load this Yatra.',
+  })
+}
+
+export function listCounters(yatraId: string, offset = 0): Promise<YatraCounterPage> {
+  return request<YatraCounterPage>(`/api/v1/yatras/${yatraId}/counters?limit=50&offset=${offset}`, {
+    fallback: 'Could not load counters.',
+  })
+}
+
+export function createCounter(
+  yatraId: string,
+  body: {
+    name: string
+    code: string
+    description?: string
+    stop_id?: string
+    latitude?: number
+    longitude?: number
+    location_accuracy_m?: number
+    geofence_radius_m?: number
+  },
+): Promise<YatraCounterDetail> {
+  return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters`, {
+    method: 'POST',
+    body,
+    fallback: 'Could not create this counter.',
+  })
+}
+
+export function updateCounter(
+  yatraId: string,
+  counterId: string,
+  body: Record<string, unknown>,
+): Promise<YatraCounterDetail> {
+  return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters/${counterId}`, {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update this counter.',
+  })
+}
+
+export function getCounter(yatraId: string, counterId: string): Promise<YatraCounterDetail> {
+  return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters/${counterId}`, {
+    fallback: 'Could not load this counter.',
+  })
+}
+
+export function setCounterActive(yatraId: string, counterId: string, active: boolean): Promise<YatraCounterDetail> {
+  const action = active ? 'activate' : 'deactivate'
+  return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters/${counterId}/${action}`, {
+    method: 'POST',
+    fallback: 'Could not update this counter.',
+  })
+}
+
+export function rotateCounterQr(yatraId: string, counterId: string): Promise<YatraCounterDetail> {
+  return request<YatraCounterDetail>(`/api/v1/yatras/${yatraId}/counters/${counterId}/rotate-qr`, {
+    method: 'POST',
+    fallback: 'Could not rotate this QR code.',
+  })
+}
+
+export function scanYatraAttendance(
+  yatraId: string,
+  body: {
+    qr_token: string
+    latitude: number
+    longitude: number
+    accuracy_m: number
+    captured_at: string
+  },
+): Promise<YatraFieldAttendance> {
+  return request<YatraFieldAttendance>(`/api/v1/yatras/${yatraId}/attendance`, {
+    method: 'POST',
+    body,
+    fallback: 'Attendance could not be recorded.',
+  })
+}
+
+export function listYatraAttendance(
+  yatraId: string,
+  offset = 0,
+  filters: { attendance_date?: string; counter_id?: string } = {},
+): Promise<YatraFieldAttendancePage> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+  if (filters.attendance_date) params.set('attendance_date', filters.attendance_date)
+  if (filters.counter_id) params.set('counter_id', filters.counter_id)
+  return request<YatraFieldAttendancePage>(`/api/v1/yatras/${yatraId}/attendance?${params}`, {
+    fallback: 'Could not load attendance.',
+  })
+}
+
+export function listMyYatraAttendance(yatraId: string, offset = 0): Promise<YatraFieldAttendancePage> {
+  return request<YatraFieldAttendancePage>(
+    `/api/v1/yatras/${yatraId}/attendance/mine?limit=50&offset=${offset}`,
+    { fallback: 'Could not load your attendance.' },
+  )
+}
+
+export function listTrackers(yatraId: string, offset = 0): Promise<YatraTrackerPage> {
+  return request<YatraTrackerPage>(`/api/v1/yatras/${yatraId}/trackers?limit=50&offset=${offset}`, {
+    fallback: 'Could not load trackers.',
+  })
+}
+
+export function createTracker(yatraId: string, label: string): Promise<YatraTrackerCreated> {
+  return request<YatraTrackerCreated>(`/api/v1/yatras/${yatraId}/trackers`, {
+    method: 'POST',
+    body: { label },
+    fallback: 'Could not assign a tracker.',
+  })
+}
+
+export function revokeTracker(yatraId: string, trackerId: string): Promise<YatraTracker> {
+  return request<YatraTracker>(`/api/v1/yatras/${yatraId}/trackers/${trackerId}/revoke`, {
+    method: 'POST',
+    fallback: 'Could not revoke this tracker.',
+  })
+}
+
+export function getLatestPosition(yatraId: string): Promise<LatestPosition> {
+  return request<LatestPosition>(`/api/v1/yatras/${yatraId}/position`, {
+    fallback: 'Could not load the latest position.',
+  })
+}
+
+export function listPositions(
+  yatraId: string,
+  opts: { limit?: number; before?: string | null; from?: string; to?: string; tracker_id?: string } = {},
+): Promise<YatraPositionPage> {
+  const params = new URLSearchParams({ limit: String(opts.limit ?? 50) })
+  if (opts.before) params.set('before', opts.before)
+  if (opts.from) params.set('from', opts.from)
+  if (opts.to) params.set('to', opts.to)
+  if (opts.tracker_id) params.set('tracker_id', opts.tracker_id)
+  return request<YatraPositionPage>(`/api/v1/yatras/${yatraId}/positions?${params}`, {
+    fallback: 'Could not load position history.',
+  })
+}
+
+export function createYatra(body: {
+  name: string
+  description?: string
+  district_id: string
+  starts_at: string
+  ends_at: string
+}): Promise<YatraDetail> {
+  return request<YatraDetail>('/api/v1/yatras', {
+    method: 'POST',
+    body,
+    fallback: 'Could not create this Yatra.',
+  })
+}
+
+export function updateYatra(
+  id: string,
+  body: { name?: string; description?: string; starts_at?: string; ends_at?: string },
+): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}`, {
+    method: 'PATCH',
+    body,
+    fallback: 'Could not update this Yatra.',
+  })
+}
+
+export function changeYatraStatus(id: string, status: string): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}/status`, {
+    method: 'POST',
+    body: { status },
+    fallback: 'Could not change the Yatra status.',
+  })
+}
+
+export function publishYatra(id: string): Promise<YatraDetail> {
+  return request<YatraDetail>(`/api/v1/yatras/${id}/publish`, {
+    method: 'POST',
+    fallback: 'Could not publish this Yatra.',
+  })
+}
+
+export function assignYatraAdmin(yatraId: string, userId: string): Promise<AdministratorBrief> {
+  return request<AdministratorBrief>(`/api/v1/yatras/${yatraId}/administrators`, {
+    method: 'POST',
+    body: { user_id: userId },
+    fallback: 'Could not assign this Yatra administrator.',
+  })
+}
+
+export function removeYatraAdmin(yatraId: string, userId: string): Promise<void> {
+  return request<void>(`/api/v1/yatras/${yatraId}/administrators/${userId}`, {
+    method: 'DELETE',
+    fallback: 'Could not remove this Yatra administrator.',
+  })
+}
+
+export function createStop(
+  yatraId: string,
+  body: { name: string; address?: string; latitude?: number; longitude?: number },
+): Promise<YatraStop> {
+  return request<YatraStop>(`/api/v1/yatras/${yatraId}/stops`, {
+    method: 'POST',
+    body,
+    fallback: 'Could not add this stop.',
+  })
+}
+
+export function deleteStop(yatraId: string, stopId: string): Promise<void> {
+  return request<void>(`/api/v1/yatras/${yatraId}/stops/${stopId}`, {
+    method: 'DELETE',
+    fallback: 'Could not remove this stop.',
+  })
+}
+
+export function getYatraRoute(yatraId: string): Promise<YatraRoute> {
+  return request<YatraRoute>(`/api/v1/yatras/${yatraId}/route`, {
+    fallback: 'Could not load the route.',
+  })
+}
+
+export function updateYatraRoute(yatraId: string, body: { label?: string; geometry?: string }): Promise<YatraRoute> {
+  return request<YatraRoute>(`/api/v1/yatras/${yatraId}/route`, {
+    method: 'PUT',
+    body,
+    fallback: 'Could not update the route.',
+  })
+}
+
+export function listProtocol(yatraId: string): Promise<{ items: ProtocolItem[] }> {
+  return request<{ items: ProtocolItem[] }>(`/api/v1/yatras/${yatraId}/protocol`, {
+    fallback: 'Could not load the checklist.',
+  })
+}
+
+export function createProtocolItem(
+  yatraId: string,
+  body: { category: string; title: string; description?: string; required: boolean },
+): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items`, {
+    method: 'POST',
+    body,
+    fallback: 'Could not add this checklist item.',
+  })
+}
+
+export function submitProtocolItem(yatraId: string, itemId: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/submit`, {
+    method: 'POST',
+    fallback: 'Could not submit this item.',
+  })
+}
+
+export function reviewProtocolItem(yatraId: string, itemId: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/review`, {
+    method: 'POST',
+    fallback: 'Could not start the review.',
+  })
+}
+
+export function approveProtocolItem(yatraId: string, itemId: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/approve`, {
+    method: 'POST',
+    fallback: 'Could not approve this item.',
+  })
+}
+
+export function rejectProtocolItem(yatraId: string, itemId: string, reason: string): Promise<ProtocolItem> {
+  return request<ProtocolItem>(`/api/v1/yatras/${yatraId}/protocol/items/${itemId}/reject`, {
+    method: 'POST',
+    body: { reason },
+    fallback: 'Could not reject this item.',
+  })
+}
+
+export async function uploadProtocolDocument(yatraId: string, itemId: string, file: File): Promise<ProtocolDocument> {
+  const token = getAccessToken()
+  if (!token) {
+    clearSession()
+    throw new ApiError(401, 'Authentication required.')
+  }
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/yatras/${yatraId}/protocol/items/${itemId}/documents`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        'X-Document-Filename': file.name,
+      },
+      body: file,
+    })
+  } catch {
+    throw new ApiError(0, 'The server could not be reached. Check your connection.')
+  }
+  const payload = await parseJson(response)
+  if (!response.ok) {
+    if (response.status === 401) clearSession()
+    throw new ApiError(response.status, messageFromDetail(payload, 'Could not upload this document.'))
+  }
+  return payload as ProtocolDocument
+}
+
+export async function downloadProtocolDocument(
+  yatraId: string,
+  itemId: string,
+  documentId: string,
+  filename: string,
+): Promise<void> {
+  const token = getAccessToken()
+  if (!token) {
+    clearSession()
+    throw new ApiError(401, 'Authentication required.')
+  }
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/yatras/${yatraId}/protocol/items/${itemId}/documents/${documentId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!response.ok) {
+    const payload = await parseJson(response)
+    if (response.status === 401) clearSession()
+    throw new ApiError(response.status, messageFromDetail(payload, 'Could not download this document.'))
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 export async function logout(): Promise<void> {

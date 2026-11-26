@@ -40,6 +40,20 @@ APP_TABLES = (
     "rate_limit_buckets",
     "places",
     "attendance",
+    "districts",
+    "district_administrators",
+    "yatras",
+    "yatra_administrators",
+    "yatra_stops",
+    "yatra_routes",
+    "protocol_templates",
+    "protocol_items",
+    "protocol_documents",
+    "yatra_counters",
+    "yatra_attendance",
+    "yatra_trackers",
+    "yatra_positions",
+    "yatra_latest_positions",
 )
 
 
@@ -98,9 +112,7 @@ def _simulate_supabase_defaults(engine: Engine) -> None:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS extensions"))
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions"))
         connection.execute(text("GRANT USAGE ON SCHEMA public TO anon, authenticated"))
-        connection.execute(
-            text("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated")
-        )
+        connection.execute(text("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated"))
 
 
 def _schema_diff(engine: Engine) -> list[object]:
@@ -265,6 +277,10 @@ def test_runtime_role_can_run_the_api_but_not_change_schema(fresh_database: str,
                     {"uid": user_id, "hash": "a" * 64},
                 )
                 connection.execute(text("UPDATE sessions SET revoked_at = now()"))
+                connection.execute(text("DELETE FROM sessions"))
+                connection.execute(
+                    text("INSERT INTO audit_events (id, event_type) VALUES (gen_random_uuid(), 'runtime_probe')")
+                )
                 connection.execute(text("DELETE FROM rate_limit_buckets"))
             with runtime.connect() as connection:
                 for statement in (
@@ -272,6 +288,15 @@ def test_runtime_role_can_run_the_api_but_not_change_schema(fresh_database: str,
                     "CREATE TABLE public.intruder (id int)",
                     "SELECT * FROM alembic_version",
                     "DELETE FROM users",
+                    "DELETE FROM audit_events",
+                    "UPDATE audit_events SET event_type = 'tamper'",
+                    "UPDATE registrations SET registration_id = 'tamper'",
+                    "DELETE FROM attendance",
+                    "UPDATE attendance SET id = id",
+                    "DELETE FROM yatra_attendance",
+                    "UPDATE yatra_attendance SET id = id",
+                    "DELETE FROM yatra_positions",
+                    "UPDATE yatra_positions SET id = id",
                 ):
                     with pytest.raises(ProgrammingError):
                         connection.execute(text(statement))
@@ -291,12 +316,16 @@ def test_runtime_role_can_run_the_api_but_not_change_schema(fresh_database: str,
 
 def test_every_public_table_has_row_level_security(engine: Engine) -> None:
     with engine.connect() as connection:
-        exposed = connection.execute(
-            text(
-                "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
-                "WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity"
+        exposed = (
+            connection.execute(
+                text(
+                    "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                    "WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
     assert exposed == [], f"Tables without RLS would be readable through the Supabase API: {exposed}"
 
 

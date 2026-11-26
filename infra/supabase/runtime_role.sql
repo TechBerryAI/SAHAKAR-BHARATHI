@@ -24,33 +24,96 @@ $$;
 GRANT USAGE ON SCHEMA public TO sahakar_api;
 REVOKE CREATE ON SCHEMA public FROM sahakar_api;
 
-GRANT SELECT, INSERT, UPDATE ON TABLE
+-- Privileges match what the API actually does. Re-running this script
+-- removes anything broader that an older copy granted.
+GRANT SELECT, INSERT, UPDATE ON TABLE public.users TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.registrations TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.sessions TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.audit_events TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.phone_verifications TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.rate_limit_buckets TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.places TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.attendance TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.districts TO sahakar_api;
+GRANT SELECT, INSERT, DELETE ON TABLE public.district_administrators TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatras TO sahakar_api;
+GRANT SELECT, INSERT, DELETE ON TABLE public.yatra_administrators TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.yatra_stops TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_routes TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.protocol_templates TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.protocol_items TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.protocol_documents TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_counters TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.yatra_attendance TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_trackers TO sahakar_api;
+GRANT SELECT, INSERT ON TABLE public.yatra_positions TO sahakar_api;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.yatra_latest_positions TO sahakar_api;
+GRANT EXECUTE ON FUNCTION public.prune_yatra_positions(integer, integer) TO sahakar_api;
+
+REVOKE DELETE ON TABLE
     public.users,
-    public.registrations,
-    public.sessions,
-    public.audit_events,
-    public.phone_verifications,
-    public.rate_limit_buckets,
     public.places,
-    public.attendance
-TO sahakar_api;
--- Undelivered OTP challenges are discarded, and stale throttle buckets pruned.
-GRANT DELETE ON TABLE public.phone_verifications, public.rate_limit_buckets TO sahakar_api;
+    public.districts,
+    public.yatras,
+    public.yatra_routes,
+    public.protocol_templates,
+    public.protocol_items,
+    public.protocol_documents,
+    public.yatra_counters,
+    public.yatra_trackers,
+    public.yatra_latest_positions
+FROM sahakar_api;
+REVOKE UPDATE ON TABLE
+    public.district_administrators,
+    public.yatra_administrators,
+    public.protocol_documents
+FROM sahakar_api;
+REVOKE UPDATE, DELETE ON TABLE
+    public.registrations,
+    public.audit_events,
+    public.attendance,
+    public.yatra_attendance,
+    public.yatra_positions
+FROM sahakar_api;
+REVOKE ALL ON TABLE public.alembic_version FROM sahakar_api;
 
 -- RLS is enabled on every table with no policies for the Supabase API roles.
--- This role is not the owner, so it needs explicit policies.
+-- This role is not the owner, so it needs explicit policies. Tables that the
+-- API must not change have no UPDATE or DELETE policy.
 DO $$
 DECLARE
     table_name text;
 BEGIN
     FOREACH table_name IN ARRAY ARRAY[
-        'users', 'registrations', 'sessions', 'audit_events', 'phone_verifications', 'rate_limit_buckets',
-        'places', 'attendance'
+        'users', 'sessions', 'phone_verifications', 'rate_limit_buckets', 'places',
+        'districts', 'district_administrators', 'yatras', 'yatra_administrators',
+        'yatra_stops', 'yatra_routes', 'protocol_templates', 'protocol_items',
+        'yatra_counters', 'yatra_trackers', 'yatra_latest_positions'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS sahakar_api_access ON public.%I', table_name);
+        EXECUTE format('DROP POLICY IF EXISTS sahakar_api_select ON public.%I', table_name);
+        EXECUTE format('DROP POLICY IF EXISTS sahakar_api_insert ON public.%I', table_name);
         EXECUTE format(
             'CREATE POLICY sahakar_api_access ON public.%I FOR ALL TO sahakar_api USING (true) WITH CHECK (true)',
+            table_name
+        );
+    END LOOP;
+
+    FOREACH table_name IN ARRAY ARRAY[
+        'registrations', 'audit_events', 'attendance', 'protocol_documents',
+        'yatra_attendance', 'yatra_positions'
+    ]
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS sahakar_api_access ON public.%I', table_name);
+        EXECUTE format('DROP POLICY IF EXISTS sahakar_api_select ON public.%I', table_name);
+        EXECUTE format('DROP POLICY IF EXISTS sahakar_api_insert ON public.%I', table_name);
+        EXECUTE format(
+            'CREATE POLICY sahakar_api_select ON public.%I FOR SELECT TO sahakar_api USING (true)',
+            table_name
+        );
+        EXECUTE format(
+            'CREATE POLICY sahakar_api_insert ON public.%I FOR INSERT TO sahakar_api WITH CHECK (true)',
             table_name
         );
     END LOOP;

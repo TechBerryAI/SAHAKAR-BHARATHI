@@ -25,9 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
-import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.SahakarEmblem
@@ -47,7 +46,6 @@ fun RegistrationSuccessScreen(
     ApplySystemBarIcons(lightIcons = true)
     BackHandler(onBack = onGoHome)
     val copy = LocalCopy.current
-    val hindi = AppLanguage.usesHindiCopy(LocalLanguage.current)
     val session = rememberAppSession()
     val loginId = session.loginId.ifBlank { "—" }
     val occupation = occupationLabel(copy, session.occupation)
@@ -71,7 +69,7 @@ fun RegistrationSuccessScreen(
                 SahakarEmblem(emblemSize = 26.dp)
             }
             Text(
-                if (hindi) "पंजीकृत" else "Registered",
+                ui("registered"),
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
@@ -87,24 +85,20 @@ fun RegistrationSuccessScreen(
             WhiteCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        if (hindi) "खाता तैयार" else "ACCOUNT READY",
+                        ui("accountReady").uppercase(),
                         color = Color(0xFF1B5A44),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         letterSpacing = 0.4.sp,
                     )
                     Text(
-                        if (hindi) "यह प्रतिभागी आईडी रखें" else "Keep this participant ID",
+                        ui("keepLoginId"),
                         color = Color(0xFF1A1C19),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        if (hindi) {
-                            "यह आईडी संभालकर रखें। साइन इन पंजीकरण वाले मोबाइल नंबर और पिन से होगा।"
-                        } else {
-                            "Keep this ID for your records. Sign in with the mobile number and PIN from registration."
-                        },
+                        ui("keepLoginIdBody"),
                         color = Color(0xFF5C665F),
                         fontSize = 14.sp,
                     )
@@ -129,7 +123,7 @@ fun RegistrationSuccessScreen(
                 }
             }
             SaffronButton(
-                text = if (hindi) "होम पर जाएँ" else "Go to Home",
+                text = ui("goHome"),
                 onClick = onGoHome,
             )
         }

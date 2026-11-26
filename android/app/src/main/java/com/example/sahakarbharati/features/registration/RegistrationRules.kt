@@ -57,6 +57,31 @@ fun ageYearsFromDob(dob: String): Int {
 
 fun joinDob(day: String, month: String, year: String): String = "$day/$month/$year"
 
+/** Last in-flow registration step. 0 is mobile/OTP, 1 is profile, 2 is PIN. */
+const val REGISTRATION_LAST_STEP = 2
+
+/**
+ * One step back inside registration. Null means Back leaves the flow and the draft
+ * should be discarded.
+ */
+fun previousRegistrationStep(step: Int): Int? = if (step <= 0) null else step - 1
+
+data class RegistrationDraft(
+    val step: Int = 0,
+    val mobile: String = "",
+    val otp: String = "",
+    val name: String = "",
+    val addressLine: String = "",
+    val pin: String = "",
+    val confirmPin: String = "",
+) {
+    fun back(): RegistrationDraft? = previousRegistrationStep(step)?.let { copy(step = it) }
+
+    fun forward(): RegistrationDraft = copy(step = (step + 1).coerceAtMost(REGISTRATION_LAST_STEP))
+
+    fun afterSuccess(): RegistrationDraft = RegistrationDraft()
+}
+
 fun adultDob(dob: String): Boolean {
     val parts = dob.split("/")
     if (parts.size != 3) return false

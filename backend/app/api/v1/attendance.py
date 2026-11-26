@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.core.config import Settings, get_settings
 from app.core.deps import get_attendance_service, get_current_user, get_limiter
@@ -23,7 +23,9 @@ def check_in(
 
 @router.get("", response_model=AttendanceList)
 def list_my_attendance(
+    limit: int = Query(default=50, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
     service: AttendanceService = Depends(get_attendance_service),
 ) -> AttendanceList:
-    return service.list_mine(user)
+    return service.list_mine(user, limit, offset)

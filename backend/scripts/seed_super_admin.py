@@ -1,8 +1,10 @@
-"""Create or update the Jaydeep Patil super-admin account.
+"""Create or update the configured super-admin account.
 
-The PIN is passed on the command line and stored only as a hash:
+Identity comes from the environment. The PIN is read from the terminal and
+stored only as a hash:
 
-    python scripts/seed_super_admin.py --pin <4-to-6-digit-pin>
+    SUPER_ADMIN_MOBILE=… SUPER_ADMIN_NAME=… SUPER_ADMIN_LOGIN_ID=… \\
+      python scripts/seed_super_admin.py
 
 Running it again updates the same mobile row instead of inserting a second user.
 Do not use this against production with a guessable PIN.
@@ -10,7 +12,7 @@ Do not use this against production with a guessable PIN.
 
 from __future__ import annotations
 
-import argparse
+import getpass
 import sys
 from pathlib import Path
 
@@ -18,15 +20,20 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
 
-def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Seed the Jaydeep Patil super-admin account.")
-    parser.add_argument("--pin", required=True, help="Sign-in PIN. Stored only as a hash.")
-    args = parser.parse_args(argv)
+def main() -> None:
     from app.db.session import SessionLocal
-    from app.services.super_admin import seed_super_admin
+    from app.services.super_admin import SuperAdminConfigError, seed_super_admin
 
-    with SessionLocal() as db:
-        user = seed_super_admin(db, args.pin)
+    pin = getpass.getpass("PIN (4 to 6 digits): ")
+    try:
+        with SessionLocal() as db:
+            user = seed_super_admin(db, pin)
+    except SuperAdminConfigError as exc:
+        print(exc, file=sys.stderr)
+        raise SystemExit(2) from None
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        raise SystemExit(2) from None
     print(f"Super admin ready: {user.login_id} ({user.mobile})")
 
 

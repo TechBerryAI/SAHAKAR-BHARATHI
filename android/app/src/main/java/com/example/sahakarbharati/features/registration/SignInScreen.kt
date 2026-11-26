@@ -51,12 +51,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sahakarbharati.R
-import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
-import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.SaffronButton
 import com.example.sahakarbharati.core.ui.UiState
+import com.example.sahakarbharati.data.rememberAppSession
 import com.example.sahakarbharati.data.sahakarViewModel
 import com.example.sahakarbharati.core.ui.StackTopBar
 import com.example.sahakarbharati.ui.theme.RathYatraColors
@@ -72,15 +73,17 @@ fun SignInScreen(
 ) {
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
-    val hindi = AppLanguage.usesHindiCopy(LocalLanguage.current)
+    val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: SignInViewModel = sahakarViewModel()
-    var mobile by rememberSaveable { mutableStateOf(presetMobile.filter(Char::isDigit).take(10)) }
-    var pin by rememberSaveable { mutableStateOf("") }
-    var error by rememberSaveable { mutableStateOf("") }
+    var mobile by rememberSaveable(accountEpoch) { mutableStateOf(presetMobile.filter(Char::isDigit).take(10)) }
+    var pin by remember(accountEpoch) { mutableStateOf("") }
+    var error by rememberSaveable(accountEpoch) { mutableStateOf("") }
 
     LaunchedEffect(viewModel.state) {
         when (val current = viewModel.state) {
             is UiState.Success -> {
+                pin = ""
                 viewModel.consumeSuccess()
                 onSignedIn()
             }
@@ -89,12 +92,8 @@ fun SignInScreen(
         }
     }
 
-    val title = if (hindi) "साइन इन" else "Sign In"
-    val missing = if (hindi) {
-        "अपना 10 अंकों का मोबाइल नंबर और पिन लिखें।"
-    } else {
-        "Enter your 10-digit mobile number and PIN."
-    }
+    val title = ui("signIn")
+    val missing = ui("enterLoginPin")
     var showPin by remember { mutableStateOf(false) }
 
     Column(
@@ -122,7 +121,7 @@ fun SignInScreen(
                 contentScale = ContentScale.Fit,
             )
             Text(
-                if (hindi) "पंजीकृत प्रतिभागी प्रवेश" else "Registered participant access",
+                ui("accessTitle"),
                 color = Color(0xFF17263F),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -130,11 +129,7 @@ fun SignInScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                if (hindi) {
-                    "ऐप का उपयोग करने से पहले पंजीकरण और साइन इन आवश्यक है।"
-                } else {
-                    "Registration and sign in are required before anyone can use the app."
-                },
+                ui("accessBody"),
                 color = Color(0xFF5C665F),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
@@ -142,7 +137,7 @@ fun SignInScreen(
             )
             if (accountReady && mobile.isNotBlank()) {
                 Text(
-                    if (hindi) "खाता तैयार — मोबाइल नंबर: $mobile" else "Account ready — Mobile number: $mobile",
+                    "${ui("accountReady")} — ${ui("mobileLabel")}: $mobile",
                     color = Color(0xFF0F3D2E),
                     fontSize = 14.sp,
                     modifier = Modifier
@@ -152,17 +147,17 @@ fun SignInScreen(
                 )
             }
             if (error.isNotEmpty()) {
-                Text(error, color = RathYatraColors.Emergency, fontSize = 14.sp)
+                Text(uiKnown(error), color = RathYatraColors.Emergency, fontSize = 14.sp)
             }
             SignInField(
-                label = if (hindi) "मोबाइल नंबर" else "MOBILE NUMBER",
+                label = ui("loginIdLabel"),
                 value = mobile,
                 onValue = { mobile = it.filter(Char::isDigit).take(10) },
-                hint = if (hindi) "पंजीकरण में दर्ज 10 अंकों का मोबाइल नंबर।" else "Use the 10-digit mobile number from registration.",
+                hint = ui("loginIdHint"),
                 keyboard = KeyboardType.Number,
             )
             SignInField(
-                label = if (hindi) "पिन" else "PIN",
+                label = ui("pinLabel"),
                 value = pin,
                 onValue = { pin = it.filter(Char::isDigit).take(6) },
                 keyboard = KeyboardType.NumberPassword,
@@ -232,7 +227,7 @@ private fun SignInField(
             if (onToggleSecret != null) {
                 Icon(
                     imageVector = if (password) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                    contentDescription = if (password) "Show" else "Hide",
+                    contentDescription = if (password) ui("showSecret") else ui("hideSecret"),
                     tint = Color(0xFF5C665F),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)

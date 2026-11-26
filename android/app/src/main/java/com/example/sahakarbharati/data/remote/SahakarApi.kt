@@ -60,12 +60,9 @@ interface SahakarApi {
     @GET("api/v1/attendance")
     suspend fun myAttendance(
         @Header("Authorization") authorization: String,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
     ): AttendanceListDto
-
-    @GET("api/v1/places")
-    suspend fun listBoothCodes(
-        @Header("Authorization") authorization: String,
-    ): BoothCodeListDto
 
     @POST("api/v1/admin/users/{userId}/role")
     suspend fun setAdminUserRole(
@@ -77,6 +74,8 @@ interface SahakarApi {
     @GET("api/v1/admin/places")
     suspend fun listPlaces(
         @Header("Authorization") authorization: String,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
     ): PlaceListDto
 
     @GET("api/v1/admin/places/{placeId}")

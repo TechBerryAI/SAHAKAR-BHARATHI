@@ -2,15 +2,15 @@ package com.example.sahakarbharati.data.repository
 
 import com.example.sahakarbharati.data.remote.AttendanceListDto
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
-import com.example.sahakarbharati.data.remote.BoothCodeDto
 import com.example.sahakarbharati.data.remote.CheckInRequest
 import com.example.sahakarbharati.data.remote.SahakarApi
 import com.example.sahakarbharati.data.remote.mapApiError
 
+const val ATTENDANCE_PAGE_SIZE = 50
+
 interface AttendanceRepository {
     suspend fun checkIn(code: String, source: String): Result<AttendanceRecordDto>
-    suspend fun mine(): Result<AttendanceListDto>
-    suspend fun boothCodes(): Result<List<BoothCodeDto>>
+    suspend fun mine(offset: Int = 0): Result<AttendanceListDto>
 }
 
 class RemoteAttendanceRepository(
@@ -27,23 +27,13 @@ class RemoteAttendanceRepository(
         }
     }
 
-    override suspend fun mine(): Result<AttendanceListDto> {
+    override suspend fun mine(offset: Int): Result<AttendanceListDto> {
         val token = sessionStore.accessToken()
             ?: return Result.failure(Exception("Sign in is required."))
         return runCatching {
-            api.myAttendance("Bearer $token")
+            api.myAttendance("Bearer $token", ATTENDANCE_PAGE_SIZE, offset)
         }.recoverCatching { error ->
             throw Exception(mapApiError(error, "Check-in history could not be loaded."))
-        }
-    }
-
-    override suspend fun boothCodes(): Result<List<BoothCodeDto>> {
-        val token = sessionStore.accessToken()
-            ?: return Result.failure(Exception("Sign in is required."))
-        return runCatching {
-            api.listBoothCodes("Bearer $token").items
-        }.recoverCatching { error ->
-            throw Exception(mapApiError(error, "Booth codes could not be loaded."))
         }
     }
 }

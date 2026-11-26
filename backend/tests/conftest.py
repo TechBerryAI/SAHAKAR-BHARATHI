@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import urlparse
@@ -16,6 +18,11 @@ from sqlalchemy.engine import Engine
 from app.core.config import normalize_database_url
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+
+# Fictitious identity for seed_super_admin in tests. Not a real person.
+SUPER_ADMIN_MOBILE = "9000000999"
+SUPER_ADMIN_NAME = "Test Super Admin"
+SUPER_ADMIN_LOGIN_ID = "SB-TEST-ADMIN"
 
 
 def _database_name(url: str) -> str:
@@ -61,6 +68,9 @@ def engine(database_url: str) -> Iterator[Engine]:
     # migrations/env.py prefers MIGRATION_DATABASE_URL; never let a developer's
     # exported owner credential point test migrations at a real database.
     os.environ["MIGRATION_DATABASE_URL"] = database_url
+    os.environ["SUPER_ADMIN_MOBILE"] = SUPER_ADMIN_MOBILE
+    os.environ["SUPER_ADMIN_NAME"] = SUPER_ADMIN_NAME
+    os.environ["SUPER_ADMIN_LOGIN_ID"] = SUPER_ADMIN_LOGIN_ID
     from app.core.config import get_settings
 
     get_settings.cache_clear()
@@ -89,7 +99,10 @@ def clean_tables(request: pytest.FixtureRequest) -> Iterator[None]:
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE attendance, places, audit_events, sessions, registrations, users, "
+                "TRUNCATE yatra_latest_positions, yatra_positions, yatra_attendance, yatra_trackers, "
+                "yatra_counters, protocol_documents, protocol_items, yatra_routes, yatra_stops, "
+                "yatra_administrators, yatras, district_administrators, districts, "
+                "attendance, places, audit_events, sessions, registrations, users, "
                 "phone_verifications, rate_limit_buckets "
                 "RESTART IDENTITY CASCADE"
             )
@@ -122,6 +135,7 @@ def client(engine: Engine, database_url: str) -> Iterator[TestClient]:
     os.environ["DATABASE_URL"] = database_url
     from app.core.config import get_settings
     from app.core.rate_limit import SlidingWindowLimiter
+    from app.core.storage import LocalDocumentStorage
     from app.db import session as db_session
     from app.main import app
 
@@ -131,10 +145,14 @@ def client(engine: Engine, database_url: str) -> Iterator[TestClient]:
     db_session.SessionLocal.configure(bind=engine)
     app.state.limiter = SlidingWindowLimiter()
     app.state.sms_gateway = RecordingSmsGateway()
+    document_root = Path(tempfile.mkdtemp(prefix="sahakar-docs-"))
+    app.state.document_storage = LocalDocumentStorage(document_root)
     with TestClient(app) as test_client:
         yield test_client
     app.state.sms_gateway = None
+    app.state.document_storage = None
     app.state.limiter.reset()
+    shutil.rmtree(document_root, ignore_errors=True)
 
 
 def register_payload(**overrides: object) -> dict[str, object]:

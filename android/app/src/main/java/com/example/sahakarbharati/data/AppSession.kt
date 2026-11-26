@@ -14,13 +14,21 @@ import com.example.sahakarbharati.SahakarApp
 import com.example.sahakarbharati.data.model.ParticipantProfile
 import com.example.sahakarbharati.data.model.knownRole
 import com.example.sahakarbharati.data.repository.SessionStore
+import com.example.sahakarbharati.data.repository.TrackerCredentialStore
 import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
 
 class AppSession(
     private val securePrefs: SharedPreferences,
     private val localPrefs: SharedPreferences,
-) : SessionStore {
+) : SessionStore, TrackerCredentialStore {
     private val signedInState = mutableStateOf(!accessToken().isNullOrBlank())
+    private val epochState = mutableStateOf(0)
+    private val epochListeners = CopyOnWriteArrayList<(Int) -> Unit>()
+
+    /** Read during composition so saved form state is dropped when the account changes. */
+    val epoch: State<Int>
+        get() = epochState
 
     /** Observable from Compose; turns false when the server rejects the stored token. */
     val signedIn: State<Boolean>
@@ -75,6 +83,16 @@ class AppSession(
 
     override fun accessToken(): String? = securePrefs.getString(KEY_TOKEN, null)?.takeIf { it.isNotBlank() }
 
+    override fun trackerToken(): String? = securePrefs.getString(KEY_TRACKER, null)?.takeIf { it.isNotBlank() }
+
+    override fun saveTrackerToken(token: String) {
+        securePrefs.edit().putString(KEY_TRACKER, token).apply()
+    }
+
+    override fun clearTrackerToken() {
+        securePrefs.edit().remove(KEY_TRACKER).apply()
+    }
+
     override fun cachedProfile(): ParticipantProfile? {
         if (loginId.isBlank() && name.isBlank()) return null
         return ParticipantProfile(
@@ -98,6 +116,7 @@ class AppSession(
     override fun saveSession(token: String, profile: ParticipantProfile) {
         writeProfile(securePrefs.edit().putString(KEY_TOKEN, token), profile).apply()
         signedInState.value = true
+        advanceEpoch()
     }
 
     override fun saveProfile(profile: ParticipantProfile) {
@@ -126,12 +145,33 @@ class AppSession(
         .putString(KEY_ROLE, knownRole(profile.role))
 
     override fun clearSession() {
+        val tracker = securePrefs.getString(KEY_TRACKER, null)
         securePrefs.edit().clear().apply()
+        if (!tracker.isNullOrBlank()) {
+            securePrefs.edit().putString(KEY_TRACKER, tracker).apply()
+        }
         localPrefs.edit()
             .remove(KEY_PHOTO)
             .putBoolean(KEY_NOTIFICATIONS, false)
             .apply()
         signedInState.value = false
+        advanceEpoch()
+    }
+
+    override fun epoch(): Int = epochState.value
+
+    override fun addEpochListener(listener: (Int) -> Unit) {
+        epochListeners.add(listener)
+    }
+
+    override fun removeEpochListener(listener: (Int) -> Unit) {
+        epochListeners.remove(listener)
+    }
+
+    private fun advanceEpoch() {
+        val next = epochState.value + 1
+        epochState.value = next
+        epochListeners.forEach { listener -> listener(next) }
     }
 
     /** Clears the session only if [token] is still the stored one, so a late 401 cannot end a newer session. */
@@ -156,6 +196,7 @@ class AppSession(
         const val SECURE_PREFS = "sahakar_secure_session"
         const val LOCAL_PREFS = "sahakar_session"
         private const val KEY_TOKEN = "access_token"
+        private const val KEY_TRACKER = "tracker_token"
         private const val KEY_LOGIN_ID = "login_id"
         private const val KEY_NAME = "name"
         private const val KEY_MOBILE = "mobile"

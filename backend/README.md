@@ -22,7 +22,7 @@ createdb -O sahakar sahakar
 createdb -O sahakar sahakar_test
 ```
 
-From the repository root, copy `backend/.env.example` to `backend/.env` and edit it when the local database user, password, or host differs. Then:
+From the repository root, copy `backend/.env.example` to `backend/.env` and edit it when the local database user, password, or host differs. `.env` is gitignored. Do not put it in a release archive, a container image, or a zip you send to someone else. Then:
 
 ```bash
 make install-backend
@@ -49,6 +49,40 @@ python scripts/latency_bench.py --rtt-ms 0
 python scripts/latency_bench.py --rtt-ms 270
 ```
 
+### Load testing
+
+From the repository root. Terminal 1 starts an API with **mocked SMS** (no Textbee) and raised login/register rate limits so 15–50 simultaneous users are not blocked by the normal per-IP caps. Keep the Supabase session-pooler client budget in mind (`DB_POOL_SIZE` defaults to 10 for these runs).
+
+```bash
+# Terminal 1 — leave running
+make load-test-api
+
+# Terminal 2 — simultaneous registration (OTP → confirm → register → login → /me)
+make load-test
+make load-test USERS=10,15,20,30,40,50
+
+# Concurrent browse (seeded users hitting /me, /yatras, /attendance, health)
+make load-test-browse USERS=20,30,40,50 DURATION=30
+
+# Registration burst, then browse with those accounts
+make load-test-both USERS=15,20,30
+
+# Remove disposable mobiles 70000000xx if a run was interrupted
+make load-test-cleanup
+```
+
+`USERS` must be comma-separated integers (`30,40` not `30.40`). Prefer a non-production database. Scripts: `scripts/load_test_server.py`, `scripts/load_test.py`.
+
+**Measured ceiling (this stack, Supabase session pooler ~15 clients, single uvicorn process):**
+
+| Concurrent users | Simultaneous registration | Notes |
+|---|---|---|
+| ≤ 600 | 100% success | Safe operating band observed in load tests |
+| ~ 800 | ~78% success | Hard failures: HTTP 500 from `EMAXCONNSESSION` (DB pooler max clients) |
+| 3–4 million (10% of 30–40M) | Not viable on one instance | Needs horizontal API scale-out, transaction pooler / larger DB pool, queues, and CDN — not a single Render service |
+
+Browse traffic previously held through 99 concurrent with 0% errors; registration is the heavier path and hits the DB connection ceiling first.
+
 Create or update the super-admin account. The PIN is stored only as a hash. Do not use a guessable PIN against production:
 
 ```bash
@@ -72,14 +106,15 @@ Android emulator debug builds use `http://10.0.2.2:8000/` by default. Release bu
 | `TEST_DATABASE_URL` | Pytest URL. Leave blank to use `POSTGRES_TEST_DB`. Must name a database containing `test`. |
 | `MIGRATION_DATABASE_URL` | Optional owner credential used only by Alembic, so the API can run as a least-privilege role. |
 | `SESSION_TTL_SECONDS` | Opaque session lifetime (default 7 days) |
-| `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | Login throttle per client IP + identifier |
+| `LOGIN_RATE_LIMIT` / `LOGIN_IP_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | Separate login throttles: per identifier, and per client IP |
 | `REGISTER_RATE_LIMIT` / `REGISTER_RATE_WINDOW_SECONDS` | Registration throttle per client IP |
-| `RATE_LIMIT_BACKEND` | `memory` (default, single instance only) or `postgres` (shared atomic counters, needs migration 0006) |
+| `RATE_LIMIT_BACKEND` | `memory` for one local process (the default). Production `render.yaml` sets `postgres`: a shared sliding window in `rate_limit_buckets` (migrations 0006 and 0009). |
+| `CLIENT_IP_SOURCE` | `peer` locally (ignore forwarding headers). Production is `cf-connecting-ip`. |
 | `LOGIN_LOCKOUT_FAILURES` / `LOGIN_LOCKOUT_SECONDS` | Database-backed lockout after failed PINs |
 | `MAX_REQUEST_BYTES` | JSON body size limit |
 | `CORS_ORIGINS` | Comma-separated browser origins. Production must include `https://sahakarbharati-e3b04.web.app`; `*`, `http://` and local origins are rejected in production. Credentials are not allowed (bearer tokens only). |
 | `TEXTBEE_API_KEY` / `TEXTBEE_DEVICE_ID` / `TEXTBEE_BASE_URL` | OTP SMS gateway. Registration cannot complete without a key. |
-| `OTP_*` | OTP lifetimes, attempts and throttles (unchanged; see `.env.example`). |
+| `OTP_*` | OTP lifetime, attempt cap, resend gap, and send limits. Values are in `.env.example`. |
 | `APP_HOST` / `APP_PORT` | Local documentation only. They do not bind the production server. |
 
 Do not commit real secrets, production credentials, or personal data. The backend does not need the Supabase service-role key to connect to PostgreSQL.
@@ -126,7 +161,7 @@ Confirm the GitHub repository is connected in the Render dashboard. Automatic de
 **Start command:**
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
 **Required environment variables**
@@ -146,7 +181,7 @@ Full procedure: [`docs/DATABASE.md`](../docs/DATABASE.md). Do not run Alembic fr
 
 1. If the Render plan has a pre-deploy command, set it to `alembic upgrade head`.
 2. Otherwise run `MIGRATION_DATABASE_URL=… alembic upgrade head` from a trusted machine or a one-off Render shell before sending traffic to a new revision.
-3. `infra/supabase/schema.sql` is only for an empty database; it stamps `20261026_0007` itself and refuses to run if `alembic_version` already has a row.
+3. `infra/supabase/schema.sql` is only for an empty database; it stamps `20261120_0012` itself and refuses to run if `alembic_version` already has a row. After `20261120_0012`, re-run `infra/supabase/runtime_role.sql`.
 4. Never run `alembic downgrade`, `alembic stamp` against the wrong revision, or a database reset on production.
 
 Migration `20261023_0005` enables RLS and revokes the Supabase `anon`/`authenticated` roles on every app table. Databases created with Alembic before it exposed `pin_hash` and `token_hash` to the public anon key; apply it promptly. The backend does not use Supabase Auth.
@@ -158,14 +193,16 @@ Migration `20261023_0005` enables RLS and revokes the Supabase `anon`/`authentic
 
 ## Remaining risks
 
-- With `RATE_LIMIT_BACKEND=memory` (default) throttles are per process: run one instance with one worker, or switch to `postgres` before scaling out.
-- `--forwarded-allow-ips='*'` lets a client spoof `X-Forwarded-For`, which weakens per-IP throttles. The per-identifier database lockout still applies.
+- Production requires `RATE_LIMIT_BACKEND=postgres`. `memory` is per process and is rejected at startup when `ENVIRONMENT=production`. The PostgreSQL limiter is a sliding window (`hit_times` on `rate_limit_buckets`, migration `20261114_0009`).
+- `CLIENT_IP_SOURCE=cf-connecting-ip` on Render. Throttles, request context, and logs use `CF-Connecting-IP`, the single address Cloudflare sets. `X-Forwarded-For` and `X-Real-IP` are not read. Development uses `peer` and ignores those headers. The start command does not use `--forwarded-allow-ips`.
+- Login is limited per identifier (5 / 15 minutes) and separately per IP (30 / 15 minutes). The per-identifier database lockout is unchanged. Unknown mobiles and wrong PINs return the same error.
+- `POST /phone-verifications` returns 202 for a new number and for a number that already has an account. Both paths hash a code, store a challenge, and send an SMS. The existing account receives a sign-in notice with no code. Registration returns `An account already exists for this mobile number.` only after a valid verification token. A fake token is always `Verify this mobile number before registering.`
 - A 4–6 digit PIN is a weak authenticator. There is no PIN change or PIN-reset flow.
-- Expired sessions, OTP challenges and audit rows are not pruned automatically.
-- Live Supabase connectivity, Render dashboard autodeploy, and a production smoke test are owner actions after secrets are set.
+- Expired OTP rows (1 day), expired or long-revoked sessions (30 days), and idle rate-limit buckets (1 day) are deleted about once per 200 limiter checks, and by the daily Render cron once the operator creates `sahakar-bharati-retention`. Audit events are not deleted. See `docs/DATABASE.md`.
+- Live Supabase connectivity, Render dashboard autodeploy, backups, monitoring alerts, and a production smoke test are owner actions after secrets are set. See `docs/MONITORING.md`.
 
 ## Outstanding product work
 
-- No tracking, QR attendance, benefits, or notification APIs
+- Event check-in (booth code, `places` / `attendance`) is implemented. Live chariot tracking, a QR pass, benefits, and notification APIs are not.
 - No photo upload
 - React Hosting deploy needs the GitHub secret `FIREBASE_SERVICE_ACCOUNT_SAHAKARBHARATI_E3B04` (owner to confirm it exists)

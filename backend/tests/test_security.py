@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from app.core.config import get_settings
 from app.core.security import hash_pin, verify_pin
 from tests.conftest import register_and_login, register_payload, verified_register_payload
 
@@ -50,9 +51,44 @@ def test_failed_registration_does_not_leave_partial_rows(
     duplicate = register_payload(email="other@example.com")
     duplicate["verification_token"] = "not-a-real-verification-token"
     second = client.post("/api/v1/registrations", json=duplicate)
-    assert second.status_code == 409
+    assert second.status_code == 400
+    assert "already exists" not in second.text
     with engine.connect() as connection:
         users = connection.execute(text("SELECT count(*) FROM users")).scalar_one()
         registrations = connection.execute(text("SELECT count(*) FROM registrations")).scalar_one()
     assert users == 1
     assert registrations == 1
+
+
+def test_sql_injection_shaped_input_is_rejected(client: TestClient) -> None:
+    mobile = client.post(
+        "/api/v1/phone-verifications",
+        json={"mobile": "9876543210' OR 1=1 --"},
+    )
+    assert mobile.status_code == 422
+    assert "select" not in mobile.text.lower()
+    assert "syntax" not in mobile.text.lower()
+
+    login = client.post(
+        "/api/v1/sessions",
+        json={"identifier": "' OR 1=1 --", "pin": "2468"},
+    )
+    assert login.status_code == 422
+    assert "select" not in login.text.lower()
+    assert "2468" not in login.text
+
+
+def test_one_network_cannot_rotate_login_identifiers(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setenv("LOGIN_IP_RATE_LIMIT", "2")
+    monkeypatch.setenv("LOGIN_RATE_LIMIT", "10")
+    monkeypatch.setenv("LOGIN_LOCKOUT_FAILURES", "100")
+    get_settings.cache_clear()
+    details = []
+    statuses = []
+    for mobile in ("9000000011", "9000000012", "9000000013"):
+        response = client.post("/api/v1/sessions", json={"identifier": mobile, "pin": "0000"})
+        statuses.append(response.status_code)
+        details.append(response.json()["detail"])
+    assert statuses == [401, 401, 429]
+    assert details[0] == details[1]
+    assert "exist" not in details[0].lower()

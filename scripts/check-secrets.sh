@@ -3,14 +3,26 @@
 # credential-shaped content. Prints file names and rule names only, never the
 # matched value. Dependency-free so it runs in CI and as a git hook.
 #
-#   scripts/check-secrets.sh            # every tracked file
-#   scripts/check-secrets.sh --staged   # files staged for commit (pre-commit hook)
+#   scripts/check-secrets.sh                 # every tracked file
+#   scripts/check-secrets.sh --staged        # files staged for commit (pre-commit hook)
+#   scripts/check-secrets.sh --working-tree  # tracked + untracked (excludes build dirs)
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-if [[ "${1:-}" == "--staged" ]]; then
+mode="${1:-}"
+if [[ "$mode" == "--staged" ]]; then
   mapfile -t files < <(git diff --cached --name-only --diff-filter=ACMR)
+elif [[ "$mode" == "--working-tree" ]]; then
+  mapfile -t files < <(
+    {
+      git ls-files
+      git ls-files --others --exclude-standard
+    } | awk '
+      /(?:^|\/)(node_modules|\.venv|build|dist|\.gradle|\.kotlin|\.android-launch|\.git)(\/|$)/ { next }
+      { print }
+    ' | sort -u
+  )
 else
   mapfile -t files < <(git ls-files)
 fi
@@ -46,6 +58,11 @@ for file in "${files[@]}"; do
   for rule in "${rules[@]}"; do
     name="${rule%%|*}"
     pattern="${rule#*|}"
+    # scripts/dev-database.test.js feeds the parser synthetic URLs (user:secret,
+    # s3cret). Those are fixtures, not credentials. The rule still applies everywhere else.
+    if [[ "$name" == "postgres-url-with-password" && "$file" == "scripts/dev-database.test.js" ]]; then
+      continue
+    fi
     if grep -E -n -- "$pattern" "$file" | grep -E -v -- "$allowed_content" >/dev/null; then
       lines=$(grep -E -n -- "$pattern" "$file" | grep -E -v -- "$allowed_content" | cut -d: -f1 | paste -sd, -)
       echo "secret-check: $name in $file (line $lines)"

@@ -232,6 +232,30 @@ describe('registration and profile', () => {
     expect(getSnapshot().profile?.full_name).toBe('Anita Desai')
   })
 
+  it('creates a booth by sending only its name', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    const place = {
+      id: 'place-1',
+      name: 'Pune stall',
+      code: '274097',
+      active: true,
+      created_at: '2026-11-13T06:00:00Z',
+    }
+    const calls = scriptServer({ status: 201, body: place })
+    const created = await createPlace('  Pune stall  ')
+    expect(created.code).toBe('274097')
+    expect(calls[0].url).toBe(`${API}/api/v1/admin/places`)
+    expect(calls[0].init.method).toBe('POST')
+    expect(calls[0].init.headers).toMatchObject({ Authorization: 'Bearer tok-1' })
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: '  Pune stall  ' })
+  })
+
+  it('a rejected booth create is an error', async () => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
+    scriptServer({ status: 422, body: { detail: [{ msg: 'Value error, Booth name is required.' }] } })
+    await expect(createPlace('A')).rejects.toMatchObject({ status: 422 })
+  })
+
   it('sends the booth code without a profile, and reads this person’s visits', async () => {
     localStorage.setItem(ACCESS_TOKEN_KEY, 'tok-1')
     const visit = {
@@ -263,7 +287,7 @@ describe('registration and profile', () => {
     expect(calls[0].init.method).toBe('POST')
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ code: '004218', source: 'code' })
     expect(JSON.parse(String(calls[0].init.body))).not.toHaveProperty('full_name')
-    expect(calls[1].url).toBe(`${API}/api/v1/attendance`)
+    expect(calls[1].url).toBe(`${API}/api/v1/attendance?limit=50&offset=0`)
     expect(calls[1].init.method).toBe('GET')
   })
 
@@ -302,6 +326,8 @@ describe('registration and profile', () => {
       ['An account already exists with this email address.', 'emailRegistered'],
       ['The code is incorrect or has expired.', 'otpInvalid'],
       ['Verify this mobile number before registering.', 'verificationExpired'],
+      ['Could not send the SMS. Please try again.', 'otpSendFailed'],
+      ['Please try again in a moment.', 'pleaseWait'],
     ]
     for (const [message, key] of cases) {
       const error = new ApiError(400, message)
@@ -406,7 +432,7 @@ describe('registration and profile', () => {
     expect(calls[1].url).toBe(`${API}/api/v1/admin/users/user-1`)
     expect(calls[2].init.method).toBe('POST')
     expect(JSON.parse(String(calls[2].init.body))).toEqual({ role: 'admin' })
-    expect(calls[3].url).toBe(`${API}/api/v1/admin/places`)
+    expect(calls[3].url).toBe(`${API}/api/v1/admin/places?limit=50&offset=0`)
     expect(JSON.parse(String(calls[4].init.body))).toEqual({ name: 'Gate booth' })
     expect(calls[5].url).toBe(`${API}/api/v1/admin/places/place-1`)
     expect(calls[6].init.method).toBe('PATCH')

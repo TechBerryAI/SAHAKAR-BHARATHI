@@ -14,18 +14,20 @@ import com.example.sahakarbharati.data.remote.AdminUserSummaryDto
 import com.example.sahakarbharati.data.remote.PlaceActiveRequest
 import com.example.sahakarbharati.data.remote.PlaceCreateRequest
 import com.example.sahakarbharati.data.remote.PlaceDto
+import com.example.sahakarbharati.data.remote.PlaceListDto
 import com.example.sahakarbharati.data.remote.RoleUpdateRequest
 import com.example.sahakarbharati.data.remote.SahakarApi
 import com.example.sahakarbharati.data.remote.mapApiError
 
 const val ADMIN_PAGE_SIZE = 20
 const val PLACE_ATTENDANCE_PAGE_SIZE = 50
+const val PLACE_PAGE_SIZE = 100
 
 interface AdminRepository {
     suspend fun listUsers(query: String, offset: Int): Result<AdminUserPage>
     suspend fun getUser(id: String): Result<AdminUserDetail>
     suspend fun setRole(id: String, role: String): Result<AdminUserDetail>
-    suspend fun listPlaces(): Result<List<PlaceDto>>
+    suspend fun listPlaces(offset: Int): Result<PlaceListDto>
     suspend fun getPlace(id: String): Result<PlaceDto>
     suspend fun createPlace(name: String): Result<PlaceDto>
     suspend fun setPlaceActive(id: String, active: Boolean): Result<PlaceDto>
@@ -70,11 +72,11 @@ class RemoteAdminRepository(
         }
     }
 
-    override suspend fun listPlaces(): Result<List<PlaceDto>> {
+    override suspend fun listPlaces(offset: Int): Result<PlaceListDto> {
         val token = sessionStore.accessToken()
             ?: return Result.failure(Exception("Sign in is required."))
         return runCatching {
-            api.listPlaces("Bearer $token").items
+            api.listPlaces("Bearer $token", PLACE_PAGE_SIZE, offset)
         }.recoverCatching { error ->
             throw Exception(mapApiError(error, "Could not load booths."))
         }

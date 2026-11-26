@@ -23,15 +23,21 @@ class AttendanceRepository:
             )
         )
 
-    def list_for_user(self, user_id: uuid.UUID, limit: int = 50) -> tuple[list[tuple[Attendance, str]], int]:
+    def list_for_user(
+        self,
+        user_id: uuid.UUID,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[tuple[Attendance, str]], int]:
         filters = Attendance.user_id == user_id
         total = int(self.db.scalar(select(func.count()).select_from(Attendance).where(filters)) or 0)
         rows = self.db.execute(
             select(Attendance, Place.name)
             .join(Place, Attendance.place_id == Place.id)
             .where(filters)
-            .order_by(Attendance.checked_in_at.desc())
+            .order_by(Attendance.checked_in_at.desc(), Attendance.id.desc())
             .limit(limit)
+            .offset(offset)
         ).all()
         return [(visit, name) for visit, name in rows], total
 
@@ -47,7 +53,7 @@ class AttendanceRepository:
             select(Attendance, Place.name)
             .join(Place, Attendance.place_id == Place.id)
             .where(filters)
-            .order_by(Attendance.checked_in_at.desc())
+            .order_by(Attendance.checked_in_at.desc(), Attendance.id.desc())
             .limit(limit)
             .offset(offset)
         ).all()

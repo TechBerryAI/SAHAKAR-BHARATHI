@@ -73,7 +73,9 @@ export function CheckInScreen() {
   const [cameraNote, setCameraNote] = useState('')
   const [latest, setLatest] = useState<AttendanceRecord | null>(null)
   const [history, setHistory] = useState<AttendanceRecord[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const cameraSecure = window.isSecureContext
@@ -84,6 +86,7 @@ export function CheckInScreen() {
       .then((page) => {
         if (cancelled) return
         setHistory(page.items)
+        setTotal(page.total)
         setError('')
       })
       .catch((err: unknown) => {
@@ -157,7 +160,11 @@ export function CheckInScreen() {
     try {
       const visit = await checkIn(parsed, source)
       setLatest(visit)
-      setHistory((current) => [visit, ...current.filter((item) => item.id !== visit.id)])
+      setHistory((current) => {
+        const next = [visit, ...current.filter((item) => item.id !== visit.id)]
+        if (!current.some((item) => item.id === visit.id)) setTotal((count) => count + 1)
+        return next
+      })
       if (source === 'code') setCode('')
     } catch (err: unknown) {
       setError(apiErrorText(err, copy, 'Attendance could not be recorded.'))
@@ -260,6 +267,32 @@ export function CheckInScreen() {
               ))}
             </ul>
           )}
+          {!loading && history.length < total ? (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={loadingMore}
+              onClick={() => {
+                setLoadingMore(true)
+                myAttendance(history.length)
+                  .then((page) => {
+                    setHistory((current) => {
+                      const seen = new Set(current.map((item) => item.id))
+                      return [...current, ...page.items.filter((item) => !seen.has(item.id))]
+                    })
+                    setTotal(page.total)
+                  })
+                  .catch((err: unknown) => {
+                    if (!(err instanceof ApiError && err.status === 401)) {
+                      setError(apiErrorText(err, copy, 'Check-in history could not be loaded.'))
+                    }
+                  })
+                  .finally(() => setLoadingMore(false))
+              }}
+            >
+              {loadingMore ? copy.pleaseWait : 'Load more'}
+            </Button>
+          ) : null}
         </Card>
       </Screen>
     </>

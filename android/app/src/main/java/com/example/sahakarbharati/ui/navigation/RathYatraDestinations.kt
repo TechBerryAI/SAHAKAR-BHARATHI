@@ -2,8 +2,6 @@ package com.example.sahakarbharati.ui.navigation
 
 object RathYatraDestinations {
     const val SPLASH = "splash"
-    const val WELCOME = "welcome"
-    const val REGISTRATION_INTRO = "registration_intro"
     const val REGISTRATION_FORM = "registration_form"
     const val REGISTRATION_SUCCESS = "registration_success"
     const val HOME = "home"
@@ -14,11 +12,13 @@ object RathYatraDestinations {
     const val ADMIN_PLACES = "admin_places"
     const val ADMIN_PLACE = "admin_place"
     const val ATTENDANCE = "attendance"
+    const val YATRAS = "yatras"
+    const val YATRA_DETAIL = "yatra_detail"
+    const val YATRA_ATTENDANCE = "yatra_attendance"
+    const val YATRA_TRACKING = "yatra_tracking"
 
     val all: List<String> = listOf(
         SPLASH,
-        WELCOME,
-        REGISTRATION_INTRO,
         REGISTRATION_FORM,
         REGISTRATION_SUCCESS,
         HOME,
@@ -29,14 +29,16 @@ object RathYatraDestinations {
         ADMIN_PLACES,
         ADMIN_PLACE,
         ATTENDANCE,
+        YATRAS,
+        YATRA_DETAIL,
+        YATRA_ATTENDANCE,
+        YATRA_TRACKING,
     )
 
     val startDestination: String = SPLASH
 
     val publicAccess: Set<String> = setOf(
         SPLASH,
-        WELCOME,
-        REGISTRATION_INTRO,
         REGISTRATION_FORM,
         REGISTRATION_SUCCESS,
         SIGN_IN,

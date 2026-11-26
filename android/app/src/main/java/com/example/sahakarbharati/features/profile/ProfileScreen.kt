@@ -41,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -53,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.copy.blankToNull
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.participantCopy
@@ -90,21 +92,22 @@ fun ProfileScreen(
     val copy = LocalCopy.current
     val text = participantCopy(LocalLanguage.current)
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: ProfileViewModel = sahakarViewModel()
-    val loaded = (viewModel.state as? UiState.Success)?.data ?: session.cachedProfile()
+    val loaded = (viewModel.state as? UiState.Success)?.data ?: session.cachedProfile()?.takeIf { session.isLoggedIn() }
     val staff = isStaffRole(loaded?.role ?: session.role())
-    var fullName by rememberSaveable { mutableStateOf("") }
-    var occupation by rememberSaveable { mutableStateOf("") }
-    var addressLine by rememberSaveable { mutableStateOf("") }
-    var locality by rememberSaveable { mutableStateOf("") }
-    var district by rememberSaveable { mutableStateOf("") }
-    var stateName by rememberSaveable { mutableStateOf("") }
-    var pincode by rememberSaveable { mutableStateOf("") }
-    var dirty by rememberSaveable { mutableStateOf(false) }
-    var formError by rememberSaveable { mutableStateOf("") }
-    var confirmLogout by rememberSaveable { mutableStateOf(false) }
+    var fullName by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var occupation by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var addressLine by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var locality by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var district by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var stateName by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var pincode by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var dirty by rememberSaveable(accountEpoch) { mutableStateOf(false) }
+    var formError by rememberSaveable(accountEpoch) { mutableStateOf("") }
+    var confirmLogout by rememberSaveable(accountEpoch) { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(accountEpoch) { viewModel.load() }
     LaunchedEffect(loaded) {
         val profile = loaded ?: return@LaunchedEffect
         if (!dirty) {
@@ -223,7 +226,7 @@ fun ProfileScreen(
                 )
                 Surface(
                     onClick = { confirmLogout = true },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp).semantics(mergeDescendants = true) {},
                     shape = RoundedCornerShape(14.dp),
                     color = RathYatraColors.White,
                     shadowElevation = 1.dp,

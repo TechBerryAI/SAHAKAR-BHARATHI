@@ -135,6 +135,9 @@ data class AttendanceRecordDto(
 data class AttendanceListDto(
     val items: List<AttendanceRecordDto>,
     val total: Int,
+    val limit: Int = 50,
+    val offset: Int = 0,
+    @SerializedName("has_more") val hasMore: Boolean = false,
 )
 
 data class BoothCodeDto(
@@ -156,6 +159,10 @@ data class PlaceDto(
 
 data class PlaceListDto(
     val items: List<PlaceDto>,
+    val total: Int = items.size,
+    val limit: Int = 100,
+    val offset: Int = 0,
+    @SerializedName("has_more") val hasMore: Boolean = false,
 )
 
 data class PlaceCreateRequest(

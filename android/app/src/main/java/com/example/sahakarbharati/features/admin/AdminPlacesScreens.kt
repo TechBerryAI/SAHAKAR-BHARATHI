@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -47,9 +49,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.print.PrintHelper
+import com.example.sahakarbharati.core.copy.LocalLanguage
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.personInitials
 import com.example.sahakarbharati.core.copy.regionLabel
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiCount
+import com.example.sahakarbharati.core.copy.uiKnown
 import com.example.sahakarbharati.core.ui.GhostNavyButton
 import com.example.sahakarbharati.core.ui.InitialAvatar
 import com.example.sahakarbharati.core.ui.SaffronButton
@@ -121,7 +127,9 @@ fun AdminPlacesScreen(
     modifier: Modifier = Modifier,
 ) {
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val viewModel: AdminPlacesViewModel = sahakarViewModel()
+    LaunchedEffect(accountEpoch) { viewModel.refresh() }
     SignedInScaffold(
         title = "Booths",
         selectedTab = RathYatraDestinations.ADMIN_PLACES,
@@ -146,13 +154,14 @@ fun AdminPlacesScreen(
                 label = { Text("Booth name") },
                 placeholder = { Text("Pune stall") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { viewModel.create() }),
             )
             SaffronButton(
-                text = if (viewModel.saving) "Please wait…" else "Create booth",
-                onClick = { if (!viewModel.saving) viewModel.create() },
+                text = if (viewModel.saving) ui("pleaseWait") else ui("createBooth"),
+                onClick = { viewModel.create() },
             )
             viewModel.error?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (viewModel.loading) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -160,15 +169,21 @@ fun AdminPlacesScreen(
                 }
             } else if (viewModel.places.isEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("No booths yet.", fontWeight = FontWeight.SemiBold)
+                    Text(ui("noBooths"), fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Create one, then print its QR for the placard.",
+                        ui("noBoothsBody"),
                         color = RathYatraColors.OnSurfaceVariant,
                     )
                 }
             } else {
                 viewModel.places.forEach { place ->
                     PlaceRow(place, onClick = { onOpenPlace(place.id) })
+                }
+                if (viewModel.hasMore) {
+                    GhostNavyButton(
+                        text = if (viewModel.loadingMore) ui("pleaseWait") else ui("loadMore"),
+                        onClick = { if (!viewModel.loadingMore) viewModel.loadMore() },
+                    )
                 }
             }
         }
@@ -177,7 +192,7 @@ fun AdminPlacesScreen(
 
 @Composable
 private fun PlaceRow(place: PlaceDto, onClick: () -> Unit) {
-    WhiteCard(onClick = onClick) {
+    WhiteCard(onClick = onClick, modifier = Modifier.semantics(mergeDescendants = true) {}) {
         Row(
             Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -201,7 +216,7 @@ private fun PlaceRow(place: PlaceDto, onClick: () -> Unit) {
                         letterSpacing = 1.2.sp,
                     )
                     Text(
-                        if (place.active) "Accepting visits" else "Not accepting visits",
+                        if (place.active) ui("acceptingVisits") else ui("notAccepting"),
                         color = if (place.active) RathYatraColors.DeepGreen else RathYatraColors.OnSurfaceVariant,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -242,7 +257,7 @@ fun AdminPlaceScreen(
     }
 
     SignedInScaffold(
-        title = place?.name ?: "Booth",
+        title = place?.name ?: ui("boothFallback"),
         selectedTab = RathYatraDestinations.ADMIN_PLACE,
         showAdmin = isStaffRole(session.role()),
         onSelectTab = onSelectTab,
@@ -259,7 +274,7 @@ fun AdminPlaceScreen(
         ) {
             AdminSectionSwitch(places = true, onPeople = onOpenPeople, onBooths = {})
             viewModel.error?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             if (viewModel.loading && place == null) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -276,13 +291,13 @@ fun AdminPlaceScreen(
                         qr?.let { bitmap ->
                             Image(
                                 bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "Booth QR code",
+                                contentDescription = ui("boothQrDesc"),
                                 modifier = Modifier.size(240.dp).background(Color.White),
                             )
                         }
                         if (qrFailed) {
                             Text(
-                                "QR could not be drawn.",
+                                ui("qrFailed"),
                                 color = RathYatraColors.Emergency,
                                 textAlign = TextAlign.Center,
                             )
@@ -295,7 +310,7 @@ fun AdminPlaceScreen(
                             color = RathYatraColors.Navy,
                         )
                         Text(
-                            "Scan this QR, or enter the code under it.",
+                            ui("scanOrEnter"),
                             color = RathYatraColors.OnSurfaceVariant,
                             textAlign = TextAlign.Center,
                         )
@@ -303,7 +318,7 @@ fun AdminPlaceScreen(
                 }
                 val image = qr
                 SaffronButton(
-                    text = "Print QR",
+                    text = ui("printQr"),
                     onClick = {
                         val placard = runCatching { boothPlacard(place.name, place.code) }.getOrNull() ?: image
                         if (placard == null) return@SaffronButton
@@ -314,19 +329,19 @@ fun AdminPlaceScreen(
                 )
                 GhostNavyButton(
                     text = when {
-                        viewModel.busy -> "Please wait…"
-                        place.active -> "Stop accepting visits"
-                        else -> "Accept visits again"
+                        viewModel.busy -> ui("pleaseWait")
+                        place.active -> ui("stopVisits")
+                        else -> ui("acceptAgain")
                     },
                     onClick = { if (!viewModel.busy) viewModel.toggleActive() },
                 )
-                Text("Who was here", fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = RathYatraColors.Navy)
+                Text(ui("whoWasHere"), fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = RathYatraColors.Navy)
                 Text(
-                    "${viewModel.total} ${if (viewModel.total == 1) "visit" else "visits"}",
+                    uiCount(LocalLanguage.current, viewModel.total, "oneVisit", "manyVisits"),
                     color = RathYatraColors.OnSurfaceVariant,
                 )
                 if (viewModel.visits.isEmpty()) {
-                    Text("No one has checked in here yet.", color = RathYatraColors.OnSurfaceVariant)
+                    Text(ui("noCheckIns"), color = RathYatraColors.OnSurfaceVariant)
                 } else {
                     viewModel.visits.forEach { visit ->
                         VisitRow(visit)
@@ -337,7 +352,7 @@ fun AdminPlaceScreen(
                             enabled = !viewModel.busy,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text(if (viewModel.busy) "Please wait…" else "Load more")
+                            Text(if (viewModel.busy) ui("pleaseWait") else ui("loadMore"))
                         }
                     }
                 }
@@ -363,7 +378,7 @@ private fun VisitRow(visit: AttendanceRecordDto) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(visit.loginId, style = MaterialTheme.typography.labelMedium)
                 Text(
-                    formatVisitTime(visit.checkedInAt, visit.attendanceDate),
+                    formatVisitTime(visit.checkedInAt, visit.attendanceDate, LocalLanguage.current),
                     style = MaterialTheme.typography.labelMedium,
                     color = RathYatraColors.OnSurfaceVariant,
                 )

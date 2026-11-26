@@ -6,8 +6,6 @@ import com.example.sahakarbharati.data.remote.AdminUserDetailDto
 import com.example.sahakarbharati.data.remote.AdminUserListDto
 import com.example.sahakarbharati.data.remote.AttendanceListDto
 import com.example.sahakarbharati.data.remote.AttendanceRecordDto
-import com.example.sahakarbharati.data.remote.BoothCodeDto
-import com.example.sahakarbharati.data.remote.BoothCodeListDto
 import com.example.sahakarbharati.data.remote.CheckInRequest
 import com.example.sahakarbharati.data.remote.PhoneVerificationConfirmRequest
 import com.example.sahakarbharati.data.remote.PhoneVerificationConfirmedDto
@@ -88,7 +86,6 @@ class RemoteRepositoryCoverageTest {
         assertEquals("004218", attendance.checkIn("004218", "code").getOrThrow().placeName.let { api.code })
         assertEquals("code", api.source)
         assertEquals(1, attendance.mine().getOrThrow().total)
-        assertEquals("Gate", attendance.boothCodes().getOrThrow().single().name)
 
         val signedOut = RemoteAttendanceRepository(api, OrderSession(null))
         assertEquals("Sign in is required.", signedOut.checkIn("1", "qr").exceptionOrNull()?.message)
@@ -110,7 +107,7 @@ class RemoteRepositoryCoverageTest {
         assertEquals(false, admin.setPlaceActive("place-1", false).getOrThrow().active)
         admin.listPlaceAttendance("place-1", 0)
         assertEquals(50, api.attendanceLimit)
-        assertEquals(1, admin.listPlaces().getOrThrow().size)
+        assertEquals(1, admin.listPlaces(0).getOrThrow().items.size)
     }
 
     @Test
@@ -261,11 +258,11 @@ private class RecordingApi : SahakarApi {
         return visit()
     }
 
-    override suspend fun myAttendance(authorization: String) = AttendanceListDto(listOf(visit()), 1)
+    override suspend fun myAttendance(authorization: String, limit: Int, offset: Int) =
+        AttendanceListDto(listOf(visit()), 1, limit, offset)
 
-    override suspend fun listBoothCodes(authorization: String) = BoothCodeListDto(listOf(BoothCodeDto("Gate", "004218")))
-
-    override suspend fun listPlaces(authorization: String) = PlaceListDto(listOf(place(true)))
+    override suspend fun listPlaces(authorization: String, limit: Int, offset: Int) =
+        PlaceListDto(listOf(place(true)), total = 1, limit = limit, offset = offset)
 
     override suspend fun getPlace(authorization: String, placeId: String) = place(true)
 

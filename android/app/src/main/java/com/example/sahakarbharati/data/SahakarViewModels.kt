@@ -16,6 +16,10 @@ import com.example.sahakarbharati.features.home.HomeViewModel
 import com.example.sahakarbharati.features.profile.ProfileViewModel
 import com.example.sahakarbharati.features.registration.RegistrationViewModel
 import com.example.sahakarbharati.features.registration.SignInViewModel
+import com.example.sahakarbharati.features.yatra.YatraAttendanceViewModel
+import com.example.sahakarbharati.features.yatra.YatraDetailViewModel
+import com.example.sahakarbharati.features.yatra.YatraListViewModel
+import com.example.sahakarbharati.features.yatra.YatraTrackingViewModel
 
 class SahakarViewModelFactory(
     private val container: AppContainer,
@@ -24,23 +28,35 @@ class SahakarViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(RegistrationViewModel::class.java) ->
-                RegistrationViewModel(container.authRepository) as T
+                RegistrationViewModel(container.authRepository, container.session) as T
             modelClass.isAssignableFrom(SignInViewModel::class.java) ->
-                SignInViewModel(container.authRepository) as T
+                SignInViewModel(container.authRepository, container.session) as T
             modelClass.isAssignableFrom(ProfileViewModel::class.java) ->
-                ProfileViewModel(container.profileRepository, container.authRepository) as T
+                ProfileViewModel(container.profileRepository, container.authRepository, container.session) as T
             modelClass.isAssignableFrom(HomeViewModel::class.java) ->
                 HomeViewModel(container.profileRepository, container.session) as T
             modelClass.isAssignableFrom(AdminUsersViewModel::class.java) ->
-                AdminUsersViewModel(container.adminRepository) as T
+                AdminUsersViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AdminUserViewModel::class.java) ->
-                AdminUserViewModel(container.adminRepository) as T
+                AdminUserViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AdminPlacesViewModel::class.java) ->
-                AdminPlacesViewModel(container.adminRepository) as T
+                AdminPlacesViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AdminPlaceViewModel::class.java) ->
-                AdminPlaceViewModel(container.adminRepository) as T
+                AdminPlaceViewModel(container.adminRepository, container.session) as T
             modelClass.isAssignableFrom(AttendanceViewModel::class.java) ->
-                AttendanceViewModel(container.attendanceRepository) as T
+                AttendanceViewModel(container.attendanceRepository, container.session) as T
+            modelClass.isAssignableFrom(YatraListViewModel::class.java) ->
+                YatraListViewModel(container.yatraRepository) as T
+            modelClass.isAssignableFrom(YatraDetailViewModel::class.java) ->
+                YatraDetailViewModel(container.yatraRepository) as T
+            modelClass.isAssignableFrom(YatraAttendanceViewModel::class.java) ->
+                YatraAttendanceViewModel(container.yatraFieldRepository) as T
+            modelClass.isAssignableFrom(YatraTrackingViewModel::class.java) ->
+                YatraTrackingViewModel(
+                    container.yatraFieldRepository,
+                    container.session,
+                    container.positionQueue,
+                ) as T
             else -> error("Unknown ViewModel ${modelClass.name}")
         }
     }

@@ -34,8 +34,16 @@ class PlaceService:
             return self.to_response(place)
         raise NotFoundError("Could not assign a booth code. Try again.")
 
-    def list_places(self) -> PlaceList:
-        return PlaceList(items=[self.to_response(place) for place in self.places.list_recent()])
+    def list_places(self, limit: int, offset: int) -> PlaceList:
+        rows, total = self.places.list_recent(limit, offset)
+        items = [self.to_response(place) for place in rows]
+        return PlaceList(
+            items=items,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=offset + len(items) < total,
+        )
 
     def list_active_codes(self) -> BoothCodeList:
         return BoothCodeList(

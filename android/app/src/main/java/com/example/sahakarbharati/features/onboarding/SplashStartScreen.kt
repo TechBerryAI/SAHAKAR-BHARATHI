@@ -42,6 +42,7 @@ import com.example.sahakarbharati.R
 import com.example.sahakarbharati.core.copy.AppLanguage
 import com.example.sahakarbharati.core.copy.LocalCopy
 import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
 import com.example.sahakarbharati.core.ui.ApplySystemBarIcons
 import com.example.sahakarbharati.core.ui.LanguageChips
 import com.example.sahakarbharati.core.ui.SaffronButton
@@ -57,9 +58,8 @@ fun SplashStartScreen(
 ) {
     ApplySystemBarIcons(lightIcons = false)
     val copy = LocalCopy.current
-    val hindi = AppLanguage.usesHindiCopy(LocalLanguage.current)
-    val honour = if (hindi) "भारत के अन्न नायकों का सम्मान" else "Honouring India's food heroes"
-    val welcome = if (hindi) "सहकार भारती में आपका स्वागत है" else "Welcome to Sahakar Bharati"
+    val honour = ui("honour")
+    val welcome = ui("welcomeTitle")
 
     Box(
         modifier = modifier

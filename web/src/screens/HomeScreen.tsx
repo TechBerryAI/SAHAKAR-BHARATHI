@@ -100,6 +100,13 @@ export function HomeScreen() {
               </svg>
             </Link>
 
+            <Link className="home-action" to="/yatras">
+              <span className="home-action__copy">
+                <span className="home-action__title">Rath Yatras</span>
+                <span className="home-action__body">See published Yatras, their districts, dates, and stops.</span>
+              </span>
+            </Link>
+
             {staff ? (
               <div className="home-shortcuts">
                 <Link className="home-shortcut" to="/admin">
@@ -111,6 +118,11 @@ export function HomeScreen() {
                   <span className="home-shortcut__kicker">Admin</span>
                   <span className="home-shortcut__title">Booths</span>
                   <span className="home-shortcut__body">Create a booth, print its QR, and see who checked in.</span>
+                </Link>
+                <Link className="home-shortcut" to="/admin/yatras">
+                  <span className="home-shortcut__kicker">Admin</span>
+                  <span className="home-shortcut__title">Yatras</span>
+                  <span className="home-shortcut__body">Plan a Rath Yatra, its stops, and its approvals.</span>
                 </Link>
               </div>
             ) : null}

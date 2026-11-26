@@ -62,6 +62,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.sahakarbharati.core.copy.LocalCopy
+import com.example.sahakarbharati.core.copy.LocalLanguage
+import com.example.sahakarbharati.core.copy.ui
+import com.example.sahakarbharati.core.copy.uiKnown
+import com.example.sahakarbharati.core.copy.uiText
 import com.example.sahakarbharati.core.copy.formatMobile
 import com.example.sahakarbharati.core.copy.regionLabel
 import com.example.sahakarbharati.core.ui.GhostNavyButton
@@ -88,17 +92,19 @@ fun AttendanceScreen(
     modifier: Modifier = Modifier,
 ) {
     val copy = LocalCopy.current
+    val language = LocalLanguage.current
     val session = rememberAppSession()
+    val accountEpoch by session.epoch
     val hostView = LocalView.current
     SideEffect {
         hostView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
     }
     val viewModel: AttendanceViewModel = sahakarViewModel()
     val ui = viewModel.state
-    var code by remember { mutableStateOf("") }
-    var lockedCode by remember { mutableStateOf("") }
-    var lockedUntil by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) { viewModel.load() }
+    var code by remember(accountEpoch) { mutableStateOf("") }
+    var lockedCode by remember(accountEpoch) { mutableStateOf("") }
+    var lockedUntil by remember(accountEpoch) { mutableLongStateOf(0L) }
+    LaunchedEffect(accountEpoch) { viewModel.load() }
 
     fun submit(raw: String, source: String) {
         val parsed = if (source == "qr") BoothCode.fromQr(raw) else BoothCode.fromManual(raw)
@@ -128,7 +134,7 @@ fun AttendanceScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ui.error?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(message, color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
+                Text(uiKnown(message), color = RathYatraColors.Emergency, style = MaterialTheme.typography.bodyMedium)
             }
             WhiteCard {
                 Column(
@@ -138,7 +144,7 @@ fun AttendanceScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(copy.scannerActive, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium, fontSize = 18.sp)
                         Text(
-                            "Scan the QR on the booth banner, or type the 6-digit code printed under it.",
+                            ui("scanBanner"),
                             color = RathYatraColors.Navy.copy(alpha = 0.7f),
                             fontSize = 14.sp,
                         )
@@ -184,8 +190,14 @@ fun AttendanceScreen(
                             ui.history.forEach { visit ->
                                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                     Text(visit.placeName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
-                                    Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
+                                    Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate, language), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
                                 }
+                            }
+                            if (ui.hasMore) {
+                                com.example.sahakarbharati.core.ui.GhostNavyButton(
+                                    text = if (ui.loadingMore) uiText(language, "pleaseWait") else uiText(language, "loadMore"),
+                                    onClick = { if (!ui.loadingMore) viewModel.loadMore() },
+                                )
                             }
                         }
                     }
@@ -197,6 +209,7 @@ fun AttendanceScreen(
 
 @Composable
 private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
+    val language = LocalLanguage.current
     val copy = LocalCopy.current
     val region = regionLabel(visit.district, visit.state)
     WhiteCard {
@@ -208,7 +221,7 @@ private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
                 fontSize = 20.sp,
             )
             Text(visit.placeName, color = RathYatraColors.Saffron, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
+            Text(formatVisitTime(visit.checkedInAt, visit.attendanceDate, language), color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
             Text(copy.recordedDetails, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 13.sp)
             Text(visit.fullName, color = RathYatraColors.Navy, fontWeight = FontWeight.Medium)
             Text(formatMobile(visit.mobile), color = RathYatraColors.Navy, fontSize = 14.sp)
@@ -221,7 +234,12 @@ private fun VisitResultCard(visit: AttendanceRecordDto, already: Boolean) {
 }
 
 @Composable
-private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit, onDigits: (String) -> Unit) {
+internal fun BoothCamera(
+    enabled: Boolean,
+    onCode: (String) -> Unit,
+    onDigits: (String) -> Unit,
+    accept: (String) -> String? = { raw -> BoothCode.fromQr(raw) },
+) {
     val copy = LocalCopy.current
     val context = LocalContext.current
     val hasCamera = remember {
@@ -236,12 +254,17 @@ private fun BoothCamera(enabled: Boolean, onCode: (String) -> Unit, onDigits: (S
     when {
         !hasCamera -> Text(copy.cameraOff, color = RathYatraColors.Navy.copy(alpha = 0.7f), fontSize = 14.sp)
         !granted -> GhostNavyButton(text = copy.allowCamera, onClick = { launcher.launch(Manifest.permission.CAMERA) })
-        else -> CameraPreview(enabled = enabled, onCode = onCode, onDigits = onDigits)
+        else -> CameraPreview(enabled = enabled, onCode = onCode, onDigits = onDigits, accept = accept)
     }
 }
 
 @Composable
-private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: (String) -> Unit) {
+private fun CameraPreview(
+    enabled: Boolean,
+    onCode: (String) -> Unit,
+    onDigits: (String) -> Unit,
+    accept: (String) -> String?,
+) {
     val copy = LocalCopy.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnDigits by rememberUpdatedState(onDigits)
@@ -355,9 +378,9 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                                         .addOnSuccessListener(mainExecutor) { codes ->
                                             frameReady = true
                                             val raws = codes.mapNotNull { it.rawValue }
-                                            val raw = raws.firstOrNull { BoothCode.fromQr(it) != null } ?: raws.firstOrNull()
+                                            val raw = raws.firstOrNull { accept(it) != null } ?: raws.firstOrNull()
                                             latestRaw = raw
-                                            val digits = raw?.let { BoothCode.fromQr(it) }
+                                            val digits = raw?.let { accept(it) }
                                             seenCode = digits
                                             foreignQr = !raw.isNullOrBlank() && digits == null
                                             if (!raw.isNullOrBlank() && digits != null) {
@@ -398,7 +421,7 @@ private fun CameraPreview(enabled: Boolean, onCode: (String) -> Unit, onDigits: 
                     return@SaffronButton
                 }
                 val raw = latestRaw
-                if (raw.isNullOrBlank() || BoothCode.fromQr(raw) == null) {
+                if (raw.isNullOrBlank() || accept(raw) == null) {
                     hint = copy.scanMiss
                 } else {
                     hint = null

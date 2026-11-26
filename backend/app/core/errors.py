@@ -65,6 +65,21 @@ class InactivePlaceError(AppError):
         super().__init__(status.HTTP_400_BAD_REQUEST, "This booth is not accepting check-ins.")
 
 
+class UnknownCounterError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_404_NOT_FOUND, "That counter was not found.")
+
+
+class InactiveCounterError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_400_BAD_REQUEST, "This counter is not accepting attendance.")
+
+
+class InvalidPositionError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(status.HTTP_422_UNPROCESSABLE_ENTITY, detail)
+
+
 class UnauthorizedError(AppError):
     def __init__(self, detail: str = "Authentication required.") -> None:
         super().__init__(
@@ -88,5 +103,27 @@ class VerificationRequiredError(AppError):
 
 
 class SmsDeliveryError(AppError):
-    def __init__(self, detail: str = "Could not send the verification SMS. Try again.") -> None:
+    """Citizen-facing SMS failure. Gateway-specific reasons stay in operator logs."""
+
+    def __init__(self, detail: str = "Could not send the SMS. Please try again.") -> None:
         super().__init__(status.HTTP_503_SERVICE_UNAVAILABLE, detail)
+
+
+class ServiceUnavailableError(AppError):
+    def __init__(self, detail: str = "Please try again in a moment.") -> None:
+        super().__init__(status.HTTP_503_SERVICE_UNAVAILABLE, detail)
+
+
+class ConflictError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(status.HTTP_409_CONFLICT, detail)
+
+
+class InvalidStateError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(status.HTTP_400_BAD_REQUEST, detail)
+
+
+class InvalidCursorError(AppError):
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_422_UNPROCESSABLE_ENTITY, "That page cursor is not valid.")
