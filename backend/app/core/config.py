@@ -105,9 +105,16 @@ class Settings(BaseSettings):
     # "postgres" shares counters through rate_limit_buckets (one extra round-trip
     # per throttled request) and is required before the process may serve production.
     rate_limit_backend: str = "memory"
+    # Request SQLAlchemy pool. Size for expected concurrent in-flight DB work.
+    # With a remote database (~200–300 ms RTT), each request holds a connection
+    # for the whole handler; 20 simultaneous users need roughly that many slots.
+    # Cap against the Postgres / Supabase connection budget for the role.
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
+    db_pool_timeout_seconds: int = 30
     # The limiter uses its own pool so a burst of throttled requests cannot
     # exhaust the request pool, and a stuck limiter checkout cannot stall reads.
-    # Per instance: request pool_size + max_overflow (5 + 5) plus these (2 + 2).
+    # Per instance: (DB_POOL_SIZE + DB_MAX_OVERFLOW) + (RATE_LIMIT_POOL_*).
     rate_limit_pool_size: int = 2
     rate_limit_max_overflow: int = 2
     rate_limit_pool_timeout_seconds: int = 5
@@ -211,9 +218,9 @@ class Settings(BaseSettings):
         return {
             "pool_pre_ping": True,
             "pool_recycle": 1800,
-            "pool_size": 5,
-            "max_overflow": 5,
-            "pool_timeout": 30,
+            "pool_size": self.db_pool_size,
+            "max_overflow": self.db_max_overflow,
+            "pool_timeout": self.db_pool_timeout_seconds,
             "connect_args": connect_args,
         }
 
@@ -290,6 +297,9 @@ class Settings(BaseSettings):
             ("POSITION_BATCH_RATE_LIMIT", self.position_batch_rate_limit),
             ("POSITION_BATCH_RATE_WINDOW_SECONDS", self.position_batch_rate_window_seconds),
             ("COUNTER_SCAN_LOCATION_MAX_AGE_SECONDS", self.counter_scan_location_max_age_seconds),
+            ("DB_POOL_SIZE", self.db_pool_size),
+            ("DB_MAX_OVERFLOW", self.db_max_overflow),
+            ("DB_POOL_TIMEOUT_SECONDS", self.db_pool_timeout_seconds),
             ("RATE_LIMIT_POOL_SIZE", self.rate_limit_pool_size),
             ("RATE_LIMIT_MAX_OVERFLOW", self.rate_limit_max_overflow),
             ("RATE_LIMIT_POOL_TIMEOUT_SECONDS", self.rate_limit_pool_timeout_seconds),

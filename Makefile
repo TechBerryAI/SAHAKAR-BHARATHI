@@ -16,7 +16,14 @@ endif
 .PHONY: help start android android-prod android-logs \
 	test test-backend test-web test-android test-scripts \
 	lint lint-backend lint-web \
-	install install-backend install-web migrate api web hooks secrets
+	install install-backend install-web migrate api web hooks secrets \
+	load-test-api load-test load-test-register load-test-browse load-test-both load-test-cleanup
+
+# Load-test knobs (override on the command line, e.g. USERS=10,20 DURATION=30)
+USERS ?= 15,20,30
+DURATION ?= 20
+LOAD_TEST_PORT ?= 8000
+LOAD_TEST_ARGS ?=
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; printf "\nSahakar Bharati\n\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2} END {printf "\n"}' $(MAKEFILE_LIST)
@@ -78,6 +85,51 @@ ifeq ($(OS),Windows_NT)
 else
 	cd web && VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev -- --port 5174 --strictPort
 endif
+
+load-test-api: ## Start API with mocked SMS for load tests (http://127.0.0.1:8000)
+	cd backend && \
+		DB_POOL_SIZE=$${DB_POOL_SIZE:-10} \
+		DB_MAX_OVERFLOW=$${DB_MAX_OVERFLOW:-2} \
+		DB_POOL_TIMEOUT_SECONDS=$${DB_POOL_TIMEOUT_SECONDS:-60} \
+		REGISTER_RATE_LIMIT=$${REGISTER_RATE_LIMIT:-50000} \
+		OTP_SEND_IP_RATE_LIMIT=$${OTP_SEND_IP_RATE_LIMIT:-50000} \
+		OTP_SEND_RATE_LIMIT=$${OTP_SEND_RATE_LIMIT:-500} \
+		OTP_CONFIRM_RATE_LIMIT=$${OTP_CONFIRM_RATE_LIMIT:-50000} \
+		LOGIN_RATE_LIMIT=$${LOGIN_RATE_LIMIT:-500} \
+		LOGIN_IP_RATE_LIMIT=$${LOGIN_IP_RATE_LIMIT:-50000} \
+		OTP_RESEND_SECONDS=$${OTP_RESEND_SECONDS:-5} \
+		../$(VENV_PY) scripts/load_test_server.py --host 0.0.0.0 --port $(LOAD_TEST_PORT)
+
+load-test: ## Simultaneous registration load test (needs load-test-api). USERS=15,20,30
+	cd backend && ../$(VENV_PY) scripts/load_test.py \
+		--scenario register \
+		--base-url http://127.0.0.1:$(LOAD_TEST_PORT) \
+		--users $(USERS) \
+		--cleanup-after \
+		$(LOAD_TEST_ARGS)
+
+load-test-register: load-test ## Alias for make load-test
+
+load-test-browse: ## Concurrent browse load test (needs load-test-api). USERS=15,20,30 DURATION=20
+	cd backend && ../$(VENV_PY) scripts/load_test.py \
+		--scenario browse \
+		--base-url http://127.0.0.1:$(LOAD_TEST_PORT) \
+		--users $(USERS) \
+		--duration $(DURATION) \
+		--cleanup-after \
+		$(LOAD_TEST_ARGS)
+
+load-test-both: ## Register burst then browse (needs load-test-api). USERS=15,20,30
+	cd backend && ../$(VENV_PY) scripts/load_test.py \
+		--scenario both \
+		--base-url http://127.0.0.1:$(LOAD_TEST_PORT) \
+		--users $(USERS) \
+		--duration $(DURATION) \
+		--cleanup-after \
+		$(LOAD_TEST_ARGS)
+
+load-test-cleanup: ## Delete disposable load-test users (70000000xx)
+	cd backend && ../$(VENV_PY) scripts/load_test.py --cleanup
 
 hooks: ## Use the repository git hooks
 	git config core.hooksPath .githooks
